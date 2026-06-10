@@ -39,7 +39,7 @@
 
     {{-- Products --}}
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Products</div>
-    <a href="{{ route('products') }}" class="nav-item-link {{ request()->routeIs('products') ? 'active' : '' }}">
+    <a href="{{ route('products.index') }}" class="nav-item-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-capsule"></i></span>
       <span x-show="!sidebarCollapsed">Product Master</span>
     </a>
