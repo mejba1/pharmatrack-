@@ -1,0 +1,313 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient Portal — PharmaTrack</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/app.css" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('darkMode')==='true'?'dark':'light');</script>
+  <style>
+    .portal-hero { background: linear-gradient(135deg, #0d6efd 0%, #1a2035 100%); color:#fff; border-radius:16px; padding:36px; margin-bottom:28px; }
+    .portal-feature { border-radius:12px; padding:20px; border:1px solid #e9ecef; transition:all 0.2s; cursor:pointer; background:#fff; }
+    .portal-feature:hover { border-color:#0d6efd; box-shadow:0 4px 16px rgba(13,110,253,0.12); transform:translateY(-2px); }
+    .portal-feature .feature-icon { width:48px;height:48px; border-radius:12px; display:flex;align-items:center;justify-content:center; font-size:22px; margin-bottom:12px; }
+  </style>
+</head>
+<body x-data="layoutData('Patient Portal')">
+<main class="main-content" :class="{'collapsed': sidebarCollapsed}" x-data="patientPortalPage()">
+
+  <div class="page-header">
+    <div><h1>Patient Portal</h1><div class="page-breadcrumb"><a href="dashboard.html">Home</a> / Patient Portal</div></div>
+    <div class="d-flex gap-2">
+      <a href="#public-verify" class="btn btn-outline-primary btn-sm"><i class="bi bi-qr-code me-1"></i>Public Verification</a>
+    </div>
+  </div>
+
+  <!-- Hero Banner -->
+  <div class="portal-hero">
+    <div class="row align-items-center">
+      <div class="col-md-7">
+        <h2 class="fw-bold mb-2">Your Medicine, Verified & Tracked</h2>
+        <p class="mb-3" style="opacity:0.85">Verify product authenticity, track your orders, and access complete batch information — all in one place.</p>
+        <div class="d-flex gap-2 flex-wrap">
+          <button class="btn btn-light fw-semibold" @click="activeTab='verify'"><i class="bi bi-qr-code-scan me-2"></i>Verify a Product</button>
+          <button class="btn btn-outline-light" @click="activeTab='track'"><i class="bi bi-truck me-2"></i>Track My Order</button>
+        </div>
+      </div>
+      <div class="col-md-5 text-center d-none d-md-block">
+        <i class="bi bi-shield-check" style="font-size:100px;opacity:0.3"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feature Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="portal-feature text-center" @click="activeTab='verify'">
+        <div class="feature-icon mx-auto bg-light-primary text-primary"><i class="bi bi-qr-code-scan"></i></div>
+        <div class="fw-semibold mb-1">Verify Product</div>
+        <div class="text-muted-sm">Scan or enter UUC to check authenticity</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="portal-feature text-center" @click="activeTab='track'">
+        <div class="feature-icon mx-auto bg-light-success text-success"><i class="bi bi-truck"></i></div>
+        <div class="fw-semibold mb-1">Track Order</div>
+        <div class="text-muted-sm">Real-time shipment & delivery status</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="portal-feature text-center" @click="activeTab='history'">
+        <div class="feature-icon mx-auto bg-light-warning" style="color:#c97b00"><i class="bi bi-clock-history"></i></div>
+        <div class="fw-semibold mb-1">Order History</div>
+        <div class="text-muted-sm">View all your past orders & deliveries</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="portal-feature text-center" @click="activeTab='report'">
+        <div class="feature-icon mx-auto bg-light-danger text-danger"><i class="bi bi-flag"></i></div>
+        <div class="fw-semibold mb-1">Report Issue</div>
+        <div class="text-muted-sm">Report a suspected counterfeit or problem</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pills-nav mb-3">
+    <button class="pill-btn" :class="{active:activeTab==='verify'}"  @click="activeTab='verify'"><i class="bi bi-qr-code-scan me-1"></i>Verify Product</button>
+    <button class="pill-btn" :class="{active:activeTab==='track'}"   @click="activeTab='track'"><i class="bi bi-truck me-1"></i>Track Order</button>
+    <button class="pill-btn" :class="{active:activeTab==='history'}" @click="activeTab='history'"><i class="bi bi-clock-history me-1"></i>Order History</button>
+    <button class="pill-btn" :class="{active:activeTab==='report'}"  @click="activeTab='report'"><i class="bi bi-flag me-1"></i>Report Issue</button>
+    <button class="pill-btn" :class="{active:activeTab==='admin'}"   @click="activeTab='admin'"><i class="bi bi-gear me-1"></i>Portal Admin</button>
+  </div>
+
+  <!-- Verify Tab -->
+  <div x-show="activeTab==='verify'" id="public-verify">
+    <div class="row g-4 justify-content-center">
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-qr-code-scan me-2 text-primary"></i>Product Verification</h6>
+            <p class="text-muted-sm mb-3">No login required. Enter the Unit Unique Code (UUC) printed on your medicine packaging or scan its QR code.</p>
+            <div class="mb-3">
+              <label class="form-label">UUC / Product Code</label>
+              <input type="text" class="form-control" placeholder="e.g. UUC-00142-2601003-L01-000874-X9" x-model="uucInput">
+            </div>
+            <button class="btn btn-primary w-100 mb-2" @click="runVerify()"><i class="bi bi-shield-check me-2"></i>Verify Now</button>
+            <div class="row g-2 mt-1">
+              <div class="col-6"><button class="btn btn-outline-success w-100 btn-sm" @click="runVerify('genuine')">Demo: Genuine</button></div>
+              <div class="col-6"><button class="btn btn-outline-danger w-100 btn-sm" @click="runVerify('fake')">Demo: Counterfeit</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card mt-3">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-2" style="font-size:13px"><i class="bi bi-info-circle me-2 text-primary"></i>Where to find the UUC?</h6>
+            <div class="text-muted-sm">The UUC is printed on the <strong>primary packaging</strong> (blister, vial, or bottle label) as both a QR code and a plain alphanumeric code starting with <code>UUC-</code>.</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <!-- No result -->
+        <div class="card" x-show="!verifyResult">
+          <div class="card-body text-center py-5">
+            <i class="bi bi-shield" style="font-size:64px;color:#dee2e6"></i>
+            <div class="text-muted mt-3 fw-semibold">Enter a UUC code to verify</div>
+            <div class="text-muted-sm">Your product's authenticity will be checked against our secure database</div>
+          </div>
+        </div>
+        <!-- Genuine -->
+        <div class="card border-success" x-show="verifyResult==='genuine'">
+          <div class="card-body">
+            <div class="text-center py-3 border-bottom mb-4">
+              <div style="font-size:64px">✅</div>
+              <h4 class="fw-bold text-success">GENUINE PRODUCT</h4>
+              <p class="text-muted mb-0">Verified against PharmaTrack secure database</p>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <h6 class="fw-semibold text-muted mb-3" style="font-size:11px;text-transform:uppercase;letter-spacing:1px">PRODUCT INFORMATION</h6>
+                <div class="d-flex flex-column gap-2" style="font-size:13px">
+                  <div class="d-flex justify-content-between"><span class="text-muted">Brand Name</span><span class="fw-semibold">Amoxil 500 Capsule</span></div>
+                  <div class="d-flex justify-content-between"><span class="text-muted">Generic Name</span><span>Amoxicillin</span></div>
+                  <div class="d-flex justify-content-between"><span class="text-muted">Strength</span><span>500mg</span></div>
+                  <div class="d-flex justify-content-between"><span class="text-muted">Manufacturer</span><span class="fw-semibold">GSK Inc.</span></div>
+                  <div class="d-flex justify-content-between"><span class="text-muted">Country</span><span>🇺🇸 United States</span></div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <h6 class="fw-semibold text-muted mb-3" style="font-size:11px;text-transform:uppercase;letter-spacing:1px">BATCH & EXPIRY</h6>
+                <div class="d-flex flex-column gap-2" style="font-size:13px">
+                  <div class="d-flex justify-content-between"><span class="text-muted">Batch No.</span><span class="fw-semibold">BRN-00142-2601-003</span></div>
+                  <div class="d-flex justify-content-between"><span class="text-muted">Mfg. Date</span><span>Jan 15, 2026</span></div>
+                  <div class="d-flex justify-content-between"><span class="text-muted">Expiry Date</span><span class="fw-semibold text-success">Jul 10, 2026</span></div>
+                  <div class="d-flex justify-content-between"><span class="text-muted">QC Released</span><span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Yes</span></div>
+                  <div class="d-flex justify-content-between"><span class="text-muted">Scan Count</span><span><span class="badge bg-success">1st scan ✓</span></span></div>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="info-box success"><i class="bi bi-patch-check-fill text-success mt-1 fs-5"></i><div style="font-size:13px"><strong>Authorized for Philippines.</strong> This product is registered and approved for distribution in your country. Storage: Ambient 15–25°C.</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Counterfeit -->
+        <div class="card border-danger" x-show="verifyResult==='counterfeit'">
+          <div class="card-body text-center py-4">
+            <div style="font-size:64px">🚨</div>
+            <h4 class="fw-bold text-danger">VERIFICATION FAILED</h4>
+            <p class="text-muted">This product could not be verified. It may be counterfeit.</p>
+            <div class="info-box danger text-start mb-3">
+              <i class="bi bi-exclamation-triangle-fill text-danger mt-1 fs-5"></i>
+              <div style="font-size:13px"><strong>Do NOT use this product.</strong> This code does not match any registered product in our database. Do not consume or distribute. Contact your healthcare provider immediately.</div>
+            </div>
+            <button class="btn btn-danger" @click="activeTab='report'"><i class="bi bi-flag me-2"></i>Report This Product</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Track Order Tab -->
+  <div x-show="activeTab==='track'">
+    <div class="row g-3 justify-content-center">
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-truck me-2 text-primary"></i>Track Your Order</h6>
+            <div class="mb-3"><label class="form-label">Order / Tracking Number</label><input type="text" class="form-control" placeholder="Enter shipment ID or tracking number" x-model="trackingInput"></div>
+            <button class="btn btn-primary w-100"><i class="bi bi-search me-2"></i>Track</button>
+            <div class="mt-3 text-center"><button class="btn btn-outline-secondary btn-sm" @click="trackingInput='SHP-2026-0498';showTracking=true">Demo: Show Tracking</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-8" x-show="showTracking">
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div><div class="fw-semibold">SHP-2026-0498</div><div class="text-muted-sm">DHL Express · 1Z999AA10123456784</div></div>
+              <span class="badge-status badge-shipped">In Transit</span>
+            </div>
+            <div class="row g-3 mb-3">
+              <div class="col-4 text-center"><div class="text-muted-sm">From</div><div class="fw-semibold" style="font-size:13px">🇺🇸 Los Angeles</div></div>
+              <div class="col-4 text-center"><div><i class="bi bi-arrow-right fs-4 text-primary"></i></div></div>
+              <div class="col-4 text-center"><div class="text-muted-sm">To</div><div class="fw-semibold" style="font-size:13px">🇵🇭 Manila</div></div>
+            </div>
+            <h6 class="fw-semibold mb-3" style="font-size:13px">Tracking Events</h6>
+            <div class="timeline">
+              <div class="timeline-item"><div class="timeline-dot done"></div><div class="timeline-time">Jun 10, 10:42 AM</div><div class="timeline-label">Departed — Singapore Hub</div><div class="timeline-desc">Singapore, SG</div></div>
+              <div class="timeline-item"><div class="timeline-dot done"></div><div class="timeline-time">Jun 9, 06:15 PM</div><div class="timeline-label">In Transit — International</div><div class="timeline-desc">Hong Kong → Singapore</div></div>
+              <div class="timeline-item"><div class="timeline-dot done"></div><div class="timeline-time">Jun 8, 02:30 PM</div><div class="timeline-label">Customs Cleared</div><div class="timeline-desc">Los Angeles, USA</div></div>
+              <div class="timeline-item"><div class="timeline-dot done"></div><div class="timeline-time">Jun 7, 09:00 AM</div><div class="timeline-label">Picked up by DHL</div><div class="timeline-desc">Warehouse, Los Angeles</div></div>
+              <div class="timeline-item"><div class="timeline-dot pending"></div><div class="timeline-time">Jun 14 (ETA)</div><div class="timeline-label">Delivery to Consignee</div><div class="timeline-desc">Manila, Philippines</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order History Tab -->
+  <div x-show="activeTab==='history'">
+    <div class="card table-card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Order Ref</th><th>Products</th><th>Quantity</th><th>Order Date</th><th>Status</th><th>Tracking</th></tr></thead>
+            <tbody>
+              <template x-for="h in orderHistory" :key="h.id">
+                <tr>
+                  <td class="fw-semibold text-primary" style="font-size:13px" x-text="h.id"></td>
+                  <td style="font-size:13px" x-text="h.products"></td>
+                  <td style="font-size:13px" x-text="h.qty"></td>
+                  <td style="font-size:13px" x-text="h.date"></td>
+                  <td><span class="badge-status" :class="'badge-' + h.statusClass" x-text="h.status"></span></td>
+                  <td><code style="font-size:12px" x-text="h.tracking"></code></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Issue Tab -->
+  <div x-show="activeTab==='report'">
+    <div class="row justify-content-center">
+      <div class="col-md-7">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-flag me-2 text-danger"></i>Report a Product Issue</h6>
+            <div class="info-box warn mb-3"><i class="bi bi-exclamation-triangle text-warning mt-1"></i><div style="font-size:13px">If you believe a product is counterfeit or harmful, report it immediately. Your report is confidential and will be investigated by our team.</div></div>
+            <div class="row g-3">
+              <div class="col-md-6"><label class="form-label">Issue Type <span class="text-danger">*</span></label><select class="form-select"><option>Suspected Counterfeit</option><option>Incorrect Product Received</option><option>Damaged Packaging</option><option>Quality Issue</option><option>Other</option></select></div>
+              <div class="col-md-6"><label class="form-label">UUC / Product Code</label><input type="text" class="form-control" placeholder="UUC-XXXXX or N/A"></div>
+              <div class="col-md-6"><label class="form-label">Your Name</label><input type="text" class="form-control"></div>
+              <div class="col-md-6"><label class="form-label">Contact (Email / Phone)</label><input type="text" class="form-control"></div>
+              <div class="col-12"><label class="form-label">Location / Country <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="City, Country"></div>
+              <div class="col-12"><label class="form-label">Description <span class="text-danger">*</span></label><textarea class="form-control" rows="4" placeholder="Please describe the issue in detail..."></textarea></div>
+              <div class="col-12"><label class="form-label">Attach Photos / Documents</label><input type="file" class="form-control" multiple accept="image/*,.pdf"></div>
+              <div class="col-12"><button class="btn btn-danger w-100"><i class="bi bi-send me-2"></i>Submit Report</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Portal Admin Tab -->
+  <div x-show="activeTab==='admin'">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Patient Registrations</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-4 text-center p-3 bg-light rounded-3"><div class="fw-bold fs-4 text-primary">2,841</div><div class="text-muted-sm">Registered</div></div>
+              <div class="col-4 text-center p-3 bg-light rounded-3"><div class="fw-bold fs-4 text-success">2,612</div><div class="text-muted-sm">Verified</div></div>
+              <div class="col-4 text-center p-3 bg-light rounded-3"><div class="fw-bold fs-4 text-warning">229</div><div class="text-muted-sm">Pending</div></div>
+            </div>
+            <button class="btn btn-outline-primary btn-sm"><i class="bi bi-people me-1"></i>Manage Patients</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Issue Reports This Month</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-4 text-center p-3 bg-light rounded-3"><div class="fw-bold fs-4 text-danger">14</div><div class="text-muted-sm">Total Reports</div></div>
+              <div class="col-4 text-center p-3 bg-light rounded-3"><div class="fw-bold fs-4 text-warning">5</div><div class="text-muted-sm">Open</div></div>
+              <div class="col-4 text-center p-3 bg-light rounded-3"><div class="fw-bold fs-4 text-success">9</div><div class="text-muted-sm">Resolved</div></div>
+            </div>
+            <button class="btn btn-outline-danger btn-sm"><i class="bi bi-flag me-1"></i>View All Reports</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="../js/layout.js"></script><script src="../js/layout-inject.js"></script><script src="../js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => injectLayout('Patient Portal', 'patient-portal'));
+function patientPortalPage() {
+  return {
+    activeTab:'verify', uucInput:'', verifyResult:null, trackingInput:'', showTracking:false,
+    runVerify(type) {
+      if (type) { this.verifyResult = type==='genuine' ? 'genuine' : 'counterfeit'; return; }
+      this.verifyResult = this.uucInput.toLowerCase().includes('fake') ? 'counterfeit' : 'genuine';
+    },
+    orderHistory:[
+      { id:'ORD-2026-0091', products:'Amoxil 500 Capsule', qty:'30 capsules', date:'Jun 1, 2026',  status:'Delivered', statusClass:'delivered', tracking:'1Z999AA10123456784' },
+      { id:'ORD-2026-0074', products:'Metformin SR 850mg', qty:'60 tablets',  date:'May 10, 2026', status:'Delivered', statusClass:'delivered', tracking:'EE9876543NG' },
+      { id:'ORD-2026-0055', products:'Vitamin C 1000mg',   qty:'90 tablets',  date:'Apr 15, 2026', status:'Delivered', statusClass:'delivered', tracking:'4455667788' },
+    ],
+  };
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anti-Counterfeit — PharmaTrack</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/app.css" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('darkMode')==='true'?'dark':'light');</script>
+</head>
+<body x-data="layoutData('Anti-Counterfeit')">
+<main class="main-content" :class="{'collapsed': sidebarCollapsed}" x-data="acPage()">
+
+  <div class="page-header">
+    <div><h1>Anti-Counterfeit System</h1><div class="page-breadcrumb"><a href="dashboard.html">Home</a> / Anti-Counterfeit</div></div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>Export Report</button>
+      <button class="btn btn-primary btn-sm" @click="activeTab='verify'"><i class="bi bi-qr-code-scan me-1"></i>Verify UUC</button>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-2"><div class="stat-card stat-success"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-qr-code" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">24.5K</div><div class="stat-label">Scans Today</div></div></div></div>
+    <div class="col-6 col-md-2"><div class="stat-card stat-primary"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-shield-check" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">24,491</div><div class="stat-label">Genuine</div></div></div></div>
+    <div class="col-6 col-md-2"><div class="stat-card stat-danger"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-shield-exclamation" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">7</div><div class="stat-label">Alerts</div></div></div></div>
+    <div class="col-6 col-md-2"><div class="stat-card stat-warning"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-exclamation-diamond" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">3</div><div class="stat-label">Under Investigation</div></div></div></div>
+    <div class="col-6 col-md-2"><div class="stat-card stat-info"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-globe2" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">38</div><div class="stat-label">Countries Scanned</div></div></div></div>
+    <div class="col-6 col-md-2"><div class="stat-card stat-success"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-layers" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">4.2M</div><div class="stat-label">UUC Generated</div></div></div></div>
+  </div>
+
+  <div class="pills-nav mb-3">
+    <button class="pill-btn" :class="{active:activeTab==='verify'}"   @click="activeTab='verify'"><i class="bi bi-search me-1"></i>Verify UUC</button>
+    <button class="pill-btn" :class="{active:activeTab==='alerts'}"   @click="activeTab='alerts'"><i class="bi bi-shield-exclamation me-1"></i>Alerts <span class="badge bg-danger ms-1">7</span></button>
+    <button class="pill-btn" :class="{active:activeTab==='anomaly'}"  @click="activeTab='anomaly'"><i class="bi bi-exclamation-triangle me-1"></i>Anomaly Rules</button>
+    <button class="pill-btn" :class="{active:activeTab==='analytics'}" @click="activeTab='analytics'"><i class="bi bi-bar-chart me-1"></i>Scan Analytics</button>
+  </div>
+
+  <!-- Verify Tab -->
+  <div x-show="activeTab==='verify'">
+    <div class="row g-4">
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-qr-code-scan me-2 text-primary"></i>Verify Unit Unique Code (UUC)</h6>
+            <div class="mb-3">
+              <label class="form-label">Enter UUC or scan QR code</label>
+              <div class="input-group">
+                <input type="text" class="form-control" placeholder="UUC-00142-2601003-L01-000874-X9" x-model="uucInput" @keyup.enter="verifyUUC()">
+                <button class="btn btn-primary" @click="verifyUUC()"><i class="bi bi-search"></i></button>
+              </div>
+              <div class="text-muted-sm mt-1">Format: UUC-[PRN]-[BRN]-[Lot]-[Unit]-[Checksum]</div>
+            </div>
+            <div class="text-center mb-3">
+              <span class="text-muted-sm">— or —</span>
+            </div>
+            <button class="btn btn-outline-primary w-100 mb-2" @click="verifyUUC('UUC-00142-2601003-L01-000874-X9')">
+              <i class="bi bi-qr-code me-2"></i>Demo: Genuine Product
+            </button>
+            <button class="btn btn-outline-danger w-100" @click="verifyUUC('UUC-00089-FAKE-001')">
+              <i class="bi bi-shield-exclamation me-2"></i>Demo: Counterfeit Alert
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <div class="qr-card" x-show="!verifyResult">
+          <i class="bi bi-shield-check" style="font-size:64px;color:#dee2e6"></i>
+          <div class="text-muted mt-3">Enter a UUC code to verify product authenticity</div>
+          <div class="text-muted-sm mt-1">No login required for basic verification</div>
+        </div>
+        <!-- Genuine Result -->
+        <div class="card" x-show="verifyResult==='genuine'">
+          <div class="card-body text-center py-4">
+            <div class="qr-result-icon">✅</div>
+            <h4 class="fw-bold text-success mb-1">GENUINE PRODUCT</h4>
+            <p class="text-muted mb-3">This product has been verified as authentic.</p>
+            <div class="row g-2 text-start">
+              <div class="col-6"><div class="p-2 bg-light rounded-3"><div class="text-muted-sm">Product</div><div class="fw-semibold" style="font-size:13px">Amoxil 500 Capsule</div></div></div>
+              <div class="col-6"><div class="p-2 bg-light rounded-3"><div class="text-muted-sm">Manufacturer</div><div class="fw-semibold" style="font-size:13px">GSK Inc.</div></div></div>
+              <div class="col-6"><div class="p-2 bg-light rounded-3"><div class="text-muted-sm">Batch</div><div class="fw-semibold" style="font-size:13px">BRN-00142-2601-003</div></div></div>
+              <div class="col-6"><div class="p-2 bg-light rounded-3"><div class="text-muted-sm">Expiry</div><div class="fw-semibold" style="font-size:13px">Jul 10, 2026</div></div></div>
+              <div class="col-6"><div class="p-2 bg-light rounded-3"><div class="text-muted-sm">Scan Count</div><div class="fw-semibold" style="font-size:13px">1st scan ✓</div></div></div>
+              <div class="col-6"><div class="p-2 bg-light rounded-3"><div class="text-muted-sm">Status</div><div class="fw-semibold text-success" style="font-size:13px">Authorized in Philippines</div></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Counterfeit Result -->
+        <div class="card border-danger" x-show="verifyResult==='counterfeit'">
+          <div class="card-body text-center py-4">
+            <div class="qr-result-icon">🚨</div>
+            <h4 class="fw-bold text-danger mb-1">COUNTERFEIT ALERT</h4>
+            <p class="text-muted mb-3">This code could not be verified. Do not use this product.</p>
+            <div class="info-box danger mb-3"><i class="bi bi-shield-exclamation text-danger mt-1 fs-5"></i><div style="font-size:13px"><strong>Action Required:</strong> Report this product immediately. Do not consume or distribute. Contact your healthcare provider.</div></div>
+            <button class="btn btn-danger w-100"><i class="bi bi-flag me-2"></i>Report Counterfeit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerts Tab -->
+  <div x-show="activeTab==='alerts'">
+    <div class="card table-card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Alert ID</th><th>UUC</th><th>Product / Batch</th><th>Anomaly Type</th><th>Location</th><th>Scan Time</th><th>Severity</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+              <template x-for="a in alerts" :key="a.id">
+                <tr>
+                  <td><span class="text-danger fw-semibold" style="font-size:12px" x-text="a.id"></span></td>
+                  <td><code style="font-size:11px" x-text="a.uuc"></code></td>
+                  <td><div class="fw-semibold" style="font-size:13px" x-text="a.product"></div><div class="text-muted-sm" x-text="a.batch"></div></td>
+                  <td style="font-size:13px" x-text="a.anomaly"></td>
+                  <td><div style="font-size:13px" x-text="a.city"></div><div class="text-muted-sm" x-text="a.country"></div></td>
+                  <td style="font-size:12px" x-text="a.time"></td>
+                  <td><span class="badge" :class="a.severity==='High'?'bg-danger':a.severity==='Medium'?'bg-warning text-dark':'bg-secondary'" style="font-size:11px" x-text="a.severity"></span></td>
+                  <td><span class="badge-status" :class="'badge-' + a.statusClass" x-text="a.status"></span></td>
+                  <td>
+                    <div class="d-flex gap-1">
+                      <button class="btn btn-outline-primary btn-sm btn-icon"><i class="bi bi-eye"></i></button>
+                      <button class="btn btn-outline-warning btn-sm btn-icon" title="Investigate"><i class="bi bi-search"></i></button>
+                      <button class="btn btn-outline-success btn-sm btn-icon" title="Resolve"><i class="bi bi-check2"></i></button>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Anomaly Rules Tab -->
+  <div x-show="activeTab==='anomaly'">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="fw-semibold mb-3">Anomaly Detection Rules</h6>
+        <div class="row g-3">
+          <template x-for="rule in anomalyRules" :key="rule.id">
+            <div class="col-md-6">
+              <div class="p-3 border rounded-3 d-flex gap-3">
+                <div class="mt-1"><i :class="rule.icon" class="bi fs-4" :style="'color:' + rule.color"></i></div>
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <div class="fw-semibold" style="font-size:13px" x-text="rule.name"></div>
+                    <div class="form-check form-switch mb-0">
+                      <input class="form-check-input" type="checkbox" :checked="rule.enabled">
+                    </div>
+                  </div>
+                  <div class="text-muted-sm mt-1" x-text="rule.desc"></div>
+                  <div class="mt-2 d-flex gap-2">
+                    <span class="badge bg-light text-secondary" style="font-size:11px" x-text="'Threshold: ' + rule.threshold"></span>
+                    <span class="badge" :class="rule.enabled ? 'bg-success' : 'bg-secondary'" style="font-size:11px" x-text="rule.enabled ? 'Active' : 'Disabled'"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics Tab -->
+  <div x-show="activeTab==='analytics'">
+    <div class="row g-3">
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Daily Scan Volume (Last 14 Days)</h6>
+            <div class="mini-chart" style="height:100px"></div>
+            <div class="d-flex justify-content-between mt-2">
+              <span class="text-muted-sm">May 27</span><span class="text-muted-sm">Jun 9</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Scans by Country (Today)</h6>
+            <div class="d-flex flex-column gap-2">
+              <template x-for="c in scanCountries" :key="c.name">
+                <div>
+                  <div class="d-flex justify-content-between mb-1"><span style="font-size:13px" x-text="c.flag + ' ' + c.name"></span><span class="fw-semibold" style="font-size:12px" x-text="c.scans.toLocaleString()"></span></div>
+                  <div class="progress" style="height:5px;border-radius:3px"><div class="progress-bar" :style="'width:' + c.pct + '%'"></div></div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Most Scanned Products Today</h6>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0">
+                <thead><tr><th>Product</th><th>PRN</th><th>Scans</th><th>Genuine</th><th>Alerts</th><th>Top Country</th></tr></thead>
+                <tbody>
+                  <template x-for="p in topProducts" :key="p.prn">
+                    <tr>
+                      <td class="fw-semibold" style="font-size:13px" x-text="p.name"></td>
+                      <td><span class="text-primary" style="font-size:12px" x-text="p.prn"></span></td>
+                      <td x-text="p.scans.toLocaleString()"></td>
+                      <td class="text-success" x-text="p.genuine.toLocaleString()"></td>
+                      <td><span x-show="p.alerts > 0" class="badge bg-danger" style="font-size:11px" x-text="p.alerts"></span><span x-show="p.alerts===0" class="text-muted-sm">—</span></td>
+                      <td style="font-size:13px" x-text="p.topCountry"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="../js/layout.js"></script><script src="../js/layout-inject.js"></script><script src="../js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => injectLayout('Anti-Counterfeit', 'anticounterfeit'));
+function acPage() {
+  return {
+    activeTab:'verify', uucInput:'', verifyResult:null,
+    verifyUUC(code) {
+      const input = code || this.uucInput;
+      this.verifyResult = input.includes('FAKE') ? 'counterfeit' : 'genuine';
+    },
+    alerts:[
+      { id:'ALT-2026-007', uuc:'UUC-00089-FAKE-001', product:'Insulax R Injection', batch:'Unknown', anomaly:'Duplicate scan (3×)', city:'Lagos', country:'🇳🇬 Nigeria', time:'Jun 10, 09:42 AM', severity:'High', status:'Open', statusClass:'hold' },
+      { id:'ALT-2026-006', uuc:'UUC-00142-CLONE-X',  product:'Amoxil 500 Capsule',  batch:'Unknown', anomaly:'Invalid checksum',   city:'Cairo', country:'🇪🇬 Egypt',  time:'Jun 9, 03:15 PM',  severity:'High', status:'Investigating', statusClass:'pending' },
+      { id:'ALT-2026-005', uuc:'UUC-00231-2602002-X', product:'Metformin SR 850mg', batch:'BRN-00231-2602-002', anomaly:'Scan outside auth. country', city:'Mumbai', country:'🇮🇳 India', time:'Jun 9, 11:00 AM', severity:'Medium', status:'Open', statusClass:'hold' },
+      { id:'ALT-2026-004', uuc:'UUC-00018-2604001-Y', product:'Hep-B Vaccine',      batch:'BRN-00018-2604-001', anomaly:'Expired UUC scan attempt',  city:'Accra',  country:'🇬🇭 Ghana', time:'Jun 8, 07:30 AM', severity:'Low',    status:'Resolved', statusClass:'active' },
+    ],
+    anomalyRules:[
+      { id:1, name:'Duplicate Scan Detection',     icon:'bi-copy',                 color:'#dc3545', desc:'Flag when same UUC is scanned more than N times', threshold:'2 scans/UUC',       enabled:true  },
+      { id:2, name:'Invalid Checksum',             icon:'bi-x-circle',             color:'#dc3545', desc:'Flag UUC codes with invalid or missing checksum',  threshold:'Any invalid',        enabled:true  },
+      { id:3, name:'Unauthorized Country Scan',    icon:'bi-globe2',               color:'#fd7e14', desc:'Flag scan from country not in product auth. list',  threshold:'Any mismatch',       enabled:true  },
+      { id:4, name:'Expired Batch Scan',           icon:'bi-calendar-x',           color:'#fd7e14', desc:'Flag scans for batches past expiry date',           threshold:'Any expired scan',   enabled:true  },
+      { id:5, name:'Velocity Anomaly',             icon:'bi-lightning',            color:'#6f42c1', desc:'Flag when same UUC scanned from multiple countries within short time', threshold:'>2 countries/1hr', enabled:true },
+      { id:6, name:'Unknown UUC Pattern',          icon:'bi-shield-exclamation',   color:'#dc3545', desc:'Flag codes that do not match any generated UUC pattern', threshold:'Any unknown',    enabled:true  },
+      { id:7, name:'Batch Recall Alert',           icon:'bi-arrow-counterclockwise',color:'#dc3545',desc:'Flag any scan of a recalled batch',                  threshold:'Any recalled batch', enabled:true  },
+      { id:8, name:'Geographic Cluster Detection', icon:'bi-geo-alt',              color:'#0dcaf0', desc:'Alert when unusually high scans from one location',   threshold:'>500 scans/hr/loc', enabled:false },
+    ],
+    scanCountries:[ {name:'Philippines',flag:'🇵🇭',scans:8420,pct:90},{name:'Nigeria',flag:'🇳🇬',scans:5210,pct:62},{name:'Bangladesh',flag:'🇧🇩',scans:4180,pct:50},{name:'Egypt',flag:'🇪🇬',scans:3120,pct:37},{name:'Kenya',flag:'🇰🇪',scans:2100,pct:25} ],
+    topProducts:[ {name:'Amoxil 500',prn:'PRN-US-ANT-00142',scans:9200,genuine:9198,alerts:2,topCountry:'🇵🇭 Philippines'},{name:'Metformin SR',prn:'PRN-IN-TAB-00231',scans:7100,genuine:7099,alerts:1,topCountry:'🇳🇬 Nigeria'},{name:'Insulax R',prn:'PRN-BD-INJ-00089',scans:5800,genuine:5794,alerts:4,topCountry:'🇧🇩 Bangladesh'} ],
+  };
+}
+</script>
+</body>
+</html>

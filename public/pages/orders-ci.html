@@ -1,0 +1,293 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Commercial Invoice — PharmaTrack</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/app.css" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('darkMode')==='true'?'dark':'light');</script>
+</head>
+<body x-data="layoutData('Commercial Invoice')">
+<main class="main-content" :class="{'collapsed': sidebarCollapsed}" x-data="ciPage()">
+
+  <div class="page-header">
+    <div><h1>Commercial Invoice</h1><div class="page-breadcrumb"><a href="dashboard.html">Home</a> / Orders / Commercial Invoice</div></div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>Export</button>
+      <button class="btn btn-primary btn-sm" @click="showAddModal=true"><i class="bi bi-plus-lg me-1"></i>Issue CI</button>
+    </div>
+  </div>
+
+  <div class="info-box info mb-4">
+    <i class="bi bi-diagram-2 text-primary mt-1" style="font-size:18px;flex-shrink:0"></i>
+    <div style="font-size:13px">
+      <strong>Order Document Flow:</strong>
+      <a href="orders-po.html" class="text-secondary text-decoration-none">PO</a> →
+      <a href="orders-so.html" class="text-secondary text-decoration-none">SO</a> →
+      <a href="orders-pi.html" class="text-secondary text-decoration-none">PI</a> →
+      <span class="text-primary fw-semibold">CI</span> →
+      <a href="shipments.html" class="text-secondary text-decoration-none">Shipment</a>.
+      <strong>No shipment can be created without a completed and Finance-approved Commercial Invoice.</strong>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-file-earmark-check"></i></div><div><div class="stat-value">156</div><div class="stat-label">Total CIs</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-hourglass-split"></i></div><div><div class="stat-value">31</div><div class="stat-label">Pending Approval</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-check2-circle"></i></div><div><div class="stat-value">98</div><div class="stat-label">Approved</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-info"><div class="stat-icon"><i class="bi bi-truck"></i></div><div><div class="stat-value">27</div><div class="stat-label">Shipment Created</div></div></div></div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4"><div class="search-wrapper"><i class="bi bi-search search-icon"></i><input type="text" class="form-control form-control-sm" placeholder="Search CI number, customer..." x-model="search"></div></div>
+        <div class="col-6 col-md-2"><select class="form-select form-select-sm" x-model="filterStatus"><option value="">All Status</option><option>Draft</option><option>Pending Approval</option><option>Approved</option><option>Shipment Created</option></select></div>
+        <div class="col-6 col-md-2 d-flex gap-1"><button class="btn btn-primary btn-sm flex-fill">Filter</button><button class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card table-card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead><tr>
+            <th><input type="checkbox" class="form-check-input"></th>
+            <th>CI Number</th><th>Linked PI</th><th>Customer</th><th>CI Date</th>
+            <th>HS Code</th><th>Total Value</th><th>Finance</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            <template x-for="ci in filtered" :key="ci.id">
+              <tr>
+                <td><input type="checkbox" class="form-check-input"></td>
+                <td><span class="text-primary fw-semibold cursor-pointer" style="font-size:12px" @click="viewCI(ci)" x-text="ci.id"></span></td>
+                <td><a href="orders-pi.html" class="text-decoration-none" style="font-size:12px" x-text="ci.linkedPi"></a></td>
+                <td><div class="fw-semibold" style="font-size:13px" x-text="ci.customer"></div><div class="text-muted-sm" x-text="ci.country"></div></td>
+                <td style="font-size:13px" x-text="ci.ciDate"></td>
+                <td><code style="font-size:12px" x-text="ci.hsCode"></code></td>
+                <td class="fw-semibold" style="font-size:13px" x-text="ci.value"></td>
+                <td>
+                  <div x-show="ci.approvedBy" class="text-success" style="font-size:12px"><i class="bi bi-check-circle-fill me-1"></i><span x-text="ci.approvedBy"></span></div>
+                  <div x-show="!ci.approvedBy" class="text-warning" style="font-size:12px"><i class="bi bi-hourglass me-1"></i>Awaiting</div>
+                </td>
+                <td><span class="badge-status" :class="'badge-' + ci.statusClass" x-text="ci.status"></span></td>
+                <td>
+                  <div class="d-flex gap-1">
+                    <button class="btn btn-outline-primary btn-sm btn-icon" @click="viewCI(ci)"><i class="bi bi-eye"></i></button>
+                    <button class="btn btn-outline-success btn-sm btn-icon" title="Approve" x-show="ci.status==='Pending Approval'"><i class="bi bi-check2"></i></button>
+                    <button class="btn btn-outline-danger btn-sm btn-icon" title="PDF"><i class="bi bi-file-pdf"></i></button>
+                    <a href="shipments.html" class="btn btn-outline-info btn-sm btn-icon" title="Create Shipment" x-show="ci.status==='Approved'"><i class="bi bi-truck"></i></a>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+      <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top">
+        <div class="text-muted-sm">Showing <strong x-text="filtered.length"></strong> of <strong>156</strong> commercial invoices</div>
+        <nav><ul class="pagination pagination-sm mb-0"><li class="page-item disabled"><a class="page-link">Prev</a></li><li class="page-item active"><a class="page-link">1</a></li><li class="page-item"><a class="page-link">2</a></li><li class="page-item"><a class="page-link">Next</a></li></ul></nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- View CI Modal -->
+  <div class="modal fade" :class="{show:showViewModal}" :style="showViewModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content" x-show="selectedCI">
+        <div class="modal-header">
+          <div><h5 class="modal-title fw-semibold" x-text="selectedCI?.id"></h5><div class="text-muted-sm">Commercial Invoice</div></div>
+          <div class="ms-auto d-flex gap-2 align-items-center">
+            <span class="badge-status" :class="'badge-' + selectedCI?.statusClass" x-text="selectedCI?.status"></span>
+            <button class="btn-close ms-2" @click="showViewModal=false"></button>
+          </div>
+        </div>
+        <!-- Tab nav -->
+        <div class="modal-doc-tabs">
+          <button :class="{active: viewTab==='details'}" @click="viewTab='details'">
+            <i class="bi bi-file-earmark-check"></i>Invoice Details
+          </button>
+          <button :class="{active: viewTab==='docs'}" @click="viewTab='docs'">
+            <i class="bi bi-paperclip"></i>Reference Documents
+            <span class="badge bg-primary rounded-pill py-0 px-1" style="font-size:10px" x-show="(selectedCI?.docs||[]).length>0" x-text="(selectedCI?.docs||[]).length"></span>
+          </button>
+        </div>
+        <!-- Invoice Details tab -->
+        <div class="modal-body" x-show="viewTab==='details'">
+          <div class="pi-doc-preview border rounded-3 p-4">
+            <div class="row mb-4">
+              <div class="col-6">
+                <div class="fw-bold" style="font-size:11px;letter-spacing:1.5px;color:#0d6efd;text-transform:uppercase">Commercial Invoice</div>
+                <div class="fw-bold" style="font-size:20px;line-height:1.2" x-text="selectedCI?.id"></div>
+                <div class="text-muted-sm mt-1">Date: <strong x-text="selectedCI?.ciDate"></strong></div>
+              </div>
+              <div class="col-6 text-end">
+                <div class="fw-bold" style="font-size:15px">PharmaCo Manufacturing Ltd.</div>
+                <div class="text-muted-sm">123 Industrial Park, Newark, NJ 07102, USA</div>
+                <div class="text-muted-sm">License: MFG-US-2024-001 &nbsp;|&nbsp; FDA Reg: 12-34567</div>
+              </div>
+            </div>
+            <hr class="my-3">
+            <div class="row mb-3 g-3">
+              <div class="col-md-6"><div class="fw-semibold text-uppercase mb-1" style="font-size:10px;letter-spacing:1px;color:#6c757d">Consignee</div><div class="fw-semibold" x-text="selectedCI?.customer"></div><div class="text-muted-sm" x-text="selectedCI?.country"></div></div>
+              <div class="col-md-6">
+                <div class="fw-semibold text-uppercase mb-1" style="font-size:10px;letter-spacing:1px;color:#6c757d">Reference</div>
+                <div class="row g-1" style="font-size:13px">
+                  <div class="col-6"><span class="text-muted-sm">PI Ref:</span> <a href="orders-pi.html" class="text-primary text-decoration-none" x-text="selectedCI?.linkedPi"></a></div>
+                  <div class="col-6"><span class="text-muted-sm">Incoterms:</span> <strong>FOB</strong></div>
+                  <div class="col-6"><span class="text-muted-sm">HS Code:</span> <code x-text="selectedCI?.hsCode"></code></div>
+                  <div class="col-6"><span class="text-muted-sm">Country of Origin:</span> <strong>USA</strong></div>
+                </div>
+              </div>
+            </div>
+            <table class="table table-bordered table-sm" style="font-size:13px">
+              <thead class="table-dark"><tr><th>#</th><th>Product / Description</th><th>PRN</th><th>Batch</th><th class="text-end">Qty</th><th class="text-end">Unit Price</th><th class="text-end">Total (USD)</th></tr></thead>
+              <tbody>
+                <template x-for="(line,i) in (selectedCI?.lines||[])" :key="i">
+                  <tr><td x-text="i+1"></td><td x-text="line.product"></td><td><span class="badge bg-light text-dark border" style="font-size:10px" x-text="line.prn"></span></td><td class="text-muted-sm" x-text="line.batch"></td><td class="text-end" x-text="line.qty.toLocaleString()"></td><td class="text-end" x-text="line.unitPrice"></td><td class="text-end fw-semibold" x-text="line.total"></td></tr>
+                </template>
+              </tbody>
+              <tfoot>
+                <tr><td colspan="6" class="text-end text-muted-sm">Subtotal</td><td class="text-end fw-semibold" x-text="selectedCI?.value"></td></tr>
+                <tr><td colspan="6" class="text-end text-muted-sm">Freight / Insurance</td><td class="text-end text-muted-sm">$0.00</td></tr>
+                <tr class="table-light"><td colspan="6" class="text-end fw-bold">TOTAL (USD)</td><td class="text-end fw-bold text-primary" style="font-size:14px" x-text="selectedCI?.value"></td></tr>
+              </tfoot>
+            </table>
+            <div x-show="selectedCI?.approvedBy" class="mt-3 p-3 bg-light-success rounded-3 d-flex align-items-center gap-2">
+              <i class="bi bi-patch-check-fill text-success fs-5"></i>
+              <div style="font-size:13px"><strong>Finance Approved</strong> by <span x-text="selectedCI?.approvedBy"></span></div>
+            </div>
+          </div>
+        </div>
+        <!-- Reference Documents tab -->
+        <div class="modal-body" x-show="viewTab==='docs'">
+          <div class="doc-upload-zone mb-3" :class="{dragging:dragging}"
+               @dragover.prevent="dragging=true" @dragleave.prevent="dragging=false" @drop.prevent="dragging=false"
+               @click="$refs.ciFile.click()">
+            <input type="file" x-ref="ciFile" class="d-none" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+            <i class="bi bi-cloud-arrow-up doc-upload-icon"></i>
+            <div class="fw-semibold mb-1" style="font-size:14px">Drag &amp; drop reference documents here</div>
+            <div class="text-muted-sm mb-2">or click to browse files from your computer</div>
+            <div class="d-flex flex-wrap justify-content-center gap-1">
+              <span class="badge bg-light text-secondary border" style="font-size:11px">PDF</span>
+              <span class="badge bg-light text-secondary border" style="font-size:11px">Word</span>
+              <span class="badge bg-light text-secondary border" style="font-size:11px">Excel</span>
+              <span class="badge bg-light text-secondary border" style="font-size:11px">Images</span>
+              <span class="text-muted-sm ms-1">· Max 10 MB per file</span>
+            </div>
+          </div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="fw-semibold" style="font-size:13px">Attached Documents <span class="text-muted-sm" x-text="'(' + (selectedCI?.docs||[]).length + ' files)'"></span></div>
+            <button class="btn btn-outline-primary btn-sm" @click="$refs.ciFile.click()"><i class="bi bi-cloud-upload me-1"></i>Upload File</button>
+          </div>
+          <div x-show="!(selectedCI?.docs||[]).length" class="text-center py-5">
+            <i class="bi bi-folder2-open" style="font-size:40px;opacity:0.3;display:block;margin-bottom:10px"></i>
+            <div class="text-muted-sm">No reference documents attached yet.</div>
+            <div class="text-muted-sm" style="font-size:12px">Upload signed CI, packing list, Certificate of Origin, COA, customs declaration, etc.</div>
+          </div>
+          <div class="d-flex flex-column gap-2">
+            <template x-for="(doc,i) in (selectedCI?.docs||[])" :key="i">
+              <div class="doc-item">
+                <div class="doc-type-icon" :class="doc.iconClass"><i class="bi" :class="doc.icon"></i></div>
+                <div class="flex-grow-1" style="min-width:0">
+                  <div class="fw-semibold text-truncate" style="font-size:13px" x-text="doc.name"></div>
+                  <div class="d-flex flex-wrap gap-2 align-items-center mt-1">
+                    <span class="badge bg-light text-secondary border" style="font-size:10px;font-weight:500" x-text="doc.category"></span>
+                    <span class="text-muted-sm" x-text="doc.size"></span>
+                    <span class="text-muted-sm">· <span x-text="doc.uploadedBy"></span></span>
+                    <span class="text-muted-sm">· <span x-text="doc.date"></span></span>
+                  </div>
+                </div>
+                <div class="d-flex gap-1 flex-shrink-0">
+                  <button class="btn btn-outline-primary btn-sm btn-icon" title="Preview"><i class="bi bi-eye"></i></button>
+                  <button class="btn btn-outline-secondary btn-sm btn-icon" title="Download"><i class="bi bi-download"></i></button>
+                  <button class="btn btn-outline-danger btn-sm btn-icon" title="Remove"><i class="bi bi-trash"></i></button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary btn-sm" @click="showViewModal=false">Close</button>
+          <button class="btn btn-outline-danger btn-sm"><i class="bi bi-file-pdf me-1"></i>Download PDF</button>
+          <button class="btn btn-success btn-sm" x-show="selectedCI?.status==='Pending Approval'"><i class="bi bi-check2 me-1"></i>Approve CI</button>
+          <a href="shipments.html" class="btn btn-primary btn-sm" x-show="selectedCI?.status==='Approved'"><i class="bi bi-truck me-1"></i>Create Shipment</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showViewModal" @click="showViewModal=false"></div>
+
+  <!-- Issue CI Modal -->
+  <div class="modal fade" :class="{show:showAddModal}" :style="showAddModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title fw-semibold"><i class="bi bi-file-earmark-check me-2 text-primary"></i>Issue Commercial Invoice</h5><button class="btn-close" @click="showAddModal=false"></button></div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12"><div class="info-box warn"><i class="bi bi-exclamation-triangle text-warning mt-1"></i><div style="font-size:13px">CI can only be issued against an <strong>approved Proforma Invoice</strong>. This document is used for customs clearance and shipment.</div></div></div>
+            <div class="col-md-6"><label class="form-label">Linked PI <span class="text-danger">*</span></label><select class="form-select"><option>Select approved PI...</option><option>PI-2026-0091 — PharmaDist PH</option><option>PI-2026-0082 — EA Health</option></select></div>
+            <div class="col-md-3"><label class="form-label">CI Date <span class="text-danger">*</span></label><input type="date" class="form-control"></div>
+            <div class="col-md-3"><label class="form-label">HS Code <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="e.g. 3004.20.10"></div>
+            <div class="col-md-6"><label class="form-label">Country of Origin <span class="text-danger">*</span></label><select class="form-select"><option>United States</option><option>India</option><option>Bangladesh</option></select></div>
+            <div class="col-md-6"><label class="form-label">Incoterms</label><select class="form-select"><option>FOB</option><option>CIF</option><option>EXW</option></select></div>
+            <div class="col-12"><label class="form-label">Bank / Payment Details</label><textarea class="form-control" rows="2" placeholder="Bank name, account, SWIFT..."></textarea></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" @click="showAddModal=false">Cancel</button>
+          <button class="btn btn-outline-primary"><i class="bi bi-floppy me-1"></i>Save Draft</button>
+          <button class="btn btn-primary"><i class="bi bi-send me-1"></i>Submit for Finance Approval</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showAddModal" @click="showAddModal=false"></div>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="../js/layout.js"></script><script src="../js/layout-inject.js"></script><script src="../js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => injectLayout('Commercial Invoice', 'orders-ci'));
+function ciPage() {
+  return {
+    search:'', filterStatus:'', showAddModal:false, showViewModal:false, selectedCI:null,
+    viewTab:'details', dragging:false,
+    cis:[
+      { id:'CI-2026-0072', linkedPi:'PI-2026-0091', customer:'PharmaDist PH Ltd.', country:'Philippines', ciDate:'Jun 5, 2026', hsCode:'3004.20.10', value:'$48,500', approvedBy:'James Finance', status:'Approved', statusClass:'approved',
+        lines:[
+          {product:'Amoxil 500mg Capsules',       prn:'PRN-US-ANT-00142', batch:'BRN-00142-2601-003', qty:5000,  unitPrice:'$1.20', total:'$6,000'},
+          {product:'Ciprofloxacin 250mg Tablets', prn:'PRN-US-ANT-00178', batch:'BRN-00178-2601-007', qty:4000,  unitPrice:'$2.80', total:'$11,200'},
+          {product:'Paracetamol 500mg Tablets',   prn:'PRN-US-ANT-00095', batch:'BRN-00095-2602-011', qty:20000, unitPrice:'$0.65', total:'$13,000'},
+          {product:'Azithromycin 500mg Tablets',  prn:'PRN-US-ANT-00203', batch:'BRN-00203-2601-002', qty:3000,  unitPrice:'$6.10', total:'$18,300'},
+        ],
+        docs:[
+          {name:'CI-2026-0072-Signed.pdf',         category:'Commercial Invoice', size:'255 KB', uploadedBy:'Sarah Admin',          date:'Jun 5, 2026',  icon:'bi-file-pdf',  iconClass:'pdf'},
+          {name:'Packing-List-SHP-PH.xlsx',        category:'Packing List',       size:'68 KB',  uploadedBy:'Logistics Dept',       date:'Jun 5, 2026',  icon:'bi-file-spreadsheet', iconClass:'excel'},
+          {name:'Certificate-of-Origin-US.pdf',    category:'Cert. of Origin',    size:'180 KB', uploadedBy:'Compliance Dept',      date:'Jun 5, 2026',  icon:'bi-file-pdf',  iconClass:'pdf'},
+          {name:'COA-Batch-BRN00142.pdf',          category:'Certificate of Analysis', size:'220 KB', uploadedBy:'QC Dept',         date:'Jun 4, 2026',  icon:'bi-file-pdf',  iconClass:'pdf'},
+          {name:'Customs-Declaration-Form.pdf',    category:'Customs Declaration', size:'142 KB', uploadedBy:'Customs Broker',      date:'Jun 6, 2026',  icon:'bi-file-pdf',  iconClass:'pdf'},
+        ]},
+      { id:'CI-2026-0069', linkedPi:'PI-2026-0082', customer:'EA Health Supplies', country:'Kenya', ciDate:'May 22, 2026', hsCode:'3004.90.20', value:'$29,800', approvedBy:'James Finance', status:'Shipment Created', statusClass:'shipped',
+        lines:[],
+        docs:[
+          {name:'CI-2026-0069-Signed.pdf',         category:'Commercial Invoice', size:'230 KB', uploadedBy:'Sarah Admin',          date:'May 22, 2026', icon:'bi-file-pdf',  iconClass:'pdf'},
+          {name:'Packing-List-EA.xlsx',            category:'Packing List',       size:'55 KB',  uploadedBy:'Logistics Dept',       date:'May 22, 2026', icon:'bi-file-spreadsheet', iconClass:'excel'},
+          {name:'Certificate-of-Origin.pdf',       category:'Cert. of Origin',    size:'175 KB', uploadedBy:'Compliance Dept',      date:'May 22, 2026', icon:'bi-file-pdf',  iconClass:'pdf'},
+        ]},
+      { id:'CI-2026-0065', linkedPi:'PI-2026-0078', customer:'West Africa Pharma', country:'Nigeria', ciDate:'May 18, 2026', hsCode:'3004.20.10', value:'$67,200', approvedBy:'', status:'Pending Approval', statusClass:'pending', lines:[],
+        docs:[
+          {name:'CI-2026-0065-Draft.pdf',          category:'Commercial Invoice', size:'248 KB', uploadedBy:'Sarah Admin',          date:'May 18, 2026', icon:'bi-file-pdf',  iconClass:'pdf'},
+        ]},
+      { id:'CI-2026-0061', linkedPi:'PI-2026-0071', customer:'BD MedCo Ltd.', country:'Bangladesh', ciDate:'May 14, 2026', hsCode:'3004.31.00', value:'$22,400', approvedBy:'', status:'Draft', statusClass:'draft', lines:[], docs:[]},
+    ],
+    viewCI(ci){ this.selectedCI=ci; this.showViewModal=true; this.viewTab='details'; },
+    get filtered(){ return this.cis.filter(c=>{ const q=this.search.toLowerCase(); return (!q||c.id.toLowerCase().includes(q)||c.customer.toLowerCase().includes(q))&&(!this.filterStatus||c.status===this.filterStatus); }); }
+  };
+}
+</script>
+</body>
+</html>

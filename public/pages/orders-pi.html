@@ -1,0 +1,358 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proforma Invoice — PharmaTrack</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/app.css" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('darkMode')==='true'?'dark':'light');</script>
+</head>
+<body x-data="layoutData('Proforma Invoice')">
+<main class="main-content" :class="{'collapsed': sidebarCollapsed}" x-data="piPage()">
+
+  <div class="page-header">
+    <div><h1>Proforma Invoice</h1><div class="page-breadcrumb"><a href="dashboard.html">Home</a> / Orders / Proforma Invoice</div></div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>Export</button>
+      <button class="btn btn-primary btn-sm" @click="showAddModal=true"><i class="bi bi-plus-lg me-1"></i>Create PI</button>
+    </div>
+  </div>
+
+  <div class="info-box info mb-4">
+    <i class="bi bi-diagram-2 text-primary mt-1" style="font-size:18px;flex-shrink:0"></i>
+    <div style="font-size:13px">
+      <strong>Order Document Flow:</strong>
+      <a href="orders-po.html" class="text-secondary text-decoration-none">PO</a> →
+      <a href="orders-so.html" class="text-secondary text-decoration-none">SO</a> →
+      <span class="text-primary fw-semibold">PI</span> →
+      <a href="orders-ci.html" class="text-secondary text-decoration-none">CI</a> →
+      <a href="shipments.html" class="text-secondary text-decoration-none">Shipment</a>.
+      PI must be approved by Finance before a Commercial Invoice can be issued.
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-receipt"></i></div><div><div class="stat-value">189</div><div class="stat-label">Total PIs</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-hourglass-split"></i></div><div><div class="stat-value">58</div><div class="stat-label">Pending Approval</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-check2-circle"></i></div><div><div class="stat-value">112</div><div class="stat-label">Approved</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-danger"><div class="stat-icon"><i class="bi bi-x-circle"></i></div><div><div class="stat-value">19</div><div class="stat-label">Rejected</div></div></div></div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4"><div class="search-wrapper"><i class="bi bi-search search-icon"></i><input type="text" class="form-control form-control-sm" placeholder="Search PI number, customer..." x-model="search"></div></div>
+        <div class="col-6 col-md-2"><select class="form-select form-select-sm" x-model="filterStatus"><option value="">All Status</option><option>Draft</option><option>Sent</option><option>Pending Approval</option><option>Approved</option><option>Rejected</option></select></div>
+        <div class="col-6 col-md-2 d-flex gap-1"><button class="btn btn-primary btn-sm flex-fill">Filter</button><button class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card table-card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead><tr>
+            <th><input type="checkbox" class="form-check-input"></th>
+            <th>PI Number</th><th>Linked SO</th><th>Customer</th><th>PI Date</th>
+            <th>Valid Until</th><th>Total Value</th><th>Finance Approval</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            <template x-for="pi in filtered" :key="pi.id">
+              <tr>
+                <td><input type="checkbox" class="form-check-input"></td>
+                <td><span class="text-primary fw-semibold cursor-pointer" style="font-size:12px" @click="viewPI(pi)" x-text="pi.id"></span></td>
+                <td><a href="orders-so.html" class="text-decoration-none" style="font-size:12px" x-text="pi.linkedSo"></a></td>
+                <td><div class="fw-semibold" style="font-size:13px" x-text="pi.customer"></div><div class="text-muted-sm" x-text="pi.country"></div></td>
+                <td style="font-size:13px" x-text="pi.piDate"></td>
+                <td style="font-size:13px" x-text="pi.validUntil"></td>
+                <td class="fw-semibold" style="font-size:13px" x-text="pi.value"></td>
+                <td>
+                  <div x-show="pi.approvedBy" class="text-success" style="font-size:12px"><i class="bi bi-check-circle-fill me-1"></i><span x-text="pi.approvedBy"></span></div>
+                  <div x-show="!pi.approvedBy && pi.status==='Pending Approval'" class="text-warning" style="font-size:12px"><i class="bi bi-hourglass me-1"></i>Awaiting Finance</div>
+                  <div x-show="!pi.approvedBy && pi.status!=='Pending Approval'" class="text-muted-sm">—</div>
+                </td>
+                <td><span class="badge-status" :class="'badge-' + pi.statusClass" x-text="pi.status"></span></td>
+                <td>
+                  <div class="d-flex gap-1">
+                    <button class="btn btn-outline-primary btn-sm btn-icon" @click="viewPI(pi)"><i class="bi bi-eye"></i></button>
+                    <button class="btn btn-outline-success btn-sm btn-icon" title="Approve" x-show="pi.status==='Pending Approval'"><i class="bi bi-check2"></i></button>
+                    <button class="btn btn-outline-danger btn-sm btn-icon" title="Reject" x-show="pi.status==='Pending Approval'"><i class="bi bi-x-lg"></i></button>
+                    <button class="btn btn-outline-danger btn-sm btn-icon" title="PDF"><i class="bi bi-file-pdf"></i></button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+      <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top">
+        <div class="text-muted-sm">Showing <strong x-text="filtered.length"></strong> of <strong>189</strong> proforma invoices</div>
+        <nav><ul class="pagination pagination-sm mb-0"><li class="page-item disabled"><a class="page-link">Prev</a></li><li class="page-item active"><a class="page-link">1</a></li><li class="page-item"><a class="page-link">2</a></li><li class="page-item"><a class="page-link">Next</a></li></ul></nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- View PI Modal -->
+  <div class="modal fade" :class="{show:showViewModal}" :style="showViewModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content" x-show="selectedPI">
+        <div class="modal-header">
+          <div><h5 class="modal-title fw-semibold" x-text="selectedPI?.id"></h5><div class="text-muted-sm">Proforma Invoice</div></div>
+          <div class="ms-auto d-flex gap-2 align-items-center">
+            <span class="badge-status" :class="'badge-' + selectedPI?.statusClass" x-text="selectedPI?.status"></span>
+            <button class="btn-close ms-2" @click="showViewModal=false"></button>
+          </div>
+        </div>
+        <!-- Tab nav -->
+        <div class="modal-doc-tabs">
+          <button :class="{active: viewTab==='details'}" @click="viewTab='details'">
+            <i class="bi bi-receipt"></i>Invoice Details
+          </button>
+          <button :class="{active: viewTab==='docs'}" @click="viewTab='docs'">
+            <i class="bi bi-paperclip"></i>Reference Documents
+            <span class="badge bg-primary rounded-pill py-0 px-1" style="font-size:10px" x-show="(selectedPI?.docs||[]).length>0" x-text="(selectedPI?.docs||[]).length"></span>
+          </button>
+        </div>
+        <!-- Invoice Details tab -->
+        <div class="modal-body" x-show="viewTab==='details'">
+          <!-- PI Document Preview -->
+          <div class="pi-doc-preview border rounded-3 p-4">
+
+            <!-- Header row: seller + doc identity -->
+            <div class="row align-items-start mb-3">
+              <div class="col-6">
+                <div class="fw-bold" style="font-size:11px;letter-spacing:1.5px;color:#0d6efd;text-transform:uppercase">Proforma Invoice</div>
+                <div class="fw-bold" style="font-size:20px;line-height:1.2" x-text="selectedPI?.id"></div>
+                <div class="mt-1" style="font-size:12px">
+                  <span class="text-muted">PI Date:</span> <strong x-text="selectedPI?.piDate"></strong>
+                  &nbsp;|&nbsp;
+                  <span class="text-muted">Valid Until:</span> <strong x-text="selectedPI?.validUntil"></strong>
+                </div>
+                <div style="font-size:12px"><span class="text-muted">Linked SO:</span> <strong x-text="selectedPI?.linkedSo"></strong></div>
+              </div>
+              <div class="col-6 text-end">
+                <div class="fw-bold" style="font-size:15px">PharmaCo Manufacturing Ltd.</div>
+                <div class="text-muted-sm">123 Industrial Park, Newark, NJ 07102, USA</div>
+                <div class="text-muted-sm">Tel: +1 (973) 555-0100</div>
+                <div class="text-muted-sm">License: MFG-US-2024-001 &nbsp;|&nbsp; FDA Reg: 12-34567</div>
+              </div>
+            </div>
+
+            <hr class="my-3">
+
+            <!-- Bill To / Ship To / Terms -->
+            <div class="row mb-3 g-3">
+              <div class="col-md-4">
+                <div class="fw-semibold text-uppercase" style="font-size:10px;letter-spacing:1px;color:#6c757d;margin-bottom:4px">Bill To</div>
+                <div class="fw-semibold" style="font-size:13px" x-text="selectedPI?.customer"></div>
+                <div class="text-muted-sm" x-text="selectedPI?.country"></div>
+                <div class="text-muted-sm">Tel: +63 2 8888-1234</div>
+                <div class="text-muted-sm">buyer@pharmadistph.com</div>
+              </div>
+              <div class="col-md-4">
+                <div class="fw-semibold text-uppercase" style="font-size:10px;letter-spacing:1px;color:#6c757d;margin-bottom:4px">Ship To</div>
+                <div class="fw-semibold" style="font-size:13px" x-text="selectedPI?.customer"></div>
+                <div class="text-muted-sm">Warehouse A, Caloocan City</div>
+                <div class="text-muted-sm" x-text="selectedPI?.country"></div>
+              </div>
+              <div class="col-md-4">
+                <div class="fw-semibold text-uppercase" style="font-size:10px;letter-spacing:1px;color:#6c757d;margin-bottom:4px">Terms &amp; Shipping</div>
+                <div style="font-size:12px"><span class="text-muted">Incoterms:</span> <strong>FOB — Port of Los Angeles</strong></div>
+                <div style="font-size:12px"><span class="text-muted">Payment:</span> <strong>30 Days Net</strong></div>
+                <div style="font-size:12px"><span class="text-muted">Currency:</span> <strong>USD</strong></div>
+                <div style="font-size:12px"><span class="text-muted">Bank:</span> <strong>Bank of America — Main USD Acct</strong></div>
+              </div>
+            </div>
+
+            <!-- Line Items table -->
+            <table class="table table-bordered table-sm mb-0" style="font-size:12px">
+              <thead class="table-dark">
+                <tr>
+                  <th style="width:32px">#</th>
+                  <th>Product Description</th>
+                  <th>PRN / Reg. No.</th>
+                  <th>Batch No.</th>
+                  <th class="text-end" style="width:80px">Qty (Units)</th>
+                  <th class="text-end" style="width:90px">Unit Price</th>
+                  <th class="text-end" style="width:90px">Line Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="(line,i) in (selectedPI?.lines||[])" :key="i">
+                  <tr>
+                    <td x-text="i+1"></td>
+                    <td x-text="line.product"></td>
+                    <td><span class="badge bg-light text-dark border" style="font-size:10px;font-weight:500" x-text="line.prn"></span></td>
+                    <td><span class="text-muted" x-text="line.batch"></span></td>
+                    <td class="text-end fw-semibold" x-text="line.qty.toLocaleString()"></td>
+                    <td class="text-end" x-text="line.unitPrice"></td>
+                    <td class="text-end fw-semibold" x-text="line.total"></td>
+                  </tr>
+                </template>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="6" class="text-end" style="font-size:12px"><span class="text-muted">Sub-total</span></td>
+                  <td class="text-end fw-semibold" x-text="selectedPI?.value"></td>
+                </tr>
+                <tr>
+                  <td colspan="6" class="text-end" style="font-size:12px"><span class="text-muted">Tax / VAT (0% — Export)</span></td>
+                  <td class="text-end text-muted">$0.00</td>
+                </tr>
+                <tr class="table-light">
+                  <td colspan="6" class="text-end fw-bold" style="font-size:13px">TOTAL (USD)</td>
+                  <td class="text-end fw-bold text-primary" style="font-size:14px" x-text="selectedPI?.value"></td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <!-- Footer: disclaimer + signature -->
+            <div class="row mt-3 align-items-end">
+              <div class="col-md-7">
+                <div style="font-size:11px;color:#6c757d;line-height:1.6">
+                  <strong>Bank Details:</strong> Bank of America, ABA: 026009593, A/C: 1234567890, SWIFT: BOFAUS3N<br>
+                  This is a proforma invoice only and does not constitute a tax invoice or confirmation of sale. Goods remain the property of PharmaCo Manufacturing Ltd. until full payment is received.
+                </div>
+              </div>
+              <div class="col-md-5 text-end">
+                <div x-show="selectedPI?.approvedBy" class="text-success fw-semibold" style="font-size:13px">
+                  <i class="bi bi-patch-check-fill me-1"></i>Finance Approved by: <span x-text="selectedPI?.approvedBy"></span>
+                </div>
+                <div x-show="!selectedPI?.approvedBy && selectedPI?.status==='Pending Approval'" class="text-warning fw-semibold" style="font-size:13px">
+                  <i class="bi bi-hourglass me-1"></i>Awaiting Finance Approval
+                </div>
+                <div class="mt-2 text-muted-sm" style="font-size:11px">Authorised Signatory — PharmaCo Mfg Ltd.</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        <!-- Reference Documents tab -->
+        <div class="modal-body" x-show="viewTab==='docs'">
+          <div class="doc-upload-zone mb-3" :class="{dragging:dragging}"
+               @dragover.prevent="dragging=true" @dragleave.prevent="dragging=false" @drop.prevent="dragging=false"
+               @click="$refs.piFile.click()">
+            <input type="file" x-ref="piFile" class="d-none" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+            <i class="bi bi-cloud-arrow-up doc-upload-icon"></i>
+            <div class="fw-semibold mb-1" style="font-size:14px">Drag &amp; drop reference documents here</div>
+            <div class="text-muted-sm mb-2">or click to browse files from your computer</div>
+            <div class="d-flex flex-wrap justify-content-center gap-1">
+              <span class="badge bg-light text-secondary border" style="font-size:11px">PDF</span>
+              <span class="badge bg-light text-secondary border" style="font-size:11px">Word</span>
+              <span class="badge bg-light text-secondary border" style="font-size:11px">Excel</span>
+              <span class="badge bg-light text-secondary border" style="font-size:11px">Images</span>
+              <span class="text-muted-sm ms-1">· Max 10 MB per file</span>
+            </div>
+          </div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="fw-semibold" style="font-size:13px">Attached Documents <span class="text-muted-sm" x-text="'(' + (selectedPI?.docs||[]).length + ' files)'"></span></div>
+            <button class="btn btn-outline-primary btn-sm" @click="$refs.piFile.click()"><i class="bi bi-cloud-upload me-1"></i>Upload File</button>
+          </div>
+          <div x-show="!(selectedPI?.docs||[]).length" class="text-center py-5">
+            <i class="bi bi-folder2-open" style="font-size:40px;opacity:0.3;display:block;margin-bottom:10px"></i>
+            <div class="text-muted-sm">No reference documents attached yet.</div>
+            <div class="text-muted-sm" style="font-size:12px">Upload signed PI, finance approval email, Certificate of Analysis, etc.</div>
+          </div>
+          <div class="d-flex flex-column gap-2">
+            <template x-for="(doc,i) in (selectedPI?.docs||[])" :key="i">
+              <div class="doc-item">
+                <div class="doc-type-icon" :class="doc.iconClass"><i class="bi" :class="doc.icon"></i></div>
+                <div class="flex-grow-1" style="min-width:0">
+                  <div class="fw-semibold text-truncate" style="font-size:13px" x-text="doc.name"></div>
+                  <div class="d-flex flex-wrap gap-2 align-items-center mt-1">
+                    <span class="badge bg-light text-secondary border" style="font-size:10px;font-weight:500" x-text="doc.category"></span>
+                    <span class="text-muted-sm" x-text="doc.size"></span>
+                    <span class="text-muted-sm">· <span x-text="doc.uploadedBy"></span></span>
+                    <span class="text-muted-sm">· <span x-text="doc.date"></span></span>
+                  </div>
+                </div>
+                <div class="d-flex gap-1 flex-shrink-0">
+                  <button class="btn btn-outline-primary btn-sm btn-icon" title="Preview"><i class="bi bi-eye"></i></button>
+                  <button class="btn btn-outline-secondary btn-sm btn-icon" title="Download"><i class="bi bi-download"></i></button>
+                  <button class="btn btn-outline-danger btn-sm btn-icon" title="Remove"><i class="bi bi-trash"></i></button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary btn-sm" @click="showViewModal=false">Close</button>
+          <button class="btn btn-outline-danger btn-sm"><i class="bi bi-file-pdf me-1"></i>Download PDF</button>
+          <button class="btn btn-success btn-sm" x-show="selectedPI?.status==='Pending Approval'"><i class="bi bi-check2 me-1"></i>Approve PI</button>
+          <a href="orders-ci.html" class="btn btn-primary btn-sm" x-show="selectedPI?.status==='Approved'"><i class="bi bi-file-earmark-check me-1"></i>Issue Commercial Invoice</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showViewModal" @click="showViewModal=false"></div>
+
+  <!-- Create PI Modal -->
+  <div class="modal fade" :class="{show:showAddModal}" :style="showAddModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title fw-semibold"><i class="bi bi-receipt me-2 text-primary"></i>Create Proforma Invoice</h5><button class="btn-close" @click="showAddModal=false"></button></div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Linked SO <span class="text-danger">*</span></label><select class="form-select"><option>Select confirmed SO...</option><option>SO-2026-0241 — PharmaDist PH</option><option>SO-2026-0221 — EA Health</option></select></div>
+            <div class="col-md-3"><label class="form-label">PI Date <span class="text-danger">*</span></label><input type="date" class="form-control"></div>
+            <div class="col-md-3"><label class="form-label">Valid Until <span class="text-danger">*</span></label><input type="date" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Incoterms</label><select class="form-select"><option>FOB</option><option>CIF</option><option>EXW</option></select></div>
+            <div class="col-md-6"><label class="form-label">Bank Details</label><select class="form-select"><option>Main USD Account — Bank of America</option></select></div>
+            <div class="col-12"><label class="form-label">Remarks / Special Conditions</label><textarea class="form-control" rows="2"></textarea></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" @click="showAddModal=false">Cancel</button>
+          <button class="btn btn-outline-primary"><i class="bi bi-floppy me-1"></i>Save Draft</button>
+          <button class="btn btn-primary"><i class="bi bi-send me-1"></i>Send for Approval</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showAddModal" @click="showAddModal=false"></div>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="../js/layout.js"></script><script src="../js/layout-inject.js"></script><script src="../js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => injectLayout('Proforma Invoice', 'orders-pi'));
+function piPage() {
+  return {
+    search:'', filterStatus:'', showAddModal:false, showViewModal:false, selectedPI:null,
+    viewTab:'details', dragging:false,
+    pis:[
+      { id:'PI-2026-0091', linkedSo:'SO-2026-0241', customer:'PharmaDist PH Ltd.', country:'Philippines', piDate:'Jun 4, 2026', validUntil:'Jul 4, 2026', value:'$48,500', approvedBy:'James Finance', status:'Approved', statusClass:'approved',
+        lines:[
+          {product:'Amoxil 500mg Capsules',       prn:'PRN-US-ANT-00142', batch:'BRN-00142-2601-003', qty:5000,  unitPrice:'$1.20', total:'$6,000'},
+          {product:'Ciprofloxacin 250mg Tablets', prn:'PRN-US-ANT-00178', batch:'BRN-00178-2601-007', qty:4000,  unitPrice:'$2.80', total:'$11,200'},
+          {product:'Paracetamol 500mg Tablets',   prn:'PRN-US-ANT-00095', batch:'BRN-00095-2602-011', qty:20000, unitPrice:'$0.65', total:'$13,000'},
+          {product:'Azithromycin 500mg Tablets',  prn:'PRN-US-ANT-00203', batch:'BRN-00203-2601-002', qty:3000,  unitPrice:'$6.10', total:'$18,300'},
+        ],
+        docs:[
+          {name:'PI-2026-0091-Draft.pdf',          category:'Proforma Invoice',   size:'178 KB', uploadedBy:'Sarah Admin',          date:'Jun 4, 2026',  icon:'bi-file-pdf',  iconClass:'pdf'},
+          {name:'Finance-Approval-Email.pdf',      category:'Finance Approval',   size:'45 KB',  uploadedBy:'James Finance',        date:'Jun 4, 2026',  icon:'bi-file-pdf',  iconClass:'pdf'},
+          {name:'COA-Amoxil500-BRN00142.pdf',      category:'Certificate of Analysis', size:'220 KB', uploadedBy:'QC Dept',         date:'Jun 3, 2026',  icon:'bi-file-pdf',  iconClass:'pdf'},
+          {name:'Price-Confirmation-PH.xlsx',      category:'Price Confirmation', size:'38 KB',  uploadedBy:'Sales Dept',           date:'Jun 4, 2026',  icon:'bi-file-spreadsheet', iconClass:'excel'},
+        ]},
+      { id:'PI-2026-0088', linkedSo:'SO-2026-0238', customer:'BD MedCo Ltd.', country:'Bangladesh', piDate:'Jun 2, 2026', validUntil:'Jul 2, 2026', value:'$22,400', approvedBy:'', status:'Pending Approval', statusClass:'pending',
+        lines:[{product:'Insulax R',prn:'PRN-BD-INJ-00089',batch:'BRN-00089-2603-001',qty:8000,unitPrice:'$2.80',total:'$22,400'}],
+        docs:[
+          {name:'PI-2026-0088-Draft.pdf',          category:'Proforma Invoice',   size:'162 KB', uploadedBy:'Sarah Admin',          date:'Jun 2, 2026',  icon:'bi-file-pdf',  iconClass:'pdf'},
+        ]},
+      { id:'PI-2026-0082', linkedSo:'SO-2026-0221', customer:'EA Health Supplies', country:'Kenya', piDate:'May 20, 2026', validUntil:'Jun 20, 2026', value:'$29,800', approvedBy:'James Finance', status:'Approved', statusClass:'approved', lines:[],
+        docs:[
+          {name:'PI-2026-0082-Approved.pdf',       category:'Proforma Invoice',   size:'191 KB', uploadedBy:'Sarah Admin',          date:'May 20, 2026', icon:'bi-file-pdf',  iconClass:'pdf'},
+          {name:'Finance-Approval-Email.pdf',      category:'Finance Approval',   size:'42 KB',  uploadedBy:'James Finance',        date:'May 20, 2026', icon:'bi-file-pdf',  iconClass:'pdf'},
+        ]},
+      { id:'PI-2026-0077', linkedSo:'SO-2026-0215', customer:'EG Pharma Group', country:'Egypt', piDate:'May 15, 2026', validUntil:'Jun 15, 2026', value:'$11,000', approvedBy:'', status:'Rejected', statusClass:'cancelled', lines:[], docs:[]},
+    ],
+    viewPI(pi){ this.selectedPI=pi; this.showViewModal=true; this.viewTab='details'; },
+    get filtered(){ return this.pis.filter(p=>{ const q=this.search.toLowerCase(); return (!q||p.id.toLowerCase().includes(q)||p.customer.toLowerCase().includes(q))&&(!this.filterStatus||p.status===this.filterStatus); }); }
+  };
+}
+</script>
+</body>
+</html>

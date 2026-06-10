@@ -1,0 +1,249 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Country Permissions — PharmaTrack</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/app.css" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('darkMode')==='true'?'dark':'light');</script>
+</head>
+<body x-data="layoutData('Country Permissions')">
+<main class="main-content" :class="{'collapsed': sidebarCollapsed}" x-data="countriesPage()">
+
+  <div class="page-header">
+    <div><h1>Country Permissions & Regulatory Control</h1><div class="page-breadcrumb"><a href="dashboard.html">Home</a> / Country Permissions</div></div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>Export Matrix</button>
+      <button class="btn btn-primary btn-sm" @click="showAddModal=true"><i class="bi bi-plus-lg me-1"></i>Add Authorization</button>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-globe2"></i></div><div><div class="stat-value">47</div><div class="stat-label">Authorized Countries</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-check-circle"></i></div><div><div class="stat-value">1,842</div><div class="stat-label">Active Authorizations</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-hourglass-split"></i></div><div><div class="stat-value">94</div><div class="stat-label">Pending Approval</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-danger"><div class="stat-icon"><i class="bi bi-calendar-x"></i></div><div><div class="stat-value">18</div><div class="stat-label">Expiring in 60 Days</div></div></div></div>
+  </div>
+
+  <!-- Tabs: Matrix vs Regulatory Calendar -->
+  <div class="pills-nav mb-3">
+    <button class="pill-btn" :class="{active: activeTab==='matrix'}" @click="activeTab='matrix'"><i class="bi bi-table me-1"></i>Authorization Matrix</button>
+    <button class="pill-btn" :class="{active: activeTab==='calendar'}" @click="activeTab='calendar'"><i class="bi bi-calendar3 me-1"></i>Regulatory Calendar</button>
+    <button class="pill-btn" :class="{active: activeTab==='validation'}" @click="activeTab='validation'"><i class="bi bi-shield-check me-1"></i>Pre-Shipment Validation</button>
+  </div>
+
+  <!-- Authorization Matrix Tab -->
+  <div x-show="activeTab==='matrix'">
+    <div class="card mb-3">
+      <div class="card-body py-2">
+        <div class="row g-2 align-items-center">
+          <div class="col-md-4"><div class="search-wrapper"><i class="bi bi-search search-icon"></i><input type="text" class="form-control form-control-sm" placeholder="Search product, country..." x-model="search"></div></div>
+          <div class="col-6 col-md-2"><select class="form-select form-select-sm"><option value="">All Countries</option><option>Philippines</option><option>Nigeria</option><option>Bangladesh</option><option>Egypt</option><option>Kenya</option></select></div>
+          <div class="col-6 col-md-2"><select class="form-select form-select-sm" x-model="filterStatus"><option value="">All Status</option><option>Authorized</option><option>Pending</option><option>Expired</option><option>Restricted</option></select></div>
+          <div class="col-md-2 d-flex gap-1"><button class="btn btn-primary btn-sm flex-fill">Filter</button><button class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></button></div>
+        </div>
+      </div>
+    </div>
+    <div class="card table-card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr>
+              <th>Product</th><th>PRN</th><th>Country</th><th>Reg. Number</th>
+              <th>Approval Date</th><th>Expiry Date</th><th>Regulator</th><th>Notes</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody>
+              <template x-for="a in filtered" :key="a.id">
+                <tr>
+                  <td><div class="fw-semibold" style="font-size:13px" x-text="a.product"></div></td>
+                  <td><span class="text-primary" style="font-size:12px" x-text="a.prn"></span></td>
+                  <td><span x-text="a.flag + ' ' + a.country" style="font-size:13px"></span></td>
+                  <td><code style="font-size:12px" x-text="a.regNo"></code></td>
+                  <td style="font-size:13px" x-text="a.approvalDate"></td>
+                  <td>
+                    <span :class="a.daysToExpiry < 0 ? 'text-danger fw-semibold' : a.daysToExpiry < 60 ? 'text-warning fw-semibold' : ''" style="font-size:13px" x-text="a.expiryDate"></span>
+                    <div class="text-muted-sm" x-show="a.daysToExpiry > 0" x-text="a.daysToExpiry + ' days'"></div>
+                    <div class="text-danger text-muted-sm" x-show="a.daysToExpiry <= 0">Expired</div>
+                  </td>
+                  <td style="font-size:12px" x-text="a.regulator"></td>
+                  <td style="font-size:12px" class="text-muted" x-text="a.notes || '—'"></td>
+                  <td><span class="badge-status" :class="'badge-' + a.statusClass" x-text="a.status"></span></td>
+                  <td>
+                    <div class="d-flex gap-1">
+                      <button class="btn btn-outline-primary btn-sm btn-icon" @click="viewAuth(a)"><i class="bi bi-eye"></i></button>
+                      <button class="btn btn-outline-secondary btn-sm btn-icon"><i class="bi bi-pencil"></i></button>
+                      <button class="btn btn-outline-warning btn-sm btn-icon" title="Renew" x-show="a.daysToExpiry < 60"><i class="bi bi-arrow-repeat"></i></button>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top">
+          <div class="text-muted-sm">Showing <strong x-text="filtered.length"></strong> authorizations</div>
+          <nav><ul class="pagination pagination-sm mb-0"><li class="page-item disabled"><a class="page-link">Prev</a></li><li class="page-item active"><a class="page-link">1</a></li><li class="page-item"><a class="page-link">2</a></li><li class="page-item"><a class="page-link">Next</a></li></ul></nav>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Regulatory Calendar Tab -->
+  <div x-show="activeTab==='calendar'">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="fw-semibold mb-3"><i class="bi bi-calendar3 me-2 text-primary"></i>Upcoming Regulatory Deadlines</h6>
+        <div class="row g-3">
+          <template x-for="evt in calendarEvents" :key="evt.id">
+            <div class="col-md-6">
+              <div class="p-3 border rounded-3" :class="evt.urgent ? 'border-danger' : evt.soon ? 'border-warning' : ''">
+                <div class="d-flex align-items-start justify-content-between">
+                  <div>
+                    <div class="fw-semibold" style="font-size:13px" x-text="evt.title"></div>
+                    <div class="text-muted-sm" x-text="evt.product + ' — ' + evt.flag + ' ' + evt.country"></div>
+                    <div class="text-muted-sm mt-1" x-text="evt.regNo"></div>
+                  </div>
+                  <div class="text-end ms-3">
+                    <div class="fw-bold" :class="evt.urgent ? 'text-danger' : evt.soon ? 'text-warning' : 'text-muted'" style="font-size:13px" x-text="evt.date"></div>
+                    <div class="text-muted-sm" x-text="evt.daysLeft + ' days'"></div>
+                  </div>
+                </div>
+                <div class="mt-2">
+                  <span class="badge-status" :class="evt.urgent ? 'badge-hold' : 'badge-pending'" x-text="evt.type"></span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pre-Shipment Validation Tab -->
+  <div x-show="activeTab==='validation'">
+    <div class="card">
+      <div class="card-body">
+        <h6 class="fw-semibold mb-3"><i class="bi bi-shield-check me-2 text-success"></i>Pre-Shipment Automatic Checks</h6>
+        <div class="info-box info mb-3">
+          <i class="bi bi-info-circle text-primary mt-1"></i>
+          <div style="font-size:13px">These checks run automatically when a shipment is created. All checks must pass before carrier booking is allowed.</div>
+        </div>
+        <div class="row g-3">
+          <template x-for="check in validationChecks" :key="check.id">
+            <div class="col-md-6">
+              <div class="p-3 border rounded-3 d-flex gap-3 align-items-start">
+                <div class="mt-1">
+                  <i :class="check.passed ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'" class="bi fs-5"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold" style="font-size:13px" x-text="check.name"></div>
+                  <div class="text-muted-sm" x-text="check.desc"></div>
+                  <div x-show="!check.passed" class="text-danger mt-1" style="font-size:12px" x-text="check.failReason"></div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="mt-3 p-3 rounded-3 bg-light-success d-flex gap-3 align-items-center">
+          <i class="bi bi-shield-fill-check text-success fs-4"></i>
+          <div><div class="fw-semibold text-success">7 / 8 checks passed</div><div class="text-muted-sm" style="font-size:12px">1 check requires manual review before shipment can proceed</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Authorization Modal -->
+  <div class="modal fade" :class="{show:showAddModal}" :style="showAddModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title fw-semibold"><i class="bi bi-globe2 me-2 text-primary"></i>Add Country-Product Authorization</h5><button class="btn-close" @click="showAddModal=false"></button></div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Product (PRN) <span class="text-danger">*</span></label><select class="form-select"><option>Select product...</option><option>PRN-US-ANT-00142 — Amoxil 500</option><option>PRN-BD-INJ-00089 — Insulax R</option></select></div>
+            <div class="col-md-6"><label class="form-label">Destination Country <span class="text-danger">*</span></label><select class="form-select"><option>Select country...</option><option>🇵🇭 Philippines</option><option>🇳🇬 Nigeria</option><option>🇧🇩 Bangladesh</option><option>🇪🇬 Egypt</option></select></div>
+            <div class="col-md-6"><label class="form-label">Registration Number <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="e.g. REG-PH-2024-00142"></div>
+            <div class="col-md-6"><label class="form-label">Regulatory Body <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="e.g. Philippine FDA"></div>
+            <div class="col-md-4"><label class="form-label">Approval Date <span class="text-danger">*</span></label><input type="date" class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">Expiry Date <span class="text-danger">*</span></label><input type="date" class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">Status</label><select class="form-select"><option>Authorized</option><option>Pending</option><option>Restricted</option></select></div>
+            <div class="col-12"><label class="form-label">Supporting Documents</label><input type="file" class="form-control" multiple accept=".pdf"></div>
+            <div class="col-12"><label class="form-label">Notes</label><textarea class="form-control" rows="2" placeholder="Import restrictions, special conditions..."></textarea></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" @click="showAddModal=false">Cancel</button>
+          <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Authorization</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showAddModal" @click="showAddModal=false"></div>
+
+  <!-- View Auth Modal -->
+  <div class="modal fade" :class="{show:showViewModal}" :style="showViewModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content" x-show="selectedAuth">
+        <div class="modal-header"><h5 class="modal-title fw-semibold">Authorization Details</h5><button class="btn-close" @click="showViewModal=false"></button></div>
+        <div class="modal-body">
+          <div class="row g-3" style="font-size:13px">
+            <div class="col-6"><div class="text-muted-sm">Product</div><div class="fw-semibold" x-text="selectedAuth?.product"></div></div>
+            <div class="col-6"><div class="text-muted-sm">Country</div><div x-text="selectedAuth?.flag + ' ' + selectedAuth?.country"></div></div>
+            <div class="col-6"><div class="text-muted-sm">Reg. Number</div><code x-text="selectedAuth?.regNo"></code></div>
+            <div class="col-6"><div class="text-muted-sm">Regulator</div><div x-text="selectedAuth?.regulator"></div></div>
+            <div class="col-6"><div class="text-muted-sm">Approval Date</div><div x-text="selectedAuth?.approvalDate"></div></div>
+            <div class="col-6"><div class="text-muted-sm">Expiry Date</div><div :class="selectedAuth?.daysToExpiry < 60 ? 'text-warning fw-semibold' : ''" x-text="selectedAuth?.expiryDate"></div></div>
+            <div class="col-12"><div class="text-muted-sm">Status</div><span class="badge-status mt-1" :class="'badge-' + selectedAuth?.statusClass" x-text="selectedAuth?.status"></span></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary btn-sm" @click="showViewModal=false">Close</button>
+          <button class="btn btn-outline-primary btn-sm"><i class="bi bi-file-pdf me-1"></i>Download Certificate</button>
+          <button class="btn btn-warning btn-sm" x-show="selectedAuth?.daysToExpiry < 60"><i class="bi bi-arrow-repeat me-1"></i>Renew</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showViewModal" @click="showViewModal=false"></div>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="../js/layout.js"></script><script src="../js/layout-inject.js"></script><script src="../js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => injectLayout('Country Permissions', 'countries'));
+function countriesPage() {
+  return {
+    search:'', filterStatus:'', activeTab:'matrix', showAddModal:false, showViewModal:false, selectedAuth:null,
+    auths:[
+      { id:1, product:'Amoxil 500 Capsule',   prn:'PRN-US-ANT-00142', flag:'🇵🇭', country:'Philippines', regNo:'REG-PH-2024-00142', approvalDate:'Jan 10, 2024', expiryDate:'Jan 9, 2027',  daysToExpiry:578, regulator:'Philippine FDA',  notes:'',                  status:'Authorized', statusClass:'active'   },
+      { id:2, product:'Insulax R Injection',   prn:'PRN-BD-INJ-00089', flag:'🇵🇭', country:'Philippines', regNo:'REG-PH-2023-00089', approvalDate:'Mar 5, 2023',  expiryDate:'Mar 4, 2026',  daysToExpiry:267, regulator:'Philippine FDA',  notes:'Cold chain required',status:'Authorized', statusClass:'active'   },
+      { id:3, product:'Metformin SR 850mg',    prn:'PRN-IN-TAB-00231', flag:'🇳🇬', country:'Nigeria',     regNo:'NAFDAC-2024-00231', approvalDate:'Jun 1, 2024',  expiryDate:'May 31, 2027', daysToExpiry:721, regulator:'NAFDAC',         notes:'',                  status:'Authorized', statusClass:'active'   },
+      { id:4, product:'Amoxil 500 Capsule',    prn:'PRN-US-ANT-00142', flag:'🇧🇩', country:'Bangladesh',  regNo:'DGDA-2025-00142',   approvalDate:'Feb 15, 2025', expiryDate:'Feb 14, 2028', daysToExpiry:979, regulator:'DGDA Bangladesh', notes:'',                  status:'Authorized', statusClass:'active'   },
+      { id:5, product:'Hep-B Vaccine',         prn:'PRN-CN-VAC-00018', flag:'🇧🇩', country:'Bangladesh',  regNo:'',                  approvalDate:'',             expiryDate:'',             daysToExpiry:999, regulator:'DGDA Bangladesh', notes:'Under review',      status:'Pending',    statusClass:'pending'  },
+      { id:6, product:'Insulin Glargine',      prn:'PRN-DE-INJ-00067', flag:'🇪🇬', country:'Egypt',       regNo:'CAPA-2022-00067',   approvalDate:'Aug 1, 2022',  expiryDate:'Jul 31, 2025', daysToExpiry:51,  regulator:'CAPA Egypt',      notes:'Renewal submitted', status:'Authorized', statusClass:'active'   },
+      { id:7, product:'Cardivax 10 Tablet',    prn:'PRN-JP-TAB-00104', flag:'🇰🇪', country:'Kenya',       regNo:'PPB-2021-00104',    approvalDate:'Apr 1, 2021',  expiryDate:'Mar 31, 2025', daysToExpiry:-71, regulator:'Kenya PPB',       notes:'Expired — blocked', status:'Expired',    statusClass:'cancelled'},
+    ],
+    calendarEvents:[
+      { id:1, title:'Registration Renewal Due', product:'Insulin Glargine', flag:'🇪🇬', country:'Egypt',      regNo:'CAPA-2022-00067', date:'Jul 31, 2026', daysLeft:51, urgent:true,  soon:false, type:'Renewal Deadline' },
+      { id:2, title:'New Registration Due',     product:'Hep-B Vaccine',    flag:'🇧🇩', country:'Bangladesh', regNo:'Pending DGDA',    date:'Aug 15, 2026', daysLeft:66, urgent:false, soon:true,  type:'New Application'  },
+      { id:3, title:'Certificate Renewal',      product:'Amoxil 500',       flag:'🇳🇬', country:'Nigeria',     regNo:'NAFDAC-2024-00142',date:'Sep 1, 2026',  daysLeft:83, urgent:false, soon:true,  type:'Renewal Deadline' },
+      { id:4, title:'Pharmacopeia Re-test',     product:'Metformin SR',     flag:'🇵🇭', country:'Philippines', regNo:'REG-PH-2022-00231',date:'Oct 10, 2026', daysLeft:122,urgent:false, soon:false, type:'Quality Renewal'  },
+    ],
+    validationChecks:[
+      { id:1, name:'Product Country Authorization', desc:'Product is registered and authorized for the destination country', passed:true, failReason:'' },
+      { id:2, name:'Registration Not Expired',       desc:'Country product registration has not expired', passed:true, failReason:'' },
+      { id:3, name:'Batch Released by QC',           desc:'Batch has been QC-released and has a valid COA', passed:true, failReason:'' },
+      { id:4, name:'Batch Not Expired',              desc:'Batch expiry date allows for transit time + minimum shelf life', passed:true, failReason:'' },
+      { id:5, name:'CI Finance Approved',            desc:'Linked Commercial Invoice is approved by Finance', passed:true, failReason:'' },
+      { id:6, name:'Distributor Active',             desc:'Destination distributor is active with valid license', passed:true, failReason:'' },
+      { id:7, name:'Cold Chain Compliance',          desc:'If product requires cold chain, carrier service supports it', passed:true, failReason:'' },
+      { id:8, name:'Controlled Substance Permit',    desc:'If controlled substance, export/import permit must be attached', passed:false, failReason:'Import permit required — pending PDEA approval' },
+    ],
+    viewAuth(a){ this.selectedAuth=a; this.showViewModal=true; },
+    get filtered(){ return this.auths.filter(a=>{ const q=this.search.toLowerCase(); return (!q||a.product.toLowerCase().includes(q)||a.country.toLowerCase().includes(q))&&(!this.filterStatus||a.status===this.filterStatus); }); }
+  };
+}
+</script>
+</body>
+</html>

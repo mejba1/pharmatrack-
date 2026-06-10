@@ -1,0 +1,243 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shipment Management — PharmaTrack</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/app.css" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('darkMode')==='true'?'dark':'light');</script>
+</head>
+<body x-data="layoutData('Shipment Management')">
+<main class="main-content" :class="{'collapsed': sidebarCollapsed}" x-data="shipmentsPage()">
+
+  <div class="page-header">
+    <div><h1>Shipment Management</h1><div class="page-breadcrumb"><a href="dashboard.html">Home</a> / Shipment Management</div></div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>Export</button>
+      <button class="btn btn-primary btn-sm" @click="showAddModal=true"><i class="bi bi-plus-lg me-1"></i>New Shipment</button>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-2"><div class="stat-card stat-primary"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-truck" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">137</div><div class="stat-label">Active</div></div></div></div>
+    <div class="col-6 col-md-2"><div class="stat-card stat-warning"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-hourglass" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">24</div><div class="stat-label">Pending Booking</div></div></div></div>
+    <div class="col-6 col-md-2"><div class="stat-card stat-info"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-geo-alt" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">89</div><div class="stat-label">In Transit</div></div></div></div>
+    <div class="col-6 col-md-2"><div class="stat-card stat-success"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-box-seam" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">412</div><div class="stat-label">Delivered</div></div></div></div>
+    <div class="col-6 col-md-2"><div class="stat-card stat-danger"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-clock-history" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">3</div><div class="stat-label">Delayed</div></div></div></div>
+    <div class="col-6 col-md-2"><div class="stat-card stat-purple"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-boxes" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">18</div><div class="stat-label">Multi-Parcel</div></div></div></div>
+  </div>
+
+  <!-- Carrier Tabs -->
+  <div class="pills-nav mb-3">
+    <button class="pill-btn" :class="{active: carrierFilter===''}" @click="carrierFilter=''">All Carriers</button>
+    <button class="pill-btn" :class="{active: carrierFilter==='DHL'}" @click="carrierFilter='DHL'"><i class="bi bi-truck me-1"></i>DHL Express</button>
+    <button class="pill-btn" :class="{active: carrierFilter==='EMS'}" @click="carrierFilter='EMS'"><i class="bi bi-envelope me-1"></i>EMS / UPU</button>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-3"><div class="search-wrapper"><i class="bi bi-search search-icon"></i><input type="text" class="form-control form-control-sm" placeholder="Search shipment ID, tracking no..." x-model="search"></div></div>
+        <div class="col-6 col-md-2"><select class="form-select form-select-sm" x-model="filterStatus"><option value="">All Status</option><option>Pending Booking</option><option>Booked</option><option>In Transit</option><option>Out for Delivery</option><option>Delivered</option><option>Delayed</option></select></div>
+        <div class="col-6 col-md-2"><select class="form-select form-select-sm"><option value="">All Countries</option><option>Philippines</option><option>Nigeria</option><option>Bangladesh</option><option>Egypt</option><option>Kenya</option></select></div>
+        <div class="col-md-2 d-flex gap-1"><button class="btn btn-primary btn-sm flex-fill">Filter</button><button class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card table-card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead><tr>
+            <th><input type="checkbox" class="form-check-input"></th>
+            <th>Shipment ID</th><th>Linked CI</th><th>Destination</th><th>Carrier</th>
+            <th>Tracking No.</th><th>Parcels</th><th>Units</th><th>Dispatch</th><th>ETA</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            <template x-for="s in filtered" :key="s.id">
+              <tr>
+                <td><input type="checkbox" class="form-check-input"></td>
+                <td><span class="text-primary fw-semibold cursor-pointer" style="font-size:12px" @click="viewShipment(s)" x-text="s.id"></span></td>
+                <td><a href="orders-ci.html" class="text-decoration-none" style="font-size:12px" x-text="s.linkedCi"></a></td>
+                <td>
+                  <div class="fw-semibold" style="font-size:13px" x-text="s.destination"></div>
+                  <div class="text-muted-sm" x-text="s.distributor"></div>
+                </td>
+                <td>
+                  <span class="badge rounded-pill" :class="s.carrier==='DHL Express' ? 'bg-warning text-dark' : 'bg-primary'" style="font-size:11px" x-text="s.carrier"></span>
+                </td>
+                <td><code style="font-size:12px" x-text="s.trackingNo"></code></td>
+                <td style="font-size:13px" x-text="s.parcels + ' parcel' + (s.parcels>1?'s':'')"></td>
+                <td style="font-size:13px" x-text="s.units.toLocaleString()"></td>
+                <td style="font-size:13px" x-text="s.dispatch"></td>
+                <td>
+                  <span :class="s.delayed ? 'text-danger fw-semibold' : ''" style="font-size:13px" x-text="s.eta"></span>
+                  <span x-show="s.delayed" class="badge bg-danger ms-1" style="font-size:10px">Late</span>
+                </td>
+                <td><span class="badge-status" :class="'badge-' + s.statusClass" x-text="s.status"></span></td>
+                <td>
+                  <div class="d-flex gap-1">
+                    <button class="btn btn-outline-primary btn-sm btn-icon" @click="viewShipment(s)" title="Track"><i class="bi bi-geo-alt"></i></button>
+                    <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-outline-danger btn-sm btn-icon" title="Documents"><i class="bi bi-file-pdf"></i></button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+      <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top">
+        <div class="text-muted-sm">Showing <strong x-text="filtered.length"></strong> of <strong>662</strong> shipments</div>
+        <nav><ul class="pagination pagination-sm mb-0"><li class="page-item disabled"><a class="page-link">Prev</a></li><li class="page-item active"><a class="page-link">1</a></li><li class="page-item"><a class="page-link">2</a></li><li class="page-item"><a class="page-link">Next</a></li></ul></nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shipment Detail / Tracking Modal -->
+  <div class="modal fade" :class="{show:showViewModal}" :style="showViewModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content" x-show="selectedShipment">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-semibold" x-text="selectedShipment?.id"></h5>
+            <div class="text-muted-sm" x-text="selectedShipment?.destination + ' — ' + selectedShipment?.distributor"></div>
+          </div>
+          <div class="ms-auto d-flex gap-2 align-items-center">
+            <span class="badge-status" :class="'badge-' + selectedShipment?.statusClass" x-text="selectedShipment?.status"></span>
+            <button class="btn-close ms-2" @click="showViewModal=false"></button>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="row g-4">
+            <!-- Left: Details -->
+            <div class="col-md-5">
+              <h6 class="fw-semibold mb-3">Shipment Details</h6>
+              <div class="row g-2 mb-3" style="font-size:13px">
+                <div class="col-6"><div class="text-muted-sm">Carrier</div><div class="fw-semibold" x-text="selectedShipment?.carrier"></div></div>
+                <div class="col-6"><div class="text-muted-sm">Tracking No.</div><code x-text="selectedShipment?.trackingNo"></code></div>
+                <div class="col-6"><div class="text-muted-sm">Dispatch Date</div><div x-text="selectedShipment?.dispatch"></div></div>
+                <div class="col-6"><div class="text-muted-sm">ETA</div><div :class="selectedShipment?.delayed?'text-danger fw-semibold':''" x-text="selectedShipment?.eta"></div></div>
+                <div class="col-6"><div class="text-muted-sm">Parcels</div><div x-text="selectedShipment?.parcels"></div></div>
+                <div class="col-6"><div class="text-muted-sm">Total Units</div><div class="fw-semibold" x-text="selectedShipment?.units?.toLocaleString()"></div></div>
+                <div class="col-6"><div class="text-muted-sm">Weight</div><div x-text="selectedShipment?.weight"></div></div>
+                <div class="col-6"><div class="text-muted-sm">Cold Chain</div>
+                  <span x-show="selectedShipment?.coldChain" class="text-info"><i class="bi bi-thermometer-snow me-1"></i>Required</span>
+                  <span x-show="!selectedShipment?.coldChain" class="text-muted-sm">No</span>
+                </div>
+              </div>
+              <div class="info-box info" style="font-size:12px">
+                <i class="bi bi-file-earmark-check text-primary mt-1"></i>
+                <div>CI: <a href="orders-ci.html" class="text-primary text-decoration-none" x-text="selectedShipment?.linkedCi"></a></div>
+              </div>
+              <!-- Parcels -->
+              <div class="mt-3" x-show="selectedShipment?.parcels > 1">
+                <h6 class="fw-semibold mb-2" style="font-size:13px">Multi-Parcel Breakdown</h6>
+                <template x-for="(p, i) in (selectedShipment?.parcelList||[])" :key="i">
+                  <div class="d-flex align-items-center justify-content-between p-2 border rounded-3 mb-2">
+                    <div><div class="fw-semibold" style="font-size:12px" x-text="'Parcel ' + (i+1) + ': ' + p.tracking"></div><div class="text-muted-sm" x-text="p.desc"></div></div>
+                    <span class="badge-status badge-shipped" style="font-size:11px">In Transit</span>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <!-- Right: Tracking Timeline -->
+            <div class="col-md-7">
+              <h6 class="fw-semibold mb-3">Live Tracking</h6>
+              <div class="d-flex align-items-center gap-2 mb-3 p-3 rounded-3" :class="selectedShipment?.delayed ? 'bg-light-danger' : 'bg-light-success'">
+                <i :class="selectedShipment?.delayed ? 'bi-exclamation-triangle text-danger' : 'bi-check-circle-fill text-success'" class="bi fs-4"></i>
+                <div>
+                  <div class="fw-semibold" x-text="selectedShipment?.delayed ? 'Shipment Delayed' : 'On Schedule'"></div>
+                  <div class="text-muted-sm" style="font-size:12px" x-text="'Last updated: ' + selectedShipment?.lastUpdate"></div>
+                </div>
+              </div>
+              <div class="timeline">
+                <template x-for="(evt, i) in (selectedShipment?.events||[])" :key="i">
+                  <div class="timeline-item">
+                    <div class="timeline-dot" :class="i===0 ? 'done' : evt.done ? 'done' : 'pending'"></div>
+                    <div class="timeline-time" x-text="evt.time"></div>
+                    <div class="timeline-label" x-text="evt.label"></div>
+                    <div class="timeline-desc" x-text="evt.location"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary btn-sm" @click="showViewModal=false">Close</button>
+          <button class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-clockwise me-1"></i>Refresh Tracking</button>
+          <button class="btn btn-outline-danger btn-sm"><i class="bi bi-file-pdf me-1"></i>Shipping Docs</button>
+          <button class="btn btn-success btn-sm" x-show="selectedShipment?.status==='Out for Delivery'"><i class="bi bi-check2 me-1"></i>Mark Delivered</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showViewModal" @click="showViewModal=false"></div>
+
+  <!-- New Shipment Modal -->
+  <div class="modal fade" :class="{show:showAddModal}" :style="showAddModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title fw-semibold"><i class="bi bi-truck me-2 text-primary"></i>Create New Shipment</h5><button class="btn-close" @click="showAddModal=false"></button></div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12"><div class="info-box warn"><i class="bi bi-exclamation-triangle text-warning mt-1"></i><div style="font-size:13px">A shipment requires an <strong>approved Commercial Invoice (CI)</strong>. Country product authorization will be validated automatically before booking.</div></div></div>
+            <div class="col-md-6"><label class="form-label">Linked CI <span class="text-danger">*</span></label><select class="form-select"><option>Select approved CI...</option><option>CI-2026-0072 — PharmaDist PH</option><option>CI-2026-0069 — EA Health</option></select></div>
+            <div class="col-md-6"><label class="form-label">Carrier <span class="text-danger">*</span></label><select class="form-select" x-model="newCarrier"><option>DHL Express</option><option>EMS</option></select></div>
+            <div class="col-md-6"><label class="form-label">Service Type</label><select class="form-select"><option x-show="newCarrier==='DHL Express'">DHL Express Worldwide</option><option x-show="newCarrier==='DHL Express'">DHL Express 12:00</option><option x-show="newCarrier==='EMS'">EMS Standard</option><option x-show="newCarrier==='EMS'">EMS Economy</option></select></div>
+            <div class="col-md-3"><label class="form-label">Dispatch Date <span class="text-danger">*</span></label><input type="date" class="form-control"></div>
+            <div class="col-md-3"><label class="form-label">No. of Parcels</label><input type="number" class="form-control" value="1" min="1"></div>
+            <div class="col-md-4"><label class="form-label">Total Weight (kg)</label><input type="number" class="form-control" placeholder="0.00" step="0.01"></div>
+            <div class="col-md-4"><label class="form-label">Dimensions (cm)</label><input type="text" class="form-control" placeholder="L × W × H"></div>
+            <div class="col-md-4"><label class="form-label">Cold Chain Required</label><select class="form-select"><option>No</option><option>Yes — Refrigerated</option><option>Yes — Frozen</option></select></div>
+            <div class="col-12"><label class="form-label">Special Instructions</label><textarea class="form-control" rows="2" placeholder="Fragile, keep upright, temperature-sensitive..."></textarea></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" @click="showAddModal=false">Cancel</button>
+          <button class="btn btn-outline-primary"><i class="bi bi-floppy me-1"></i>Save Draft</button>
+          <button class="btn btn-primary"><i class="bi bi-send me-1"></i>Book with Carrier</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showAddModal" @click="showAddModal=false"></div>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="../js/layout.js"></script><script src="../js/layout-inject.js"></script><script src="../js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => injectLayout('Shipment Management', 'shipments'));
+function shipmentsPage() {
+  return {
+    search:'', filterStatus:'', carrierFilter:'', showAddModal:false, showViewModal:false, selectedShipment:null, newCarrier:'DHL Express',
+    shipments:[
+      { id:'SHP-2026-0498', linkedCi:'CI-2026-0072', destination:'Manila, Philippines', distributor:'PharmaDist PH Ltd.', carrier:'DHL Express', trackingNo:'1Z999AA10123456784', parcels:3, units:15000, dispatch:'Jun 6, 2026', eta:'Jun 14, 2026', delayed:false, lastUpdate:'Jun 10, 2026 08:42 AM', weight:'42.5 kg', coldChain:false, status:'In Transit', statusClass:'shipped',
+        parcelList:[{tracking:'1Z999AA10123456784',desc:'5,000 units Amoxil 500'},{tracking:'1Z999AA10123456785',desc:'10,000 units Metformin SR'}],
+        events:[{time:'Jun 10, 10:42',label:'Departed facility',location:'Singapore Hub, SG',done:true},{time:'Jun 9, 18:15',label:'In Transit — International',location:'Hong Kong → Singapore',done:true},{time:'Jun 8, 14:30',label:'Cleared customs — origin',location:'Los Angeles, USA',done:true},{time:'Jun 7, 09:00',label:'Picked up by DHL',location:'Warehouse, Los Angeles',done:true},{time:'Jun 14 (ETA)',label:'Delivery to Consignee',location:'Manila, Philippines',done:false}] },
+      { id:'SHP-2026-0495', linkedCi:'CI-2026-0069', destination:'Lagos, Nigeria', distributor:'West Africa Pharma', carrier:'EMS', trackingNo:'EE9876543NG', parcels:2, units:12000, dispatch:'Jun 2, 2026', eta:'Jun 10, 2026', delayed:false, lastUpdate:'Jun 10, 2026', weight:'31.0 kg', coldChain:false, status:'Delivered', statusClass:'delivered',
+        parcelList:[{tracking:'EE9876543NG',desc:'12,000 units Amoxil 500'}],
+        events:[{time:'Jun 10, 14:20',label:'Delivered to recipient',location:'Lagos, Nigeria',done:true},{time:'Jun 9, 11:00',label:'Out for delivery',location:'Lagos, Nigeria',done:true},{time:'Jun 7, 08:30',label:'Arrived destination country',location:'Lagos Airport, NG',done:true},{time:'Jun 3, 16:00',label:'Departed origin',location:'New York, USA',done:true}] },
+      { id:'SHP-2026-0493', linkedCi:'CI-2026-0065', destination:'Dhaka, Bangladesh', distributor:'BD MedCo Ltd.', carrier:'DHL Express', trackingNo:'9988776655', parcels:5, units:30000, dispatch:'Jun 8, 2026', eta:'Jun 18, 2026', delayed:false, lastUpdate:'Jun 10, 2026', weight:'88.0 kg', coldChain:true, status:'In Transit', statusClass:'shipped',
+        parcelList:[], events:[{time:'Jun 10, 06:00',label:'In transit',location:'Dubai Hub, UAE',done:true},{time:'Jun 9, 14:00',label:'Departed origin',location:'New York, USA',done:true},{time:'Jun 18 (ETA)',label:'Delivery',location:'Dhaka, Bangladesh',done:false}] },
+      { id:'SHP-2026-0491', linkedCi:'CI-2026-0061', destination:'Cairo, Egypt', distributor:'EG Pharma Group', carrier:'DHL Express', trackingNo:'4455667788', parcels:1, units:5000, dispatch:'Jun 5, 2026', eta:'Jun 12, 2026', delayed:true, lastUpdate:'Jun 10, 2026', weight:'14.2 kg', coldChain:false, status:'Delayed', statusClass:'cancelled',
+        parcelList:[], events:[{time:'Jun 9, 20:00',label:'Customs hold — inspection',location:'Cairo Airport, EG',done:true},{time:'Jun 8, 10:00',label:'Arrived destination country',location:'Cairo Airport, EG',done:true}] },
+    ],
+    viewShipment(s){ this.selectedShipment=s; this.showViewModal=true; },
+    get filtered(){
+      return this.shipments.filter(s=>{
+        const q=this.search.toLowerCase();
+        return (!q||s.id.toLowerCase().includes(q)||s.trackingNo.toLowerCase().includes(q))
+          &&(!this.filterStatus||s.status===this.filterStatus)
+          &&(!this.carrierFilter||s.carrier.includes(this.carrierFilter));
+      });
+    }
+  };
+}
+</script>
+</body>
+</html>

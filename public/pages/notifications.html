@@ -1,0 +1,263 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifications — PharmaTrack</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/app.css" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('darkMode')==='true'?'dark':'light');</script>
+  <style>
+    .notif-item { padding:14px 16px; border-bottom:1px solid #f1f3f5; transition:background 0.15s; cursor:pointer; }
+    .notif-item:last-child { border-bottom:none; }
+    .notif-item:hover { background:#f8f9fa; }
+    .notif-item.unread { background:#f0f5ff; border-left:3px solid #0d6efd; }
+    .notif-item.unread:hover { background:#e5edff; }
+    .notif-dot { width:8px;height:8px;border-radius:50%;background:#0d6efd;flex-shrink:0;margin-top:6px; }
+    .notif-icon-wrap { width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0; }
+    .alert-rule-row { display:flex;align-items:center;padding:12px 0;border-bottom:1px solid #f1f3f5; }
+    .alert-rule-row:last-child { border-bottom:none; }
+  </style>
+</head>
+<body x-data="layoutData('Notifications')">
+<main class="main-content" :class="{'collapsed': sidebarCollapsed}" x-data="notificationsPage()">
+
+  <div class="page-header">
+    <div><h1>Notifications &amp; Alerts</h1><div class="page-breadcrumb"><a href="dashboard.html">Home</a> / Notifications</div></div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm" @click="markAllRead()"><i class="bi bi-check2-all me-1"></i>Mark All Read</button>
+      <button class="btn btn-outline-danger btn-sm" @click="clearAll()"><i class="bi bi-trash me-1"></i>Clear All</button>
+      <button class="btn btn-primary btn-sm" @click="showSettingsModal=true"><i class="bi bi-gear me-1"></i>Alert Settings</button>
+    </div>
+  </div>
+
+  <!-- Summary stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-bell-fill"></i></div><div><div class="stat-value" x-text="unreadCount">0</div><div class="stat-label">Unread</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-danger"><div class="stat-icon"><i class="bi bi-exclamation-triangle-fill"></i></div><div><div class="stat-value" x-text="criticalCount">0</div><div class="stat-label">Critical Alerts</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-clock-fill"></i></div><div><div class="stat-value">4</div><div class="stat-label">Pending Actions</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div><div><div class="stat-value">28</div><div class="stat-label">Resolved Today</div></div></div></div>
+  </div>
+
+  <div class="row g-3">
+    <!-- Left: Notification List -->
+    <div class="col-md-8">
+      <!-- Filter bar -->
+      <div class="card mb-3">
+        <div class="card-body py-2">
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <div class="pills-nav" style="margin:0">
+              <button class="pill-btn" :class="{active:filter==='all'}"       @click="filter='all'">All <span class="badge bg-secondary ms-1" style="font-size:10px" x-text="notifications.length"></span></button>
+              <button class="pill-btn" :class="{active:filter==='unread'}"    @click="filter='unread'">Unread <span class="badge bg-primary ms-1" style="font-size:10px" x-text="unreadCount"></span></button>
+              <button class="pill-btn" :class="{active:filter==='critical'}"  @click="filter='critical'">Critical</button>
+              <button class="pill-btn" :class="{active:filter==='shipment'}"  @click="filter='shipment'">Shipments</button>
+              <button class="pill-btn" :class="{active:filter==='order'}"     @click="filter='order'">Orders</button>
+              <button class="pill-btn" :class="{active:filter==='quality'}"   @click="filter='quality'">QC/Quality</button>
+              <button class="pill-btn" :class="{active:filter==='system'}"    @click="filter='system'">System</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body p-0">
+          <template x-for="(n, idx) in filteredNotifications" :key="n.id">
+            <div class="notif-item" :class="{unread:!n.read}" @click="readNotif(n)">
+              <div class="d-flex gap-3">
+                <div class="notif-icon-wrap" :style="'background:' + n.bg">
+                  <i :class="'bi bi-' + n.icon" :style="'color:' + n.color"></i>
+                </div>
+                <div class="flex-fill min-w-0">
+                  <div class="d-flex align-items-start justify-content-between gap-2">
+                    <div class="fw-semibold" style="font-size:13px" x-text="n.title"></div>
+                    <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                      <div class="notif-dot" x-show="!n.read"></div>
+                      <span class="text-muted-sm" style="white-space:nowrap" x-text="n.time"></span>
+                    </div>
+                  </div>
+                  <div class="text-muted" style="font-size:12px;margin-top:2px" x-text="n.body"></div>
+                  <div class="d-flex gap-2 mt-2 flex-wrap">
+                    <span class="badge" :class="severityBadge(n.severity)" x-text="n.severity"></span>
+                    <span class="badge bg-light text-secondary" style="font-size:11px" x-text="n.category"></span>
+                    <template x-if="n.action">
+                      <button class="btn btn-primary btn-sm py-0 px-2" style="font-size:11px" @click.stop="handleAction(n)" x-text="n.action"></button>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+          <div class="text-center p-4 text-muted-sm" x-show="filteredNotifications.length===0">
+            <i class="bi bi-bell-slash fs-3 text-muted d-block mb-2"></i>No notifications in this category.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Alert Rules & Channels -->
+    <div class="col-md-4">
+      <!-- Quick action panel -->
+      <div class="card mb-3" x-show="pendingActions.length">
+        <div class="card-body">
+          <h6 class="fw-semibold mb-2"><i class="bi bi-lightning-charge-fill text-warning me-1"></i>Pending Actions</h6>
+          <div class="d-flex flex-column gap-2">
+            <template x-for="a in pendingActions" :key="a.id">
+              <div class="d-flex align-items-center justify-content-between p-2 rounded" style="background:#fffbeb;border:1px solid #fde68a">
+                <div style="font-size:12px" x-text="a.label"></div>
+                <button class="btn btn-warning btn-sm py-0 px-2" style="font-size:11px" x-text="a.btn"></button>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notification channels -->
+      <div class="card mb-3">
+        <div class="card-body">
+          <h6 class="fw-semibold mb-3">Notification Channels</h6>
+          <div class="d-flex flex-column gap-3">
+            <template x-for="ch in channels" :key="ch.id">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="notif-icon-wrap" :style="'background:'+ch.bg+';width:32px;height:32px;font-size:14px'"><i :class="'bi bi-' + ch.icon" :style="'color:'+ch.color"></i></div>
+                  <div><div style="font-size:13px;font-weight:500" x-text="ch.name"></div><div class="text-muted-sm" x-text="ch.desc"></div></div>
+                </div>
+                <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" :checked="ch.enabled" @change="ch.enabled=!ch.enabled"></div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alert categories toggle -->
+      <div class="card">
+        <div class="card-body">
+          <h6 class="fw-semibold mb-3">Alert Categories</h6>
+          <div class="d-flex flex-column gap-2">
+            <template x-for="cat in alertCategories" :key="cat.id">
+              <div class="alert-rule-row">
+                <div class="flex-fill">
+                  <div class="d-flex align-items-center gap-2">
+                    <i :class="'bi bi-' + cat.icon" :style="'color:'+cat.color" style="font-size:16px"></i>
+                    <div>
+                      <div style="font-size:13px;font-weight:500" x-text="cat.name"></div>
+                      <div class="text-muted-sm" x-text="cat.count + ' alerts this month'"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-check form-switch mb-0 ms-2"><input class="form-check-input" type="checkbox" :checked="cat.enabled" @change="cat.enabled=!cat.enabled"></div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert Settings Modal -->
+  <div class="modal fade" :class="{show:showSettingsModal}" :style="showSettingsModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title fw-semibold"><i class="bi bi-gear me-2 text-primary"></i>Alert Settings</h5><button class="btn-close" @click="showSettingsModal=false"></button></div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <h6 class="fw-semibold mb-2" style="font-size:13px">Email Digest Frequency</h6>
+              <select class="form-select"><option>Real-time (instant)</option><option selected>Hourly digest</option><option>Daily digest</option><option>Weekly summary</option></select>
+            </div>
+            <div class="col-md-6">
+              <h6 class="fw-semibold mb-2" style="font-size:13px">Minimum Severity for Push</h6>
+              <select class="form-select"><option>All (Info and above)</option><option selected>Warning and above</option><option>Critical only</option></select>
+            </div>
+            <div class="col-12"><h6 class="fw-semibold mb-2" style="font-size:13px">Alert Rules</h6>
+              <table class="table table-sm" style="font-size:12px">
+                <thead><tr><th>Event</th><th>Severity</th><th>Notify</th><th>Action</th></tr></thead>
+                <tbody>
+                  <tr><td>Batch expiry &lt; 30 days</td><td><span class="badge bg-warning text-dark">Warning</span></td><td>QC Officer, Logistics</td><td><button class="btn btn-outline-secondary btn-sm py-0 px-1">Edit</button></td></tr>
+                  <tr><td>Counterfeit UUC detected</td><td><span class="badge bg-danger">Critical</span></td><td>All Roles</td><td><button class="btn btn-outline-secondary btn-sm py-0 px-1">Edit</button></td></tr>
+                  <tr><td>Shipment delayed &gt; 2 days</td><td><span class="badge bg-warning text-dark">Warning</span></td><td>Logistics, Distributor</td><td><button class="btn btn-outline-secondary btn-sm py-0 px-1">Edit</button></td></tr>
+                  <tr><td>PI / CI pending approval &gt; 24h</td><td><span class="badge bg-info">Info</span></td><td>Finance Manager</td><td><button class="btn btn-outline-secondary btn-sm py-0 px-1">Edit</button></td></tr>
+                  <tr><td>Registration expiry &lt; 90 days</td><td><span class="badge bg-warning text-dark">Warning</span></td><td>Regulatory, Admin</td><td><button class="btn btn-outline-secondary btn-sm py-0 px-1">Edit</button></td></tr>
+                </tbody>
+              </table>
+              <button class="btn btn-outline-primary btn-sm"><i class="bi bi-plus me-1"></i>Add Rule</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" @click="showSettingsModal=false">Cancel</button>
+          <button class="btn btn-primary" @click="showSettingsModal=false"><i class="bi bi-check me-1"></i>Save Settings</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showSettingsModal" @click="showSettingsModal=false"></div>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="../js/layout.js"></script><script src="../js/layout-inject.js"></script><script src="../js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => injectLayout('Notifications', 'notifications'));
+function notificationsPage() {
+  return {
+    filter:'all', showSettingsModal:false,
+    notifications:[
+      { id:1,  read:false, title:'Counterfeit Alert — UUC Scan Failed', body:'UUC-00142-2601003-L01-018741 failed verification in Cebu, Philippines. Suspected counterfeit product detected.', time:'2 min ago', severity:'Critical', category:'Quality', icon:'shield-exclamation', color:'#dc3545', bg:'#fef2f2', action:'Investigate' },
+      { id:2,  read:false, title:'Shipment SHP-2026-0498 Delayed', body:'DHL Express shipment from US to Philippines is 2 days behind schedule. ETA updated to Jun 14.', time:'18 min ago', severity:'Warning', category:'Shipment', icon:'truck', color:'#c97b00', bg:'#fffbeb', action:'View Details' },
+      { id:3,  read:false, title:'Proforma Invoice PI-2026-0091 Awaiting Approval', body:'PI for BioMed BD — $62,100 has been waiting for finance approval for 26 hours.', time:'1 hr ago', severity:'Warning', category:'Order', icon:'receipt', color:'#c97b00', bg:'#fffbeb', action:'Approve' },
+      { id:4,  read:false, title:'Batch BRN-00142-2601-003 Expiring Soon', body:'Amoxil 500mg — 18,000 units expire in 30 days (Jul 10, 2026). Dispatch immediately.', time:'2 hr ago', severity:'Warning', category:'Quality', icon:'calendar-x', color:'#c97b00', bg:'#fffbeb', action:'View Batch' },
+      { id:5,  read:false, title:'New Purchase Order PO-2026-0141 Received', body:'PharmaDistro Philippines placed a new PO for 50,000 units of Amoxil 500mg. Acknowledgement required.', time:'3 hr ago', severity:'Info', category:'Order', icon:'file-earmark-plus', color:'#0d6efd', bg:'#eff6ff', action:'Acknowledge' },
+      { id:6,  read:true,  title:'Registration Renewal Due — Philippines', body:'Product registration for Amoxil (PRN-US-ANT-00142) in Philippines expires Jul 15, 2026. Renewal in progress.', time:'5 hr ago', severity:'Warning', category:'Compliance', icon:'globe2', color:'#7c3aed', bg:'#f5f3ff', action:null },
+      { id:7,  read:true,  title:'Shipment SHP-2026-0497 Delivered', body:'EMS shipment to Bangladesh delivered successfully. 36,000 units of Metformin SR confirmed received.', time:'6 hr ago', severity:'Info', category:'Shipment', icon:'check-circle', color:'#198754', bg:'#f0fdf4', action:null },
+      { id:8,  read:true,  title:'Commercial Invoice CI-2026-0072 Approved', body:'Finance approved CI-2026-0072 for $84,200. Shipment creation is now unblocked.', time:'8 hr ago', severity:'Info', category:'Order', icon:'file-earmark-check', color:'#0d6efd', bg:'#eff6ff', action:null },
+      { id:9,  read:true,  title:'New Distributor Registered', body:'MedLink NG (Nigeria) onboarded as Level 1 Distributor. KYC documents submitted, pending QC review.', time:'1 day ago', severity:'Info', category:'System', icon:'building', color:'#64748b', bg:'#f8fafc', action:null },
+      { id:10, read:true,  title:'QC Batch Release — BRN-00089-2603-001', body:'QC Officer Dr. Ahmed released batch BRN-00089-2603-001 (Metformin SR). COA signed and uploaded.', time:'1 day ago', severity:'Info', category:'Quality', icon:'award', color:'#198754', bg:'#f0fdf4', action:null },
+      { id:11, read:true,  title:'System Maintenance Scheduled', body:'PharmaTrack system maintenance on Jun 15, 2026 from 02:00–04:00 UTC. Some features may be unavailable.', time:'2 days ago', severity:'Info', category:'System', icon:'gear', color:'#64748b', bg:'#f8fafc', action:null },
+    ],
+    pendingActions:[
+      { id:1, label:'PI-2026-0091 awaiting finance approval', btn:'Review' },
+      { id:2, label:'PO-2026-0141 needs acknowledgement', btn:'Act' },
+      { id:3, label:'Counterfeit alert needs investigation', btn:'Open' },
+      { id:4, label:'3 batches expiring in 30 days', btn:'View' },
+    ],
+    channels:[
+      { id:1, name:'In-App',      desc:'Browser + mobile push',     icon:'bell',          color:'#0d6efd', bg:'#eff6ff', enabled:true },
+      { id:2, name:'Email',       desc:'user@pharmatrack.com',       icon:'envelope',      color:'#0d6efd', bg:'#eff6ff', enabled:true },
+      { id:3, name:'SMS',         desc:'+63 917 xxx xxxx',           icon:'phone',         color:'#198754', bg:'#f0fdf4', enabled:false },
+      { id:4, name:'WhatsApp',    desc:'Business messaging',         icon:'chat-dots',     color:'#25D366', bg:'#f0fdf4', enabled:false },
+      { id:5, name:'Slack',       desc:'#pharmatrack-alerts',        icon:'hash',          color:'#4a154b', bg:'#f5f3ff', enabled:true },
+    ],
+    alertCategories:[
+      { id:1, name:'Counterfeit Alerts',  icon:'shield-exclamation',  color:'#dc3545', count:2,   enabled:true },
+      { id:2, name:'Shipment Events',     icon:'truck',               color:'#0d6efd', count:18,  enabled:true },
+      { id:3, name:'Order Approvals',     icon:'file-earmark-check',  color:'#0d6efd', count:47,  enabled:true },
+      { id:4, name:'QC / Batch Status',   icon:'award',               color:'#198754', count:12,  enabled:true },
+      { id:5, name:'Regulatory Deadlines',icon:'globe2',              color:'#7c3aed', count:5,   enabled:true },
+      { id:6, name:'System',              icon:'gear',                color:'#64748b', count:3,   enabled:false },
+    ],
+    get unreadCount() { return this.notifications.filter(n=>!n.read).length; },
+    get criticalCount() { return this.notifications.filter(n=>n.severity==='Critical').length; },
+    get filteredNotifications() {
+      return this.notifications.filter(n => {
+        if (this.filter==='unread')   return !n.read;
+        if (this.filter==='critical') return n.severity==='Critical';
+        if (this.filter==='shipment') return n.category==='Shipment';
+        if (this.filter==='order')    return n.category==='Order';
+        if (this.filter==='quality')  return n.category==='Quality' || n.category==='Compliance';
+        if (this.filter==='system')   return n.category==='System';
+        return true;
+      });
+    },
+    readNotif(n)   { n.read = true; },
+    markAllRead()  { this.notifications.forEach(n => n.read = true); },
+    clearAll()     { this.notifications = []; },
+    handleAction(n){ n.read = true; },
+    severityBadge(s) {
+      return s==='Critical' ? 'bg-danger' : s==='Warning' ? 'bg-warning text-dark' : 'bg-info text-dark';
+    },
+  };
+}
+</script>
+</body>
+</html>

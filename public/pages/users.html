@@ -1,0 +1,442 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Users & Roles — PharmaTrack</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/app.css" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('darkMode')==='true'?'dark':'light');</script>
+  <style>
+    .avatar-circle { width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0; }
+    .avatar-sm { width:32px;height:32px;font-size:12px; }
+    .role-card { border:2px solid #e9ecef;border-radius:12px;padding:20px;cursor:pointer;transition:all 0.2s; }
+    .role-card:hover, .role-card.selected { border-color:#0d6efd;box-shadow:0 4px 16px rgba(13,110,253,0.12); }
+    .perm-row { display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f1f3f5;font-size:13px; }
+    .perm-row:last-child { border-bottom:none; }
+    .perm-check { width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px; }
+    .activity-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+  </style>
+</head>
+<body x-data="layoutData('Users & Roles')">
+<main class="main-content" :class="{'collapsed': sidebarCollapsed}" x-data="usersPage()">
+
+  <div class="page-header">
+    <div><h1>Users &amp; Roles</h1><div class="page-breadcrumb"><a href="dashboard.html">Home</a> / Users &amp; Roles</div></div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm" @click="activeTab='roles'"><i class="bi bi-shield-lock me-1"></i>Manage Roles</button>
+      <button class="btn btn-primary btn-sm" @click="openAddUser()"><i class="bi bi-person-plus me-1"></i>Add User</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-people-fill"></i></div><div><div class="stat-value">42</div><div class="stat-label">Total Users</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-person-check-fill"></i></div><div><div class="stat-value">38</div><div class="stat-label">Active</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-person-dash-fill"></i></div><div><div class="stat-value">4</div><div class="stat-label">Inactive / Suspended</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="stat-card stat-info"><div class="stat-icon"><i class="bi bi-shield-fill"></i></div><div><div class="stat-value">7</div><div class="stat-label">Roles Defined</div></div></div></div>
+  </div>
+
+  <!-- Tab Nav -->
+  <div class="pills-nav mb-3">
+    <button class="pill-btn" :class="{active:activeTab==='users'}"    @click="activeTab='users'"><i class="bi bi-people me-1"></i>Users</button>
+    <button class="pill-btn" :class="{active:activeTab==='roles'}"    @click="activeTab='roles'"><i class="bi bi-shield-lock me-1"></i>Roles & Permissions</button>
+    <button class="pill-btn" :class="{active:activeTab==='activity'}" @click="activeTab='activity'"><i class="bi bi-clock-history me-1"></i>Audit Log</button>
+    <button class="pill-btn" :class="{active:activeTab==='sessions'}" @click="activeTab='sessions'"><i class="bi bi-display me-1"></i>Active Sessions</button>
+  </div>
+
+  <!-- Users Tab -->
+  <div x-show="activeTab==='users'">
+    <div class="card mb-3">
+      <div class="card-body py-2">
+        <div class="row g-2 align-items-center">
+          <div class="col-md-5"><div class="search-wrapper"><i class="bi bi-search search-icon"></i><input type="text" class="form-control form-control-sm" placeholder="Search users by name, email, role..." x-model="search"></div></div>
+          <div class="col-md-2"><select class="form-select form-select-sm" x-model="filterRole"><option value="">All Roles</option><template x-for="r in roles" :key="r.id"><option :value="r.name" x-text="r.name"></option></template></select></div>
+          <div class="col-md-2"><select class="form-select form-select-sm" x-model="filterStatus"><option value="">All Status</option><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Suspended">Suspended</option></select></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card table-card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>User</th><th>Role</th><th>Organisation</th><th>Last Login</th><th>Status</th><th>2FA</th><th>Actions</th></tr></thead>
+            <tbody>
+              <template x-for="u in filteredUsers" :key="u.id">
+                <tr>
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="avatar-circle" :style="'background:' + u.avatarColor" x-text="u.initials"></div>
+                      <div>
+                        <div class="fw-semibold" style="font-size:13px" x-text="u.name"></div>
+                        <div class="text-muted-sm" x-text="u.email"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge" :style="'background:' + u.roleColor + '20;color:' + u.roleColor + ';border:1px solid ' + u.roleColor + '40'" style="font-size:11px;font-weight:600" x-text="u.role"></span>
+                  </td>
+                  <td style="font-size:13px" x-text="u.org"></td>
+                  <td style="font-size:12px;color:#6b7280" x-text="u.lastLogin"></td>
+                  <td>
+                    <span class="badge-status" :class="u.status==='Active'?'badge-active':u.status==='Inactive'?'badge-cancelled':'badge-hold'" x-text="u.status"></span>
+                  </td>
+                  <td class="text-center">
+                    <i class="bi" :class="u.twoFA ? 'bi-shield-check text-success' : 'bi-shield-x text-muted'" style="font-size:16px" :title="u.twoFA ? '2FA Enabled' : '2FA Disabled'"></i>
+                  </td>
+                  <td @click.stop>
+                    <div class="d-flex gap-1">
+                      <button class="btn btn-outline-primary btn-sm btn-icon" @click="viewUser(u)" title="View"><i class="bi bi-eye"></i></button>
+                      <button class="btn btn-outline-secondary btn-sm btn-icon" @click="editUser(u)" title="Edit"><i class="bi bi-pencil"></i></button>
+                      <button class="btn btn-sm btn-icon" :class="u.status==='Active'?'btn-outline-warning':'btn-outline-success'" @click="toggleStatus(u)" :title="u.status==='Active'?'Suspend':'Activate'">
+                        <i class="bi" :class="u.status==='Active'?'bi-pause-circle':'bi-play-circle'"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Roles & Permissions Tab -->
+  <div x-show="activeTab==='roles'">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="d-flex flex-column gap-2">
+          <template x-for="r in roles" :key="r.id">
+            <div class="role-card" :class="{selected: selectedRole && selectedRole.id===r.id}" @click="selectedRole=r">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <div style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center" :style="'background:' + r.color + '20'">
+                  <i :class="'bi bi-' + r.icon" :style="'color:' + r.color" style="font-size:18px"></i>
+                </div>
+                <div>
+                  <div class="fw-semibold" style="font-size:13px" x-text="r.name"></div>
+                  <div class="text-muted-sm" x-text="r.userCount + ' users'"></div>
+                </div>
+                <span class="ms-auto badge" :style="'background:' + r.color + '20;color:' + r.color" style="font-size:10px" x-text="r.level"></span>
+              </div>
+              <div class="text-muted" style="font-size:12px" x-text="r.desc"></div>
+            </div>
+          </template>
+          <button class="btn btn-outline-primary"><i class="bi bi-plus me-1"></i>Create New Role</button>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="card" x-show="!selectedRole">
+          <div class="card-body text-center py-5">
+            <i class="bi bi-shield-lock fs-2 text-muted d-block mb-2"></i>
+            <div class="text-muted">Select a role to view its permissions</div>
+          </div>
+        </div>
+        <div class="card" x-show="selectedRole">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h6 class="fw-semibold mb-0" x-text="selectedRole?.name + ' — Permissions'"></h6>
+              <button class="btn btn-primary btn-sm"><i class="bi bi-pencil me-1"></i>Edit Role</button>
+            </div>
+            <!-- Permission matrix -->
+            <div class="table-responsive">
+              <table class="table table-sm mb-0" style="font-size:12px">
+                <thead>
+                  <tr>
+                    <th style="width:220px">Module</th>
+                    <th class="text-center">View</th>
+                    <th class="text-center">Create</th>
+                    <th class="text-center">Edit</th>
+                    <th class="text-center">Approve</th>
+                    <th class="text-center">Delete</th>
+                    <th class="text-center">Export</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="perm in selectedRole?.permissions" :key="perm.module">
+                    <tr>
+                      <td class="fw-medium" x-text="perm.module"></td>
+                      <td class="text-center"><span class="perm-check mx-auto" :style="perm.view?'background:#dcfce7;color:#16a34a':'background:#fee2e2;color:#dc2626'" x-text="perm.view ? '✓' : '✗'"></span></td>
+                      <td class="text-center"><span class="perm-check mx-auto" :style="perm.create?'background:#dcfce7;color:#16a34a':'background:#f1f5f9;color:#94a3b8'" x-text="perm.create ? '✓' : '—'"></span></td>
+                      <td class="text-center"><span class="perm-check mx-auto" :style="perm.edit?'background:#dcfce7;color:#16a34a':'background:#f1f5f9;color:#94a3b8'" x-text="perm.edit ? '✓' : '—'"></span></td>
+                      <td class="text-center"><span class="perm-check mx-auto" :style="perm.approve?'background:#dbeafe;color:#1d4ed8':'background:#f1f5f9;color:#94a3b8'" x-text="perm.approve ? '✓' : '—'"></span></td>
+                      <td class="text-center"><span class="perm-check mx-auto" :style="perm.delete?'background:#fee2e2;color:#dc2626':'background:#f1f5f9;color:#94a3b8'" x-text="perm.delete ? '✓' : '—'"></span></td>
+                      <td class="text-center"><span class="perm-check mx-auto" :style="perm.export?'background:#dcfce7;color:#16a34a':'background:#f1f5f9;color:#94a3b8'" x-text="perm.export ? '✓' : '—'"></span></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit Log Tab -->
+  <div x-show="activeTab==='activity'">
+    <div class="card mb-3">
+      <div class="card-body py-2">
+        <div class="row g-2">
+          <div class="col-md-4"><div class="search-wrapper"><i class="bi bi-search search-icon"></i><input type="text" class="form-control form-control-sm" placeholder="Search audit logs..."></div></div>
+          <div class="col-md-2"><select class="form-select form-select-sm"><option>All Actions</option><option>Login</option><option>Create</option><option>Update</option><option>Delete</option><option>Approve</option></select></div>
+          <div class="col-md-2"><select class="form-select form-select-sm"><option>All Users</option></select></div>
+          <div class="col-md-2"><input type="date" class="form-control form-control-sm"></div>
+          <div class="col-md-2"><button class="btn btn-outline-primary btn-sm w-100"><i class="bi bi-download me-1"></i>Export</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="card table-card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Module</th><th>Record</th><th>IP Address</th><th>Result</th></tr></thead>
+            <tbody>
+              <template x-for="log in auditLogs" :key="log.id">
+                <tr style="font-size:12px">
+                  <td class="text-muted" x-text="log.time"></td>
+                  <td>
+                    <div class="d-flex align-items-center gap-1">
+                      <div class="avatar-circle avatar-sm" :style="'background:' + log.avatarColor" x-text="log.initials"></div>
+                      <span x-text="log.user"></span>
+                    </div>
+                  </td>
+                  <td><span class="badge" :class="actionBadge(log.action)" x-text="log.action"></span></td>
+                  <td x-text="log.module"></td>
+                  <td class="text-primary fw-semibold" x-text="log.record"></td>
+                  <td class="font-monospace text-muted" x-text="log.ip"></td>
+                  <td><span :class="log.success ? 'text-success' : 'text-danger'" class="fw-semibold" x-text="log.success ? 'Success' : 'Failed'"></span></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Sessions Tab -->
+  <div x-show="activeTab==='sessions'">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="info-box info mb-3"><i class="bi bi-info-circle text-primary mt-1 fs-5"></i><div style="font-size:13px"><strong>Active Sessions</strong> — Real-time view of all logged-in users. You can terminate any session from this panel.</div></div>
+      </div>
+      <template x-for="s in activeSessions" :key="s.id">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <div class="d-flex align-items-start justify-content-between">
+                <div class="d-flex gap-3">
+                  <div class="avatar-circle" :style="'background:' + s.avatarColor" x-text="s.initials"></div>
+                  <div>
+                    <div class="fw-semibold" style="font-size:13px" x-text="s.name"></div>
+                    <div class="text-muted-sm" x-text="s.role + ' · ' + s.org"></div>
+                    <div class="d-flex flex-wrap gap-2 mt-2" style="font-size:12px">
+                      <span><i class="bi bi-display me-1 text-muted"></i><span x-text="s.device"></span></span>
+                      <span><i class="bi bi-geo-alt me-1 text-muted"></i><span x-text="s.location"></span></span>
+                      <span><i class="bi bi-wifi me-1 text-muted"></i><code x-text="s.ip"></code></span>
+                    </div>
+                    <div class="mt-1" style="font-size:11px;color:#10b981"><i class="bi bi-circle-fill me-1" style="font-size:7px"></i>Active since <span x-text="s.since"></span></div>
+                  </div>
+                </div>
+                <button class="btn btn-outline-danger btn-sm" style="font-size:12px"><i class="bi bi-x-circle me-1"></i>Terminate</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Add/Edit User Modal -->
+  <div class="modal fade" :class="{show:showUserModal}" :style="showUserModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-semibold"><i class="bi bi-person-plus me-2 text-primary"></i><span x-text="editMode ? 'Edit User' : 'Add New User'"></span></h5>
+          <button class="btn-close" @click="showUserModal=false"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">First Name <span class="text-danger">*</span></label><input type="text" class="form-control" x-model="userForm.firstName"></div>
+            <div class="col-md-6"><label class="form-label">Last Name <span class="text-danger">*</span></label><input type="text" class="form-control" x-model="userForm.lastName"></div>
+            <div class="col-md-6"><label class="form-label">Email <span class="text-danger">*</span></label><input type="email" class="form-control" x-model="userForm.email"></div>
+            <div class="col-md-6"><label class="form-label">Phone</label><input type="text" class="form-control" x-model="userForm.phone"></div>
+            <div class="col-md-6"><label class="form-label">Role <span class="text-danger">*</span></label>
+              <select class="form-select" x-model="userForm.role">
+                <template x-for="r in roles" :key="r.id"><option :value="r.name" x-text="r.name"></option></template>
+              </select>
+            </div>
+            <div class="col-md-6"><label class="form-label">Organisation</label><input type="text" class="form-control" x-model="userForm.org" placeholder="Company name"></div>
+            <div class="col-md-6"><label class="form-label">Country</label><input type="text" class="form-control" x-model="userForm.country"></div>
+            <div class="col-md-6"><label class="form-label">Status</label>
+              <select class="form-select" x-model="userForm.status"><option>Active</option><option>Inactive</option></select>
+            </div>
+            <div class="col-12">
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="sw2fa" :checked="userForm.twoFA"><label class="form-check-label" for="sw2fa" style="font-size:13px">Require 2FA</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="swEmail" checked><label class="form-check-label" for="swEmail" style="font-size:13px">Send welcome email</label></div>
+              </div>
+            </div>
+            <div class="col-12" x-show="!editMode"><label class="form-label">Temporary Password</label><input type="password" class="form-control" placeholder="Leave blank to auto-generate"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" @click="showUserModal=false">Cancel</button>
+          <button class="btn btn-primary" @click="saveUser()"><i class="bi bi-check me-1"></i><span x-text="editMode ? 'Save Changes' : 'Create User'"></span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showUserModal" @click="showUserModal=false"></div>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="../js/layout.js"></script><script src="../js/layout-inject.js"></script><script src="../js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => injectLayout('Users & Roles', 'users'));
+function usersPage() {
+  return {
+    activeTab:'users', search:'', filterRole:'', filterStatus:'', showUserModal:false, editMode:false,
+    selectedRole:null, userForm:{ firstName:'', lastName:'', email:'', phone:'', role:'', org:'', country:'', status:'Active', twoFA:false },
+
+    users:[
+      { id:1,  name:'Admin Super',        email:'admin@pharmatrack.com',     role:'Super Admin',     roleColor:'#7c3aed', org:'PharmaTrack HQ',      lastLogin:'10 min ago',  status:'Active',    twoFA:true,  avatarColor:'#7c3aed', initials:'AS' },
+      { id:2,  name:'Sarah Johnson',      email:'s.johnson@gsk.com',         role:'Manufacturer',    roleColor:'#0d6efd', org:'GSK Inc. USA',        lastLogin:'1 hr ago',    status:'Active',    twoFA:true,  avatarColor:'#0d6efd', initials:'SJ' },
+      { id:3,  name:'Ahmed Khan',         email:'a.khan@biomeds.com',        role:'Distributor',     roleColor:'#0891b2', org:'BioMed BD',           lastLogin:'2 hr ago',    status:'Active',    twoFA:false, avatarColor:'#0891b2', initials:'AK' },
+      { id:4,  name:'Maria Santos',       email:'m.santos@pharmadistro.ph',  role:'Distributor',     roleColor:'#0891b2', org:'PharmaDistro PH',     lastLogin:'3 hr ago',    status:'Active',    twoFA:true,  avatarColor:'#059669', initials:'MS' },
+      { id:5,  name:'Dr. Lee Wei',        email:'lee.wei@gsk.com',           role:'QC Officer',      roleColor:'#16a34a', org:'GSK Inc. USA',        lastLogin:'5 hr ago',    status:'Active',    twoFA:true,  avatarColor:'#16a34a', initials:'LW' },
+      { id:6,  name:'Emily Clarke',       email:'e.clarke@gsk.com',          role:'Finance',         roleColor:'#c97b00', org:'GSK Inc. USA',        lastLogin:'1 day ago',   status:'Active',    twoFA:true,  avatarColor:'#c97b00', initials:'EC' },
+      { id:7,  name:'Michael Torres',     email:'m.torres@pharmatrack.com',  role:'Logistics',       roleColor:'#c2410c', org:'PharmaTrack HQ',      lastLogin:'1 day ago',   status:'Active',    twoFA:false, avatarColor:'#c2410c', initials:'MT' },
+      { id:8,  name:'Fatima Malik',       email:'f.malik@medlink.ng',        role:'Distributor',     roleColor:'#0891b2', org:'MedLink NG',          lastLogin:'2 days ago',  status:'Active',    twoFA:false, avatarColor:'#854d0e', initials:'FM' },
+      { id:9,  name:'Tom Wilson',         email:'t.wilson@gsk.com',          role:'Regulatory',      roleColor:'#0f766e', org:'GSK Inc. USA',        lastLogin:'3 days ago',  status:'Inactive',  twoFA:false, avatarColor:'#0f766e', initials:'TW' },
+      { id:10, name:'Jane Park',          email:'j.park@healthcore.in',      role:'Sub-Distributor', roleColor:'#6366f1', org:'HealthCore IN',       lastLogin:'4 days ago',  status:'Suspended', twoFA:false, avatarColor:'#6366f1', initials:'JP' },
+    ],
+    roles:[
+      { id:1, name:'Super Admin',     level:'L1', desc:'Full system access. Manage all modules, users, and configurations.',          userCount:1, icon:'shield-fill',       color:'#7c3aed',
+        permissions:[
+          {module:'Products & Batches', view:true, create:true, edit:true, approve:true, delete:true, export:true},
+          {module:'Orders (PO/SO/PI/CI)',view:true, create:true, edit:true, approve:true, delete:true, export:true},
+          {module:'Shipments',          view:true, create:true, edit:true, approve:true, delete:true, export:true},
+          {module:'Distribution',       view:true, create:true, edit:true, approve:true, delete:true, export:true},
+          {module:'Countries/Compliance',view:true,create:true, edit:true, approve:true, delete:true, export:true},
+          {module:'Anti-Counterfeit',   view:true, create:true, edit:true, approve:true, delete:true, export:true},
+          {module:'Document Vault',     view:true, create:true, edit:true, approve:true, delete:true, export:true},
+          {module:'Reports',            view:true, create:true, edit:true, approve:true, delete:true, export:true},
+          {module:'Users & Roles',      view:true, create:true, edit:true, approve:true, delete:true, export:true},
+        ]},
+      { id:2, name:'Manufacturer',    level:'L2', desc:'Manage products, batches, QC release, and initiate sales orders.',           userCount:6, icon:'building',          color:'#0d6efd',
+        permissions:[
+          {module:'Products & Batches', view:true, create:true, edit:true, approve:false, delete:false, export:true},
+          {module:'Orders (PO/SO/PI/CI)',view:true, create:true, edit:true, approve:false, delete:false, export:true},
+          {module:'Shipments',          view:true, create:true, edit:false, approve:false, delete:false, export:true},
+          {module:'Distribution',       view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Countries/Compliance',view:true,create:false,edit:false, approve:false, delete:false, export:true},
+          {module:'Anti-Counterfeit',   view:true, create:false,edit:false, approve:false, delete:false, export:true},
+          {module:'Document Vault',     view:true, create:true, edit:true, approve:false, delete:false, export:true},
+          {module:'Reports',            view:true, create:false,edit:false, approve:false, delete:false, export:true},
+          {module:'Users & Roles',      view:false,create:false,edit:false, approve:false, delete:false, export:false},
+        ]},
+      { id:3, name:'Distributor',     level:'L3', desc:'View orders assigned to them, track shipments, manage sub-distributors.',    userCount:12, icon:'truck',            color:'#0891b2',
+        permissions:[
+          {module:'Products & Batches', view:true, create:false,edit:false, approve:false, delete:false, export:true},
+          {module:'Orders (PO/SO/PI/CI)',view:true, create:true, edit:false, approve:false, delete:false, export:true},
+          {module:'Shipments',          view:true, create:false,edit:false, approve:false, delete:false, export:true},
+          {module:'Distribution',       view:true, create:true, edit:true,  approve:false, delete:false, export:false},
+          {module:'Countries/Compliance',view:true,create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Anti-Counterfeit',   view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Document Vault',     view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Reports',            view:true, create:false,edit:false, approve:false, delete:false, export:true},
+          {module:'Users & Roles',      view:false,create:false,edit:false, approve:false, delete:false, export:false},
+        ]},
+      { id:4, name:'Finance',         level:'L2', desc:'Approve/reject proforma and commercial invoices. View financial reports.',   userCount:4, icon:'currency-dollar',   color:'#c97b00',
+        permissions:[
+          {module:'Products & Batches', view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Orders (PO/SO/PI/CI)',view:true, create:false,edit:false, approve:true,  delete:false, export:true},
+          {module:'Shipments',          view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Distribution',       view:false,create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Countries/Compliance',view:false,create:false,edit:false,approve:false, delete:false, export:false},
+          {module:'Anti-Counterfeit',   view:false,create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Document Vault',     view:true, create:false,edit:false, approve:false, delete:false, export:true},
+          {module:'Reports',            view:true, create:true, edit:false, approve:false, delete:false, export:true},
+          {module:'Users & Roles',      view:false,create:false,edit:false, approve:false, delete:false, export:false},
+        ]},
+      { id:5, name:'QC Officer',      level:'L2', desc:'Manage batch QC release, COA, recall, anti-counterfeit investigation.',     userCount:3, icon:'award',             color:'#16a34a',
+        permissions:[
+          {module:'Products & Batches', view:true, create:false,edit:true,  approve:true,  delete:false, export:true},
+          {module:'Orders (PO/SO/PI/CI)',view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Shipments',          view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Distribution',       view:false,create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Countries/Compliance',view:true,create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Anti-Counterfeit',   view:true, create:true, edit:true,  approve:true,  delete:false, export:true},
+          {module:'Document Vault',     view:true, create:true, edit:true,  approve:false, delete:false, export:true},
+          {module:'Reports',            view:true, create:false,edit:false, approve:false, delete:false, export:true},
+          {module:'Users & Roles',      view:false,create:false,edit:false, approve:false, delete:false, export:false},
+        ]},
+      { id:6, name:'Logistics',       level:'L2', desc:'Create and manage shipments, carrier integration, delivery confirmation.',  userCount:4, icon:'box-seam',          color:'#c2410c',
+        permissions:[
+          {module:'Products & Batches', view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Orders (PO/SO/PI/CI)',view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Shipments',          view:true, create:true, edit:true,  approve:true,  delete:false, export:true},
+          {module:'Distribution',       view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Countries/Compliance',view:true,create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Anti-Counterfeit',   view:false,create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Document Vault',     view:true, create:true, edit:false, approve:false, delete:false, export:true},
+          {module:'Reports',            view:true, create:false,edit:false, approve:false, delete:false, export:true},
+          {module:'Users & Roles',      view:false,create:false,edit:false, approve:false, delete:false, export:false},
+        ]},
+      { id:7, name:'Regulatory',      level:'L2', desc:'Manage country authorizations, product registrations, compliance calendar.',userCount:2, icon:'globe2',            color:'#0f766e',
+        permissions:[
+          {module:'Products & Batches', view:true, create:false,edit:false, approve:false, delete:false, export:true},
+          {module:'Orders (PO/SO/PI/CI)',view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Shipments',          view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Distribution',       view:false,create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Countries/Compliance',view:true,create:true, edit:true,  approve:true,  delete:false, export:true},
+          {module:'Anti-Counterfeit',   view:true, create:false,edit:false, approve:false, delete:false, export:false},
+          {module:'Document Vault',     view:true, create:true, edit:true,  approve:false, delete:false, export:true},
+          {module:'Reports',            view:true, create:false,edit:false, approve:false, delete:false, export:true},
+          {module:'Users & Roles',      view:false,create:false,edit:false, approve:false, delete:false, export:false},
+        ]},
+    ],
+    auditLogs:[
+      { id:1,  time:'Jun 10, 10:42',user:'Admin Super',   initials:'AS',avatarColor:'#7c3aed',action:'Login',   module:'Auth',           record:'—',               ip:'192.168.1.10', success:true  },
+      { id:2,  time:'Jun 10, 10:38',user:'Emily Clarke',  initials:'EC',avatarColor:'#c97b00',action:'Approve', module:'Proforma Invoice',record:'PI-2026-0091',    ip:'203.0.113.14', success:true  },
+      { id:3,  time:'Jun 10, 10:15',user:'Dr. Lee Wei',   initials:'LW',avatarColor:'#16a34a',action:'Update',  module:'Batch',          record:'BRN-00142-2601-003',ip:'192.168.1.22',success:true  },
+      { id:4,  time:'Jun 10, 09:55',user:'Michael Torres',initials:'MT',avatarColor:'#c2410c',action:'Create',  module:'Shipment',       record:'SHP-2026-0498',    ip:'10.0.0.45',    success:true  },
+      { id:5,  time:'Jun 10, 09:30',user:'Sarah Johnson', initials:'SJ',avatarColor:'#0d6efd',action:'Create',  module:'Sales Order',    record:'SO-2026-0141',     ip:'198.51.100.5', success:true  },
+      { id:6,  time:'Jun 10, 09:12',user:'Jane Park',     initials:'JP',avatarColor:'#6366f1',action:'Login',   module:'Auth',           record:'—',               ip:'198.51.100.99',success:false },
+      { id:7,  time:'Jun 10, 08:45',user:'Ahmed Khan',    initials:'AK',avatarColor:'#0891b2',action:'Create',  module:'Purchase Order', record:'PO-2026-0141',     ip:'203.0.113.88', success:true  },
+    ],
+    activeSessions:[
+      { id:1, name:'Admin Super',        initials:'AS',avatarColor:'#7c3aed',role:'Super Admin',   org:'PharmaTrack HQ',   device:'Chrome 124 / Windows 11', location:'Manila, PH',        ip:'192.168.1.10', since:'09:00 AM' },
+      { id:2, name:'Sarah Johnson',      initials:'SJ',avatarColor:'#0d6efd',role:'Manufacturer',  org:'GSK Inc. USA',     device:'Safari / macOS',          location:'Los Angeles, US',    ip:'198.51.100.5', since:'09:15 AM' },
+      { id:3, name:'Emily Clarke',       initials:'EC',avatarColor:'#c97b00',role:'Finance',       org:'GSK Inc. USA',     device:'Edge 120 / Windows 10',   location:'New York, US',       ip:'203.0.113.14', since:'10:05 AM' },
+      { id:4, name:'Michael Torres',     initials:'MT',avatarColor:'#c2410c',role:'Logistics',     org:'PharmaTrack HQ',   device:'Chrome 124 / Ubuntu',     location:'Singapore, SG',      ip:'10.0.0.45',    since:'08:30 AM' },
+      { id:5, name:'Dr. Lee Wei',        initials:'LW',avatarColor:'#16a34a',role:'QC Officer',    org:'GSK Inc. USA',     device:'Firefox 125 / Windows',   location:'Houston, US',        ip:'192.168.1.22', since:'09:45 AM' },
+      { id:6, name:'Maria Santos',       initials:'MS',avatarColor:'#059669',role:'Distributor',   org:'PharmaDistro PH',  device:'Chrome 124 / Android',    location:'Manila, PH',         ip:'203.0.113.33', since:'10:20 AM' },
+    ],
+
+    get filteredUsers() {
+      return this.users.filter(u => {
+        const q = this.search.toLowerCase();
+        return (!q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q))
+          && (!this.filterRole   || u.role === this.filterRole)
+          && (!this.filterStatus || u.status === this.filterStatus);
+      });
+    },
+    openAddUser() { this.editMode=false; this.userForm={firstName:'',lastName:'',email:'',phone:'',role:'',org:'',country:'',status:'Active',twoFA:false}; this.showUserModal=true; },
+    editUser(u) { this.editMode=true; this.userForm={firstName:u.name.split(' ')[0],lastName:u.name.split(' ')[1]||'',email:u.email,phone:'',role:u.role,org:u.org,country:'',status:u.status,twoFA:u.twoFA}; this.showUserModal=true; },
+    viewUser(u) { this.editUser(u); },
+    saveUser() { this.showUserModal=false; },
+    toggleStatus(u) { u.status = u.status==='Active' ? 'Suspended' : 'Active'; },
+    actionBadge(a) {
+      const m = {Login:'bg-info text-dark',Create:'bg-success',Update:'bg-primary',Delete:'bg-danger',Approve:'bg-warning text-dark'};
+      return m[a] || 'bg-secondary';
+    },
+  };
+}
+</script>
+</body>
+</html>

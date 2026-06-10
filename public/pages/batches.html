@@ -1,0 +1,315 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Batch & Lot Management — PharmaTrack</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/app.css" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('darkMode')==='true'?'dark':'light');</script>
+</head>
+<body x-data="layoutData('Batch & Lot Management')">
+
+<main class="main-content" :class="{'collapsed': sidebarCollapsed}" x-data="batchPage()">
+
+  <div class="page-header">
+    <div>
+      <h1>Batch & Lot Management</h1>
+      <div class="page-breadcrumb"><a href="dashboard.html">Home</a> / Batch & Lot Management</div>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>Export</button>
+      <button class="btn btn-primary btn-sm" @click="showAddModal=true"><i class="bi bi-plus-lg me-1"></i>New Batch</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-primary"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-layers" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">1,842</div><div class="stat-label">Total Batches</div></div></div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-success"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-check2-circle" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">1,610</div><div class="stat-label">Released</div></div></div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-warning"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-hourglass" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">148</div><div class="stat-label">Pending QC</div></div></div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-danger"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-pause-circle" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">24</div><div class="stat-label">On Hold</div></div></div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-danger"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-arrow-counterclockwise" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">7</div><div class="stat-label">Recalled</div></div></div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card stat-warning"><div class="stat-icon" style="width:44px;height:44px"><i class="bi bi-clock-history" style="font-size:20px"></i></div><div><div class="stat-value" style="font-size:22px">38</div><div class="stat-label">Expiring &lt;60d</div></div></div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-3">
+          <div class="search-wrapper">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control form-control-sm" placeholder="Search BRN, product name..." x-model="search">
+          </div>
+        </div>
+        <div class="col-6 col-md-2">
+          <select class="form-select form-select-sm" x-model="filterStatus">
+            <option value="">All Status</option>
+            <option>Released</option><option>Pending QC</option><option>On Hold</option><option>Recalled</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <select class="form-select form-select-sm" x-model="filterType">
+            <option value="">All Types</option>
+            <option>Commercial</option><option>Validation</option><option>Stability</option><option>Clinical</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <select class="form-select form-select-sm">
+            <option value="">Expiry: All</option>
+            <option>Expiring in 30 days</option>
+            <option>Expiring in 60 days</option>
+            <option>Expired</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-3 d-flex gap-1">
+          <button class="btn btn-primary btn-sm flex-fill">Filter</button>
+          <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card table-card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th style="width:40px"><input type="checkbox" class="form-check-input"></th>
+              <th>BRN</th>
+              <th>Product</th>
+              <th>Batch Type</th>
+              <th>Mfg. Date</th>
+              <th>Expiry Date</th>
+              <th>Total Units</th>
+              <th>QC Released</th>
+              <th>COA</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="b in filtered" :key="b.brn">
+              <tr>
+                <td><input type="checkbox" class="form-check-input"></td>
+                <td>
+                  <span class="text-primary fw-semibold cursor-pointer" style="font-size:12px" @click="viewBatch(b)" x-text="b.brn"></span>
+                  <div class="text-muted-sm" x-show="b.lrn" x-text="'Lot: ' + b.lrn"></div>
+                </td>
+                <td>
+                  <div class="fw-semibold" style="font-size:13px" x-text="b.product"></div>
+                  <div class="text-muted-sm" x-text="b.prn"></div>
+                </td>
+                <td><span class="badge bg-light text-secondary" style="font-size:11px" x-text="b.type"></span></td>
+                <td style="font-size:13px" x-text="b.mfgDate"></td>
+                <td>
+                  <span :class="b.daysLeft < 30 ? 'text-danger fw-semibold' : b.daysLeft < 60 ? 'text-warning fw-semibold' : ''" style="font-size:13px" x-text="b.expiryDate"></span>
+                  <div class="text-muted-sm" x-text="b.daysLeft + ' days left'"></div>
+                </td>
+                <td style="font-size:13px" x-text="Number(b.units).toLocaleString()"></td>
+                <td style="font-size:13px" x-text="b.qcDate"></td>
+                <td>
+                  <span x-show="b.hasCoa" class="text-success"><i class="bi bi-file-earmark-check"></i> <span style="font-size:12px">Uploaded</span></span>
+                  <span x-show="!b.hasCoa" class="text-danger"><i class="bi bi-file-earmark-x"></i> <span style="font-size:12px">Missing</span></span>
+                </td>
+                <td><span class="badge-status" :class="'badge-' + b.statusClass" x-text="b.status"></span></td>
+                <td>
+                  <div class="d-flex gap-1">
+                    <button class="btn btn-outline-primary btn-sm btn-icon" title="View" @click="viewBatch(b)"><i class="bi bi-eye"></i></button>
+                    <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-outline-success btn-sm btn-icon" title="Release" x-show="b.status==='Pending QC'"><i class="bi bi-check2"></i></button>
+                    <button class="btn btn-outline-info btn-sm btn-icon" title="Generate UUC"><i class="bi bi-qr-code"></i></button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+      <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top">
+        <div class="text-muted-sm">Showing <strong x-text="filtered.length"></strong> of <strong>1,842</strong> batches</div>
+        <nav><ul class="pagination pagination-sm mb-0">
+          <li class="page-item disabled"><a class="page-link">Prev</a></li>
+          <li class="page-item active"><a class="page-link">1</a></li>
+          <li class="page-item"><a class="page-link">2</a></li>
+          <li class="page-item"><a class="page-link">Next</a></li>
+        </ul></nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Batch Modal -->
+  <div class="modal fade" :class="{show: showViewModal}" :style="showViewModal ? 'display:block' : ''" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content" x-show="selectedBatch">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-semibold" x-text="selectedBatch?.brn"></h5>
+            <div class="text-muted-sm" x-text="selectedBatch?.product"></div>
+          </div>
+          <div class="ms-auto d-flex gap-2 align-items-center">
+            <span class="badge-status" :class="'badge-' + selectedBatch?.statusClass" x-text="selectedBatch?.status"></span>
+            <button class="btn-close ms-2" @click="showViewModal=false"></button>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <!-- Manufacturing Info -->
+            <div class="col-md-6">
+              <h6 class="fw-semibold mb-3 text-primary"><i class="bi bi-building me-2"></i>Manufacturing Information</h6>
+              <div class="row g-2">
+                <div class="col-6"><div class="text-muted-sm">Mfg. Date</div><div class="fw-semibold" x-text="selectedBatch?.mfgDate"></div></div>
+                <div class="col-6"><div class="text-muted-sm">Expiry Date</div><div class="fw-semibold text-danger" x-text="selectedBatch?.expiryDate"></div></div>
+                <div class="col-6"><div class="text-muted-sm">Batch Type</div><div x-text="selectedBatch?.type"></div></div>
+                <div class="col-6"><div class="text-muted-sm">Total Units</div><div class="fw-semibold" x-text="selectedBatch?.units?.toLocaleString()"></div></div>
+                <div class="col-12"><div class="text-muted-sm">GMP Certificate</div><div x-text="selectedBatch?.gmpCert"></div></div>
+              </div>
+            </div>
+            <!-- QC Info -->
+            <div class="col-md-6">
+              <h6 class="fw-semibold mb-3 text-success"><i class="bi bi-clipboard2-check me-2"></i>Quality & Release</h6>
+              <div class="row g-2">
+                <div class="col-6"><div class="text-muted-sm">QC Release Date</div><div class="fw-semibold" x-text="selectedBatch?.qcDate"></div></div>
+                <div class="col-6"><div class="text-muted-sm">Released By</div><div x-text="selectedBatch?.qcBy"></div></div>
+                <div class="col-6"><div class="text-muted-sm">COA Ref</div><div x-text="selectedBatch?.coaRef"></div></div>
+                <div class="col-6"><div class="text-muted-sm">MSDS Ref</div><div x-text="selectedBatch?.msdsRef"></div></div>
+              </div>
+              <div class="mt-3 d-flex gap-2">
+                <button class="btn btn-outline-primary btn-sm"><i class="bi bi-file-pdf me-1"></i>Download COA</button>
+                <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-pdf me-1"></i>Download MSDS</button>
+              </div>
+            </div>
+            <!-- UUC / Serialization -->
+            <div class="col-12">
+              <h6 class="fw-semibold mb-3 text-info"><i class="bi bi-qr-code me-2"></i>Serialization (Unit Unique Codes)</h6>
+              <div class="row g-3">
+                <div class="col-md-3">
+                  <div class="p-3 bg-light rounded-3 text-center">
+                    <div class="fw-bold fs-4 text-primary" x-text="selectedBatch?.units?.toLocaleString()"></div>
+                    <div class="text-muted-sm">Total Units</div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="p-3 bg-light-success rounded-3 text-center">
+                    <div class="fw-bold fs-4 text-success" x-text="selectedBatch?.uucGenerated?.toLocaleString()"></div>
+                    <div class="text-muted-sm">UUC Generated</div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="p-3 bg-light rounded-3 text-center">
+                    <div class="fw-bold fs-4 text-info" x-text="selectedBatch?.uucScanned?.toLocaleString()"></div>
+                    <div class="text-muted-sm">Times Scanned</div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="p-3 bg-light-warning rounded-3 text-center">
+                    <div class="fw-bold fs-4 text-warning" x-text="selectedBatch?.uucAnomalies"></div>
+                    <div class="text-muted-sm">Anomalies Flagged</div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="info-box info"><i class="bi bi-info-circle text-primary mt-1"></i>
+                  <div style="font-size:13px">UUC Format: <code>UUC-[PRN-Seq]-[BRN-Seq]-[LotSeq]-[UnitSeq]-[Checksum]</code></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary btn-sm" @click="showViewModal=false">Close</button>
+          <button class="btn btn-outline-info btn-sm"><i class="bi bi-qr-code me-1"></i>Generate UUC Labels</button>
+          <button class="btn btn-primary btn-sm"><i class="bi bi-pencil me-1"></i>Edit Batch</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showViewModal" @click="showViewModal=false"></div>
+
+  <!-- Add Batch Modal -->
+  <div class="modal fade" :class="{show: showAddModal}" :style="showAddModal ? 'display:block' : ''" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-semibold"><i class="bi bi-plus-circle me-2 text-primary"></i>Create New Batch</h5>
+          <button class="btn-close" @click="showAddModal=false"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Product (PRN) <span class="text-danger">*</span></label><select class="form-select"><option>Select product...</option><option>PRN-US-ANT-00142 — Amoxil 500</option><option>PRN-BD-INJ-00089 — Insulax R</option><option>PRN-IN-TAB-00231 — Metformin SR</option></select></div>
+            <div class="col-md-6"><label class="form-label">Batch Type <span class="text-danger">*</span></label><select class="form-select"><option>Commercial</option><option>Validation</option><option>Stability</option><option>Sample</option><option>Clinical</option></select></div>
+            <div class="col-md-4"><label class="form-label">Manufacturing Date <span class="text-danger">*</span></label><input type="date" class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">Expiry Date <span class="text-danger">*</span></label><input type="date" class="form-control"></div>
+            <div class="col-md-4"><label class="form-label">Total Units <span class="text-danger">*</span></label><input type="number" class="form-control" placeholder="e.g. 50000"></div>
+            <div class="col-md-6"><label class="form-label">GMP Certificate Number <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="GMP-XXXX-YYYY"></div>
+            <div class="col-md-6"><label class="form-label">GMP Certificate Expiry <span class="text-danger">*</span></label><input type="date" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">COA Reference Number <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="COA-XXXXX"></div>
+            <div class="col-md-6"><label class="form-label">COA Document (PDF) <span class="text-danger">*</span></label><input type="file" class="form-control" accept=".pdf"></div>
+            <div class="col-md-6"><label class="form-label">MSDS Reference Number <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="MSDS-XXXXX"></div>
+            <div class="col-md-6"><label class="form-label">MSDS Document (PDF) <span class="text-danger">*</span></label><input type="file" class="form-control" accept=".pdf"></div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="splitLot">
+                <label class="form-check-label" for="splitLot">Split batch into multiple Lots (LRN)</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" @click="showAddModal=false">Cancel</button>
+          <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Create Batch & Generate BRN</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showAddModal" @click="showAddModal=false"></div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="../js/layout.js"></script>
+<script src="../js/layout-inject.js"></script>
+<script src="../js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => injectLayout('Batch & Lot Management', 'batches'));
+function batchPage() {
+  return {
+    search: '', filterStatus: '', filterType: '',
+    showAddModal: false, showViewModal: false, selectedBatch: null,
+    batches: [
+      { brn:'BRN-00142-2601-003', lrn:'', product:'Amoxil 500 Capsule', prn:'PRN-US-ANT-00142', type:'Commercial', mfgDate:'Jan 15, 2026', expiryDate:'Jul 10, 2026', daysLeft:30, units:50000, qcDate:'Jan 20, 2026', qcBy:'Dr. Lee QC', coaRef:'COA-2601-003', msdsRef:'MSDS-ANT-042', hasCoa:true, gmpCert:'GMP-US-2024-001', uucGenerated:50000, uucScanned:12480, uucAnomalies:2, status:'Released', statusClass:'released' },
+      { brn:'BRN-00089-2603-001', lrn:'LRN-L01', product:'Insulax R Injection', prn:'PRN-BD-INJ-00089', type:'Commercial', mfgDate:'Mar 5, 2026', expiryDate:'Jun 28, 2026', daysLeft:18, units:20000, qcDate:'Mar 10, 2026', qcBy:'Dr. Ahmed QC', coaRef:'COA-2603-001', msdsRef:'MSDS-INJ-089', hasCoa:true, gmpCert:'GMP-BD-2025-007', uucGenerated:20000, uucScanned:5200, uucAnomalies:0, status:'Released', statusClass:'released' },
+      { brn:'BRN-00231-2602-002', lrn:'', product:'Metformin SR 850mg', prn:'PRN-IN-TAB-00231', type:'Commercial', mfgDate:'Feb 20, 2026', expiryDate:'Jul 5, 2026', daysLeft:25, units:100000, qcDate:'Feb 28, 2026', qcBy:'Ms. Patel QC', coaRef:'COA-2602-002', msdsRef:'MSDS-TAB-231', hasCoa:true, gmpCert:'GMP-IN-2025-003', uucGenerated:100000, uucScanned:31000, uucAnomalies:0, status:'Released', statusClass:'released' },
+      { brn:'BRN-00018-2604-001', lrn:'', product:'Hep-B Vaccine', prn:'PRN-CN-VAC-00018', type:'Commercial', mfgDate:'Apr 1, 2026', expiryDate:'Oct 1, 2027', daysLeft:478, units:10000, qcDate:'', qcBy:'', coaRef:'', msdsRef:'', hasCoa:false, gmpCert:'GMP-CN-2024-012', uucGenerated:0, uucScanned:0, uucAnomalies:0, status:'Pending QC', statusClass:'pending' },
+      { brn:'BRN-00067-2511-001', lrn:'', product:'Insulin Glargine', prn:'PRN-DE-INJ-00067', type:'Commercial', mfgDate:'Nov 10, 2025', expiryDate:'Jun 22, 2026', daysLeft:12, units:8000, qcDate:'Nov 15, 2025', qcBy:'Dr. Schmidt QC', coaRef:'COA-2511-001', msdsRef:'MSDS-INJ-067', hasCoa:true, gmpCert:'GMP-DE-2023-009', uucGenerated:8000, uucScanned:7100, uucAnomalies:1, status:'On Hold', statusClass:'hold' },
+    ],
+    viewBatch(b) { this.selectedBatch = b; this.showViewModal = true; },
+    get filtered() {
+      return this.batches.filter(b => {
+        const q = this.search.toLowerCase();
+        return (!q || b.brn.toLowerCase().includes(q) || b.product.toLowerCase().includes(q))
+          && (!this.filterStatus || b.status === this.filterStatus)
+          && (!this.filterType || b.type === this.filterType);
+      });
+    }
+  };
+}
+</script>
+</body>
+</html>

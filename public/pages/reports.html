@@ -1,0 +1,461 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports & Analytics — PharmaTrack</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/app.css" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('darkMode')==='true'?'dark':'light');</script>
+  <style>
+    .report-card { border-radius:12px; border:1px solid #e9ecef; background:#fff; padding:20px; transition:all 0.2s; cursor:pointer; }
+    .report-card:hover { border-color:#0d6efd; box-shadow:0 4px 16px rgba(13,110,253,0.10); }
+    .report-card .report-icon { width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:12px; }
+    .chart-bar-h { height:18px;border-radius:4px;background:linear-gradient(90deg,#0d6efd,#6ea8fe); }
+    .kpi-big { font-size:2.4rem;font-weight:700;line-height:1; }
+    .trend-up { color:#198754; font-size:12px; } .trend-down { color:#dc3545; font-size:12px; }
+  </style>
+</head>
+<body x-data="layoutData('Reports & Analytics')">
+<main class="main-content" :class="{'collapsed': sidebarCollapsed}" x-data="reportsPage()">
+
+  <div class="page-header">
+    <div><h1>Reports &amp; Analytics</h1><div class="page-breadcrumb"><a href="dashboard.html">Home</a> / Reports</div></div>
+    <div class="d-flex gap-2 flex-wrap">
+      <select class="form-select form-select-sm" style="width:auto" x-model="dateRange">
+        <option value="7">Last 7 Days</option><option value="30" selected>Last 30 Days</option>
+        <option value="90">Last 90 Days</option><option value="365">Last 12 Months</option>
+      </select>
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-funnel me-1"></i>Filters</button>
+      <button class="btn btn-primary btn-sm"><i class="bi bi-download me-1"></i>Export</button>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-2">
+      <div class="card text-center p-3">
+        <div class="kpi-big text-primary">98.4%</div>
+        <div class="text-muted-sm mt-1">On-Time Delivery</div>
+        <div class="trend-up"><i class="bi bi-arrow-up-short"></i>+1.2%</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center p-3">
+        <div class="kpi-big text-success">$4.2M</div>
+        <div class="text-muted-sm mt-1">Revenue (MTD)</div>
+        <div class="trend-up"><i class="bi bi-arrow-up-short"></i>+8.4%</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center p-3">
+        <div class="kpi-big text-warning">312</div>
+        <div class="text-muted-sm mt-1">Shipments</div>
+        <div class="trend-up"><i class="bi bi-arrow-up-short"></i>+14%</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center p-3">
+        <div class="kpi-big text-danger">2</div>
+        <div class="text-muted-sm mt-1">Counterfeit Alerts</div>
+        <div class="trend-down"><i class="bi bi-arrow-down-short"></i>-60%</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center p-3">
+        <div class="kpi-big" style="color:#7c3aed">47</div>
+        <div class="text-muted-sm mt-1">Countries Served</div>
+        <div class="trend-up"><i class="bi bi-arrow-up-short"></i>+3</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="card text-center p-3">
+        <div class="kpi-big text-info">99.7%</div>
+        <div class="text-muted-sm mt-1">QC Pass Rate</div>
+        <div class="trend-up"><i class="bi bi-arrow-up-short"></i>+0.1%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Nav -->
+  <div class="pills-nav mb-3">
+    <button class="pill-btn" :class="{active:tab==='overview'}"  @click="tab='overview'"><i class="bi bi-bar-chart me-1"></i>Overview</button>
+    <button class="pill-btn" :class="{active:tab==='shipments'}" @click="tab='shipments'"><i class="bi bi-truck me-1"></i>Shipments</button>
+    <button class="pill-btn" :class="{active:tab==='finance'}"   @click="tab='finance'"><i class="bi bi-currency-dollar me-1"></i>Finance</button>
+    <button class="pill-btn" :class="{active:tab==='quality'}"   @click="tab='quality'"><i class="bi bi-shield-check me-1"></i>Quality</button>
+    <button class="pill-btn" :class="{active:tab==='compliance'}" @click="tab='compliance'"><i class="bi bi-globe me-1"></i>Compliance</button>
+    <button class="pill-btn" :class="{active:tab==='custom'}"    @click="tab='custom'"><i class="bi bi-sliders me-1"></i>Custom Reports</button>
+  </div>
+
+  <!-- Overview Tab -->
+  <div x-show="tab==='overview'">
+    <div class="row g-3 mb-3">
+      <!-- Shipments by Month chart -->
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h6 class="fw-semibold mb-0">Shipments by Month</h6>
+              <div class="d-flex gap-2">
+                <span class="badge bg-primary" style="font-size:11px">DHL</span>
+                <span class="badge bg-success" style="font-size:11px">EMS</span>
+              </div>
+            </div>
+            <!-- Bar chart simulation -->
+            <div class="d-flex align-items-end gap-2" style="height:140px">
+              <template x-for="(m, i) in monthlyData" :key="i">
+                <div class="flex-fill d-flex flex-column align-items-center gap-1">
+                  <div class="w-100 d-flex gap-1 align-items-end" style="height:120px">
+                    <div class="flex-fill rounded-top" :style="'height:' + m.dhl + '%;background:#0d6efd;min-height:4px'"></div>
+                    <div class="flex-fill rounded-top" :style="'height:' + m.ems + '%;background:#198754;min-height:4px'"></div>
+                  </div>
+                  <div style="font-size:10px;color:#9ca3af" x-text="m.month"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Carrier split -->
+      <div class="col-md-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Carrier Split</h6>
+            <div class="d-flex flex-column gap-3">
+              <div>
+                <div class="d-flex justify-content-between mb-1" style="font-size:13px"><span><span class="badge bg-primary me-1">DHL</span>Express</span><span class="fw-semibold">67%</span></div>
+                <div class="progress" style="height:8px"><div class="progress-bar bg-primary" style="width:67%"></div></div>
+              </div>
+              <div>
+                <div class="d-flex justify-content-between mb-1" style="font-size:13px"><span><span class="badge bg-success me-1">EMS</span>Priority</span><span class="fw-semibold">28%</span></div>
+                <div class="progress" style="height:8px"><div class="progress-bar bg-success" style="width:28%"></div></div>
+              </div>
+              <div>
+                <div class="d-flex justify-content-between mb-1" style="font-size:13px"><span><span class="badge bg-secondary me-1">Other</span>Freight</span><span class="fw-semibold">5%</span></div>
+                <div class="progress" style="height:8px"><div class="progress-bar bg-secondary" style="width:5%"></div></div>
+              </div>
+              <hr class="my-1">
+              <div class="d-flex flex-column gap-2" style="font-size:12px">
+                <div class="d-flex justify-content-between"><span class="text-muted">Avg. Transit Time</span><span class="fw-semibold">4.2 days</span></div>
+                <div class="d-flex justify-content-between"><span class="text-muted">Delayed Rate</span><span class="fw-semibold text-warning">3.1%</span></div>
+                <div class="d-flex justify-content-between"><span class="text-muted">Returned Shipments</span><span class="fw-semibold text-danger">0.8%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <!-- Top Destinations -->
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Top Destination Countries</h6>
+            <div class="d-flex flex-column gap-2">
+              <template x-for="c in topCountries" :key="c.name">
+                <div>
+                  <div class="d-flex justify-content-between mb-1" style="font-size:13px">
+                    <span x-text="c.flag + ' ' + c.name"></span>
+                    <span class="text-muted fw-semibold" x-text="c.shipments + ' shipments'"></span>
+                  </div>
+                  <div class="progress" style="height:6px"><div class="progress-bar" :class="c.color" :style="'width:' + c.pct + '%'"></div></div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Order Document Flow -->
+      <div class="col-md-7">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Document Processing Efficiency</h6>
+            <table class="table table-sm mb-0" style="font-size:13px">
+              <thead><tr><th>Document Type</th><th>Issued</th><th>Avg. Processing</th><th>On-Time %</th></tr></thead>
+              <tbody>
+                <tr><td><span class="badge bg-primary me-1">PO</span>Purchase Orders</td><td>141</td><td>0.5 hr</td><td><span class="text-success fw-semibold">100%</span></td></tr>
+                <tr><td><span class="badge bg-info me-1">SO</span>Sales Orders</td><td>138</td><td>1.2 hr</td><td><span class="text-success fw-semibold">97.8%</span></td></tr>
+                <tr><td><span class="badge bg-warning me-1" style="color:#000">PI</span>Proforma Invoices</td><td>130</td><td>3.4 hr</td><td><span class="text-success fw-semibold">95.4%</span></td></tr>
+                <tr><td><span class="badge bg-success me-1">CI</span>Commercial Invoices</td><td>118</td><td>4.1 hr</td><td><span class="text-warning fw-semibold">91.5%</span></td></tr>
+                <tr><td><span class="badge bg-purple me-1" style="background:#7c3aed;color:#fff">SHP</span>Shipments</td><td>98</td><td>8.6 hr</td><td><span class="text-warning fw-semibold">88.8%</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shipments Tab -->
+  <div x-show="tab==='shipments'">
+    <div class="row g-3 mb-3">
+      <div class="col-md-3"><div class="card p-3 text-center"><div class="kpi-big text-primary">98</div><div class="text-muted-sm">Total Shipments</div></div></div>
+      <div class="col-md-3"><div class="card p-3 text-center"><div class="kpi-big text-success">91</div><div class="text-muted-sm">Delivered</div></div></div>
+      <div class="col-md-3"><div class="card p-3 text-center"><div class="kpi-big text-warning">4</div><div class="text-muted-sm">Delayed</div></div></div>
+      <div class="col-md-3"><div class="card p-3 text-center"><div class="kpi-big text-danger">3</div><div class="text-muted-sm">In Customs</div></div></div>
+    </div>
+    <div class="card table-card">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Shipment</th><th>Origin → Dest.</th><th>Carrier</th><th>Dispatched</th><th>Delivered</th><th>Transit Days</th><th>Status</th><th>Value</th></tr></thead>
+            <tbody>
+              <template x-for="s in shipmentReport" :key="s.id">
+                <tr>
+                  <td class="fw-semibold text-primary" style="font-size:13px" x-text="s.id"></td>
+                  <td style="font-size:12px" x-text="s.route"></td>
+                  <td><span class="badge" :class="s.carrier==='DHL'?'bg-primary':'bg-success'" style="font-size:11px" x-text="s.carrier"></span></td>
+                  <td style="font-size:12px" x-text="s.dispatched"></td>
+                  <td style="font-size:12px" x-text="s.delivered || '—'"></td>
+                  <td class="text-center" style="font-size:13px"><span :class="s.days>7?'text-warning fw-semibold':''" x-text="s.days ? s.days + 'd' : '...'"></span></td>
+                  <td><span class="badge-status" :class="'badge-' + s.statusClass" x-text="s.status"></span></td>
+                  <td style="font-size:13px;font-weight:500" x-text="s.value"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Finance Tab -->
+  <div x-show="tab==='finance'">
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Revenue by Category</h6>
+            <div class="d-flex flex-column gap-3">
+              <template x-for="r in revenueByCategory" :key="r.name">
+                <div>
+                  <div class="d-flex justify-content-between mb-1" style="font-size:13px"><span x-text="r.name"></span><span class="fw-semibold" x-text="r.amount"></span></div>
+                  <div class="progress" style="height:8px"><div class="progress-bar" :class="r.color" :style="'width:'+r.pct+'%'"></div></div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Invoice Summary</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-3 text-center p-3 bg-light rounded-3"><div class="fw-bold text-primary" style="font-size:1.3rem">$8.7M</div><div class="text-muted-sm">Invoiced</div></div>
+              <div class="col-3 text-center p-3 bg-light rounded-3"><div class="fw-bold text-success" style="font-size:1.3rem">$7.9M</div><div class="text-muted-sm">Collected</div></div>
+              <div class="col-3 text-center p-3 bg-light rounded-3"><div class="fw-bold text-warning" style="font-size:1.3rem">$0.8M</div><div class="text-muted-sm">Outstanding</div></div>
+              <div class="col-3 text-center p-3 bg-light rounded-3"><div class="fw-bold text-danger" style="font-size:1.3rem">$42K</div><div class="text-muted-sm">Overdue</div></div>
+            </div>
+            <table class="table table-sm mb-0" style="font-size:13px">
+              <thead><tr><th>Distributor</th><th>Total Invoiced</th><th>Paid</th><th>Outstanding</th><th>DSO</th></tr></thead>
+              <tbody>
+                <tr><td>PharmaDistro PH</td><td>$2.1M</td><td>$2.1M</td><td class="text-success">$0</td><td>28d</td></tr>
+                <tr><td>BioMed BD</td><td>$1.8M</td><td>$1.6M</td><td class="text-warning">$200K</td><td>45d</td></tr>
+                <tr><td>MedLink NG</td><td>$1.4M</td><td>$1.2M</td><td class="text-warning">$200K</td><td>52d</td></tr>
+                <tr><td>HealthCore IN</td><td>$1.2M</td><td>$1.0M</td><td class="text-danger">$200K</td><td>61d</td></tr>
+                <tr><td>MediTrade EG</td><td>$0.8M</td><td>$0.8M</td><td class="text-success">$0</td><td>22d</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quality Tab -->
+  <div x-show="tab==='quality'">
+    <div class="row g-3 mb-3">
+      <div class="col-md-3"><div class="card p-3 text-center"><div class="kpi-big text-success">99.7%</div><div class="text-muted-sm">QC Pass Rate</div></div></div>
+      <div class="col-md-3"><div class="card p-3 text-center"><div class="kpi-big text-warning">4</div><div class="text-muted-sm">Batches on Hold</div></div></div>
+      <div class="col-md-3"><div class="card p-3 text-center"><div class="kpi-big text-danger">1</div><div class="text-muted-sm">Active Recalls</div></div></div>
+      <div class="col-md-3"><div class="card p-3 text-center"><div class="kpi-big text-primary">28K</div><div class="text-muted-sm">UUC Verifications</div></div></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Batch QC Results by Product</h6>
+            <div class="d-flex flex-column gap-2">
+              <template x-for="p in qcByProduct" :key="p.name">
+                <div class="d-flex align-items-center gap-2" style="font-size:13px">
+                  <div style="min-width:160px" x-text="p.name"></div>
+                  <div class="flex-fill d-flex gap-1">
+                    <div class="chart-bar-h" :style="'width:' + p.pass + '%;background:#198754'" :title="p.pass + '% Pass'"></div>
+                    <div class="chart-bar-h" :style="'width:' + (100-p.pass) + '%;background:#ffc107'" :title="(100-p.pass) + '% Fail/Hold'"></div>
+                  </div>
+                  <span class="text-success fw-semibold" style="min-width:42px" x-text="p.pass + '%'"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Anti-Counterfeit Scan Activity</h6>
+            <div class="d-flex flex-column gap-3 mb-3" style="font-size:13px">
+              <div class="d-flex justify-content-between align-items-center"><span>Total UUC Scans (30d)</span><span class="fw-semibold">28,412</span></div>
+              <div class="d-flex justify-content-between align-items-center"><span class="text-success"><i class="bi bi-check-circle me-1"></i>Verified Genuine</span><span class="fw-semibold text-success">28,394</span></div>
+              <div class="d-flex justify-content-between align-items-center"><span class="text-danger"><i class="bi bi-x-circle me-1"></i>Failed Verification</span><span class="fw-semibold text-danger">18</span></div>
+              <div class="d-flex justify-content-between align-items-center"><span class="text-warning"><i class="bi bi-flag me-1"></i>Counterfeit Confirmed</span><span class="fw-semibold text-warning">2</span></div>
+            </div>
+            <div class="info-box success" style="margin-top:0"><i class="bi bi-shield-check text-success fs-5 mt-1"></i><div style="font-size:12px"><strong>99.99% Genuine Rate</strong> — No major counterfeit incidents in the last 30 days. All confirmed fakes seized.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Compliance Tab -->
+  <div x-show="tab==='compliance'">
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Regulatory Coverage by Country</h6>
+            <div class="d-flex flex-column gap-2">
+              <template x-for="c in complianceByCountry" :key="c.name">
+                <div class="d-flex align-items-center gap-2" style="font-size:13px">
+                  <span x-text="c.flag" style="min-width:24px"></span>
+                  <span style="min-width:100px" x-text="c.name"></span>
+                  <div class="flex-fill">
+                    <div class="progress" style="height:8px"><div class="progress-bar" :class="c.pct>=90?'bg-success':c.pct>=70?'bg-warning':'bg-danger'" :style="'width:'+c.pct+'%'"></div></div>
+                  </div>
+                  <span style="min-width:34px" class="fw-semibold text-end" x-text="c.pct + '%'"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Upcoming Regulatory Deadlines</h6>
+            <table class="table table-sm mb-0" style="font-size:13px">
+              <thead><tr><th>Requirement</th><th>Country</th><th>Deadline</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>Product Registration Renewal — Amoxil</td><td>🇵🇭 Philippines</td><td class="text-danger fw-semibold">Jul 15, 2026</td><td><span class="badge-status badge-hold">Action Required</span></td></tr>
+                <tr><td>Import License Renewal</td><td>🇧🇩 Bangladesh</td><td class="text-warning">Aug 1, 2026</td><td><span class="badge-status badge-pending">In Progress</span></td></tr>
+                <tr><td>GMP Inspection</td><td>🇳🇬 Nigeria</td><td>Sep 10, 2026</td><td><span class="badge-status badge-approved">Scheduled</span></td></tr>
+                <tr><td>Annual Safety Report</td><td>🌍 All Markets</td><td>Dec 31, 2026</td><td><span class="badge-status badge-active">On Track</span></td></tr>
+                <tr><td>Controlled Substance Quota</td><td>🇮🇳 India</td><td>Jan 1, 2027</td><td><span class="badge-status badge-approved">Filed</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Reports Tab -->
+  <div x-show="tab==='custom'">
+    <div class="row g-3 mb-3">
+      <div class="col-12"><div class="info-box info"><i class="bi bi-sliders fs-5 mt-1 text-primary"></i><div style="font-size:13px"><strong>Custom Report Builder</strong> — Select your data sources, filters, and output format to generate a custom report.</div></div></div>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Report Templates</h6>
+            <div class="d-flex flex-column gap-2">
+              <template x-for="t in reportTemplates" :key="t.id">
+                <div class="report-card" @click="selectedTemplate=t.id">
+                  <div class="report-icon" :style="'background:' + t.bg"><i :class="'bi bi-' + t.icon" :style="'color:' + t.color"></i></div>
+                  <div class="fw-semibold" style="font-size:13px" x-text="t.name"></div>
+                  <div class="text-muted-sm" x-text="t.desc"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-body">
+            <h6 class="fw-semibold mb-3">Report Configuration</h6>
+            <div class="row g-3">
+              <div class="col-md-6"><label class="form-label">Report Type</label><select class="form-select"><option>Shipment Summary</option><option>Financial Summary</option><option>QC Batch Report</option><option>Distribution Network</option><option>Compliance Status</option></select></div>
+              <div class="col-md-6"><label class="form-label">Date Range</label><select class="form-select"><option>This Month</option><option>Last 30 Days</option><option>Last Quarter</option><option>Year to Date</option><option>Custom Range</option></select></div>
+              <div class="col-md-6"><label class="form-label">Group By</label><select class="form-select"><option>Country</option><option>Product</option><option>Distributor</option><option>Carrier</option><option>Month</option></select></div>
+              <div class="col-md-6"><label class="form-label">Output Format</label><select class="form-select"><option>PDF</option><option>Excel (.xlsx)</option><option>CSV</option><option>JSON</option></select></div>
+              <div class="col-12"><label class="form-label">Include Sections</label>
+                <div class="d-flex flex-wrap gap-2">
+                  <div class="form-check"><input class="form-check-input" type="checkbox" checked id="inc1"><label class="form-check-label" for="inc1" style="font-size:13px">Summary KPIs</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" checked id="inc2"><label class="form-check-label" for="inc2" style="font-size:13px">Charts</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" checked id="inc3"><label class="form-check-label" for="inc3" style="font-size:13px">Detail Tables</label></div>
+                  <div class="form-check"><input class="form-check-input" type="checkbox" id="inc4"><label class="form-check-label" for="inc4" style="font-size:13px">Audit Logs</label></div>
+                </div>
+              </div>
+              <div class="col-12 d-flex gap-2">
+                <button class="btn btn-primary"><i class="bi bi-play-circle me-1"></i>Generate Report</button>
+                <button class="btn btn-outline-secondary"><i class="bi bi-bookmark me-1"></i>Save Template</button>
+                <button class="btn btn-outline-success ms-auto"><i class="bi bi-calendar-event me-1"></i>Schedule Report</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="../js/layout.js"></script><script src="../js/layout-inject.js"></script><script src="../js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => injectLayout('Reports & Analytics', 'reports'));
+function reportsPage() {
+  return {
+    tab:'overview', dateRange:'30', selectedTemplate:null,
+    monthlyData:[
+      {month:'Jan',dhl:55,ems:30},{month:'Feb',dhl:60,ems:35},{month:'Mar',dhl:50,ems:40},
+      {month:'Apr',dhl:70,ems:50},{month:'May',dhl:80,ems:45},{month:'Jun',dhl:75,ems:55},
+    ],
+    topCountries:[
+      {flag:'🇵🇭',name:'Philippines', shipments:84, pct:80, color:'bg-primary'},
+      {flag:'🇧🇩',name:'Bangladesh',  shipments:71, pct:68, color:'bg-success'},
+      {flag:'🇳🇬',name:'Nigeria',     shipments:58, pct:55, color:'bg-warning'},
+      {flag:'🇮🇳',name:'India',       shipments:44, pct:42, color:'bg-info'},
+      {flag:'🇪🇬',name:'Egypt',       shipments:31, pct:30, color:'bg-danger'},
+    ],
+    shipmentReport:[
+      {id:'SHP-2026-0498',route:'US → PH',carrier:'DHL',dispatched:'Jun 6',delivered:'',days:null,status:'In Transit',statusClass:'shipped',value:'$84,200'},
+      {id:'SHP-2026-0497',route:'US → BD',carrier:'EMS',dispatched:'Jun 5',delivered:'Jun 10',days:5,status:'Delivered',statusClass:'delivered',value:'$62,100'},
+      {id:'SHP-2026-0496',route:'US → NG',carrier:'DHL',dispatched:'Jun 1',delivered:'Jun 8',days:7,status:'Delivered',statusClass:'delivered',value:'$118,400'},
+      {id:'SHP-2026-0495',route:'US → IN',carrier:'DHL',dispatched:'May 29',delivered:'',days:12,status:'Delayed',statusClass:'hold',value:'$96,500'},
+      {id:'SHP-2026-0494',route:'US → EG',carrier:'EMS',dispatched:'May 25',delivered:'Jun 1',days:7,status:'Delivered',statusClass:'delivered',value:'$44,800'},
+    ],
+    revenueByCategory:[
+      {name:'Antibiotics',    amount:'$1.8M', pct:43, color:'bg-primary'},
+      {name:'Metabolic',      amount:'$1.1M', pct:26, color:'bg-success'},
+      {name:'Cardiovascular', amount:'$0.7M', pct:17, color:'bg-warning'},
+      {name:'Vitamins/OTC',   amount:'$0.4M', pct:10, color:'bg-info'},
+      {name:'Other',          amount:'$0.2M', pct:4,  color:'bg-secondary'},
+    ],
+    qcByProduct:[
+      {name:'Amoxil 500',pass:100},{name:'Metformin SR',pass:99.7},{name:'Vitamin C 1g',pass:100},
+      {name:'Ampicillin Inj',pass:98.4},{name:'Insulin Glargine',pass:99.9},
+    ],
+    complianceByCountry:[
+      {flag:'🇵🇭',name:'Philippines',pct:100},
+      {flag:'🇧🇩',name:'Bangladesh', pct:95},
+      {flag:'🇳🇬',name:'Nigeria',    pct:78},
+      {flag:'🇮🇳',name:'India',      pct:92},
+      {flag:'🇪🇬',name:'Egypt',      pct:88},
+      {flag:'🇵🇰',name:'Pakistan',   pct:65},
+    ],
+    reportTemplates:[
+      {id:1,name:'Monthly Shipment Report',     desc:'Carrier, routes, on-time delivery',bg:'#e0f2fe',color:'#0284c7',icon:'truck'},
+      {id:2,name:'Financial Summary Report',    desc:'Invoices, revenue, outstanding',   bg:'#dcfce7',color:'#16a34a',icon:'currency-dollar'},
+      {id:3,name:'QC & Batch Status Report',    desc:'Pass rates, holds, recalls',        bg:'#fef9c3',color:'#ca8a04',icon:'shield-check'},
+      {id:4,name:'Compliance & Regulatory',     desc:'Licenses, registrations, renewals', bg:'#ede9fe',color:'#7c3aed',icon:'globe2'},
+    ],
+  };
+}
+</script>
+</body>
+</html>

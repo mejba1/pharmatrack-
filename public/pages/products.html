@@ -1,0 +1,274 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Master — PharmaTrack</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/app.css" rel="stylesheet">
+  <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('darkMode')==='true'?'dark':'light');</script>
+</head>
+<body x-data="layoutData('Product Master')">
+
+<main class="main-content" :class="{'collapsed': sidebarCollapsed}" x-data="productsPage()">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1>Product Master</h1>
+      <div class="page-breadcrumb"><a href="dashboard.html">Home</a> / Product Master</div>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-upload me-1"></i>Import</button>
+      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>Export</button>
+      <button class="btn btn-primary btn-sm" @click="showAddModal=true"><i class="bi bi-plus-lg me-1"></i>Add Product</button>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-capsule"></i></div><div><div class="stat-value">248</div><div class="stat-label">Total Products</div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-check-circle"></i></div><div><div class="stat-value">231</div><div class="stat-label">Active</div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-hourglass-split"></i></div><div><div class="stat-value">12</div><div class="stat-label">Under Registration</div></div></div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card stat-danger"><div class="stat-icon"><i class="bi bi-x-circle"></i></div><div><div class="stat-value">5</div><div class="stat-label">Discontinued</div></div></div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <div class="search-wrapper">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control form-control-sm" placeholder="Search by name, PRN, generic name..." x-model="search">
+          </div>
+        </div>
+        <div class="col-6 col-md-2">
+          <select class="form-select form-select-sm" x-model="filterCategory">
+            <option value="">All Categories</option>
+            <option>Tablet</option><option>Capsule</option><option>Injection</option>
+            <option>Syrup</option><option>Cream</option><option>Vaccine</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <select class="form-select form-select-sm" x-model="filterStatus">
+            <option value="">All Status</option>
+            <option>Active</option><option>Discontinued</option><option>Under Registration</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <select class="form-select form-select-sm" x-model="filterColdChain">
+            <option value="">Cold Chain: All</option>
+            <option value="yes">Requires Cold Chain</option>
+            <option value="no">No Cold Chain</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2 d-flex gap-1">
+          <button class="btn btn-primary btn-sm flex-fill">Filter</button>
+          <button class="btn btn-outline-secondary btn-sm" @click="search='';filterCategory='';filterStatus=''"><i class="bi bi-x-lg"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card table-card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th style="width:40px"><input type="checkbox" class="form-check-input"></th>
+              <th>PRN</th>
+              <th>Product Name</th>
+              <th>Generic (INN)</th>
+              <th>Form</th>
+              <th>Strength</th>
+              <th>Category</th>
+              <th>Cold Chain</th>
+              <th>Countries</th>
+              <th>Status</th>
+              <th style="width:100px">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="p in filtered" :key="p.prn">
+              <tr>
+                <td><input type="checkbox" class="form-check-input"></td>
+                <td><span class="text-primary fw-semibold" style="font-size:12px" x-text="p.prn"></span></td>
+                <td>
+                  <div class="fw-semibold" style="font-size:13px" x-text="p.name"></div>
+                  <div class="text-muted-sm" x-text="p.manufacturer"></div>
+                </td>
+                <td style="font-size:13px" x-text="p.generic"></td>
+                <td><span class="badge bg-light text-secondary" style="font-size:11px" x-text="p.form"></span></td>
+                <td style="font-size:13px" x-text="p.strength"></td>
+                <td style="font-size:13px" x-text="p.category"></td>
+                <td>
+                  <span x-show="p.coldChain" class="text-info"><i class="bi bi-thermometer-snow"></i> Yes</span>
+                  <span x-show="!p.coldChain" class="text-muted" style="font-size:12px">No</span>
+                </td>
+                <td><span class="badge bg-primary rounded-pill" style="font-size:11px" x-text="p.countries + ' countries'"></span></td>
+                <td><span class="badge-status" :class="'badge-' + p.statusClass" x-text="p.status"></span></td>
+                <td>
+                  <div class="d-flex gap-1">
+                    <button class="btn btn-outline-primary btn-sm btn-icon" title="View" @click="viewProduct(p)"><i class="bi bi-eye"></i></button>
+                    <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-outline-info btn-sm btn-icon" title="Batches"><i class="bi bi-layers"></i></button>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+      <!-- Pagination -->
+      <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top">
+        <div class="text-muted-sm">Showing <strong x-text="filtered.length"></strong> of <strong>248</strong> products</div>
+        <nav><ul class="pagination pagination-sm mb-0">
+          <li class="page-item disabled"><a class="page-link">Prev</a></li>
+          <li class="page-item active"><a class="page-link">1</a></li>
+          <li class="page-item"><a class="page-link">2</a></li>
+          <li class="page-item"><a class="page-link">3</a></li>
+          <li class="page-item"><a class="page-link">Next</a></li>
+        </ul></nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Product Modal -->
+  <div class="modal fade" :class="{show: showViewModal}" :style="showViewModal ? 'display:block' : ''" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content" x-show="selectedProduct">
+        <div class="modal-header">
+          <h5 class="modal-title fw-semibold">Product Details</h5>
+          <button class="btn-close" @click="showViewModal=false"></button>
+        </div>
+        <div class="modal-body" x-show="selectedProduct">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="p-3 bg-light rounded-3">
+                <div class="text-muted-sm mb-1">Product Reference Number</div>
+                <div class="fw-semibold text-primary" x-text="selectedProduct?.prn"></div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="p-3 bg-light rounded-3">
+                <div class="text-muted-sm mb-1">Status</div>
+                <span class="badge-status" :class="'badge-' + selectedProduct?.statusClass" x-text="selectedProduct?.status"></span>
+              </div>
+            </div>
+            <div class="col-md-6"><label class="form-label">Brand Name</label><div class="fw-semibold" x-text="selectedProduct?.name"></div></div>
+            <div class="col-md-6"><label class="form-label">Generic Name (INN)</label><div x-text="selectedProduct?.generic"></div></div>
+            <div class="col-md-6"><label class="form-label">Manufacturer</label><div x-text="selectedProduct?.manufacturer"></div></div>
+            <div class="col-md-6"><label class="form-label">Dosage Form</label><div x-text="selectedProduct?.form"></div></div>
+            <div class="col-md-4"><label class="form-label">Strength</label><div x-text="selectedProduct?.strength"></div></div>
+            <div class="col-md-4"><label class="form-label">Therapeutic Category</label><div x-text="selectedProduct?.category"></div></div>
+            <div class="col-md-4"><label class="form-label">Cold Chain Required</label><div x-text="selectedProduct?.coldChain ? 'Yes' : 'No'"></div></div>
+            <div class="col-12">
+              <div class="info-box info">
+                <i class="bi bi-globe2 text-primary mt-1"></i>
+                <div><strong x-text="selectedProduct?.countries"></strong> countries authorized for this product.
+                <a href="countries.html" class="text-primary">Manage country permissions →</a></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary btn-sm" @click="showViewModal=false">Close</button>
+          <a href="batches.html" class="btn btn-outline-info btn-sm"><i class="bi bi-layers me-1"></i>View Batches</a>
+          <button class="btn btn-primary btn-sm"><i class="bi bi-pencil me-1"></i>Edit Product</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showViewModal" @click="showViewModal=false"></div>
+
+  <!-- Add Product Modal -->
+  <div class="modal fade" :class="{show: showAddModal}" :style="showAddModal ? 'display:block' : ''" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-semibold"><i class="bi bi-plus-circle me-2 text-primary"></i>Add New Product</h5>
+          <button class="btn-close" @click="showAddModal=false"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12"><div class="info-box info"><i class="bi bi-info-circle text-primary"></i><div>PRN will be auto-generated in format <strong>PRN-[CountryCode]-[TypeCode]-[Sequence]</strong></div></div></div>
+            <div class="col-md-6"><label class="form-label">Brand Name <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="e.g. Amoxil"></div>
+            <div class="col-md-6"><label class="form-label">Generic Name (INN) <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="e.g. Amoxicillin"></div>
+            <div class="col-md-6"><label class="form-label">Manufacturer Name <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="Legal company name"></div>
+            <div class="col-md-6"><label class="form-label">Manufacturing Country <span class="text-danger">*</span></label><select class="form-select"><option>Select country...</option><option>United States</option><option>India</option><option>Bangladesh</option><option>China</option></select></div>
+            <div class="col-md-4"><label class="form-label">Dosage Form <span class="text-danger">*</span></label><select class="form-select"><option>Tablet</option><option>Capsule</option><option>Injection</option><option>Syrup</option><option>Cream</option><option>Vaccine</option><option>Other</option></select></div>
+            <div class="col-md-4"><label class="form-label">Strength <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="e.g. 500mg"></div>
+            <div class="col-md-4"><label class="form-label">Unit of Measure <span class="text-danger">*</span></label><select class="form-select"><option>Tablet</option><option>Vial</option><option>Bottle</option><option>Sachet</option></select></div>
+            <div class="col-md-4"><label class="form-label">Pack Size <span class="text-danger">*</span></label><input type="number" class="form-control" placeholder="Units per pack"></div>
+            <div class="col-md-4"><label class="form-label">Packs per Inner Carton</label><input type="number" class="form-control" placeholder="e.g. 10"></div>
+            <div class="col-md-4"><label class="form-label">Inner Cartons per Master Carton</label><input type="number" class="form-control" placeholder="e.g. 12"></div>
+            <div class="col-md-4"><label class="form-label">Therapeutic Category <span class="text-danger">*</span></label><select class="form-select"><option>Antibiotic</option><option>Antiviral</option><option>Cardiovascular</option><option>Oncology</option><option>Diabetes</option><option>Vaccine</option></select></div>
+            <div class="col-md-4"><label class="form-label">ATC Code <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="e.g. J01CA04"></div>
+            <div class="col-md-4"><label class="form-label">HS Code <span class="text-danger">*</span></label><input type="text" class="form-control" placeholder="e.g. 3004.20.10"></div>
+            <div class="col-md-4"><label class="form-label">Storage Condition <span class="text-danger">*</span></label><select class="form-select"><option>Ambient 15–25°C</option><option>Refrigerated 2–8°C</option><option>Frozen -20°C</option><option>Light-protected</option></select></div>
+            <div class="col-md-4"><label class="form-label">Cold Chain Required <span class="text-danger">*</span></label><select class="form-select"><option>No</option><option>Yes</option></select></div>
+            <div class="col-md-4"><label class="form-label">Shelf Life (months) <span class="text-danger">*</span></label><input type="number" class="form-control" placeholder="e.g. 24"></div>
+            <div class="col-md-4"><label class="form-label">Controlled Substance</label><select class="form-select"><option>Neither</option><option>Narcotic</option><option>Psychotropic</option></select></div>
+            <div class="col-12"><label class="form-label">Product Description</label><textarea class="form-control" rows="2" placeholder="Full product description..."></textarea></div>
+            <div class="col-12"><label class="form-label">Product Image</label><input type="file" class="form-control" accept="image/*"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" @click="showAddModal=false">Cancel</button>
+          <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Product</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showAddModal" @click="showAddModal=false"></div>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="../js/layout.js"></script>
+<script src="../js/layout-inject.js"></script>
+<script src="../js/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => injectLayout('Product Master', 'products'));
+function productsPage() {
+  return {
+    search: '', filterCategory: '', filterStatus: '', filterColdChain: '',
+    showAddModal: false, showViewModal: false, selectedProduct: null,
+    products: [
+      { prn:'PRN-US-ANT-00142', name:'Amoxil 500',      generic:'Amoxicillin',      manufacturer:'GSK Inc.',         form:'Capsule',   strength:'500mg',    category:'Antibiotic',     coldChain:false, countries:28, status:'Active',               statusClass:'active' },
+      { prn:'PRN-BD-INJ-00089', name:'Insulax R',       generic:'Insulin Regular',  manufacturer:'SquarePharma BD',  form:'Injection', strength:'100 IU/ml', category:'Diabetes',       coldChain:true,  countries:14, status:'Active',               statusClass:'active' },
+      { prn:'PRN-IN-TAB-00231', name:'Metformin SR',    generic:'Metformin HCl',    manufacturer:'Sun Pharma',       form:'Tablet',    strength:'850mg',     category:'Diabetes',       coldChain:false, countries:31, status:'Active',               statusClass:'active' },
+      { prn:'PRN-CN-VAC-00018', name:'Hep-B Vac',       generic:'Hepatitis B Vaccine', manufacturer:'Sinovac Bio',  form:'Injection', strength:'10mcg/ml',  category:'Vaccine',        coldChain:true,  countries:22, status:'Active',               statusClass:'active' },
+      { prn:'PRN-DE-CRM-00057', name:'HydroPlus Cream', generic:'Hydrocortisone',   manufacturer:'Bayer AG',         form:'Cream',     strength:'1%',        category:'Dermatology',    coldChain:false, countries:19, status:'Active',               statusClass:'active' },
+      { prn:'PRN-JP-TAB-00104', name:'Cardivax 10',     generic:'Amlodipine',       manufacturer:'Takeda Pharma',    form:'Tablet',    strength:'10mg',      category:'Cardiovascular', coldChain:false, countries:35, status:'Active',               statusClass:'active' },
+      { prn:'PRN-US-SYR-00203', name:'AmoxiSyrup 125',  generic:'Amoxicillin',      manufacturer:'Pfizer Inc.',      form:'Syrup',     strength:'125mg/5ml', category:'Antibiotic',     coldChain:false, countries:17, status:'Under Registration',   statusClass:'pending' },
+      { prn:'PRN-IN-TAB-00178', name:'Clopidogrel 75',  generic:'Clopidogrel',      manufacturer:'Cipla Ltd.',       form:'Tablet',    strength:'75mg',      category:'Cardiovascular', coldChain:false, countries:9,  status:'Discontinued',         statusClass:'cancelled' },
+    ],
+    viewProduct(p) { this.selectedProduct = p; this.showViewModal = true; },
+    get filtered() {
+      return this.products.filter(p => {
+        const q = this.search.toLowerCase();
+        const matchSearch = !q || p.name.toLowerCase().includes(q) || p.prn.toLowerCase().includes(q) || p.generic.toLowerCase().includes(q);
+        const matchCat = !this.filterCategory || p.form === this.filterCategory;
+        const matchStatus = !this.filterStatus || p.status === this.filterStatus;
+        const matchCold = !this.filterColdChain || (this.filterColdChain === 'yes' ? p.coldChain : !p.coldChain);
+        return matchSearch && matchCat && matchStatus && matchCold;
+      });
+    }
+  };
+}
+</script>
+</body>
+</html>
