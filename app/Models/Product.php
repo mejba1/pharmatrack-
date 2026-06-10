@@ -20,6 +20,7 @@ class Product extends Model
         'strength',
         'pack_size',
         'atc_code',
+        'therapeutic_class',
         'hs_code',
         'controlled_substance',
         'manufacturer_name',
@@ -49,6 +50,16 @@ class Product extends Model
     {
         return $this->hasMany(ProductCountryRegistration::class)
                     ->where('status', 'approved');
+    }
+
+    public function images()
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
+    }
+
+    public function primaryImage()
+    {
+        return $this->hasOne(ProductImage::class)->where('is_primary', true);
     }
 
     // ── Accessors ─────────────────────────────────────────────────────────
@@ -128,6 +139,9 @@ class Product extends Model
         }
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
+        }
+        if (!empty($filters['therapeutic_class'])) {
+            $query->where('therapeutic_class', 'like', '%' . $filters['therapeutic_class'] . '%');
         }
         return $query;
     }

@@ -1,33 +1,140 @@
 @extends('layouts.app')
 @section('title', 'Product Master')
 
+@push('styles')
+<style>
+/* ── Image Upload Zone ──────────────────────────────────────────────────── */
+.img-upload-zone {
+  border: 2px dashed var(--border-color, #dee2e6);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.img-upload-zone:hover,
+.img-upload-zone.drag-over {
+  border-color: var(--primary-color, #0d6efd);
+  background: rgba(13,110,253,.04);
+}
+/* ── Image Preview Grid ─────────────────────────────────────────────────── */
+.img-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+.img-preview-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  aspect-ratio: 1/1;
+  background: #f8f9fa;
+  cursor: pointer;
+}
+.img-preview-item.is-primary {
+  border-color: #0d6efd;
+}
+.img-preview-item.to-remove {
+  opacity: .35;
+  filter: grayscale(1);
+}
+.img-preview-item img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.img-preview-item .img-actions {
+  position: absolute;
+  top: 4px; right: 4px;
+  display: flex; gap: 4px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.img-preview-item:hover .img-actions { opacity: 1; }
+.img-preview-item .img-badge-primary {
+  position: absolute;
+  bottom: 4px; left: 4px;
+  background: #0d6efd;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: .04em;
+}
+.img-preview-item .img-badge-remove {
+  position: absolute;
+  bottom: 4px; left: 4px;
+  background: #dc3545;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+/* ── Gallery in view modal ──────────────────────────────────────────────── */
+.product-gallery {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.product-gallery img {
+  width: 80px; height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.product-gallery img.active { border-color: #0d6efd; }
+.product-main-img {
+  width: 100%; max-height: 260px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #f8f9fa;
+}
+/* ── Table thumbnail ────────────────────────────────────────────────────── */
+.product-thumb {
+  width: 40px; height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #f0f0f0;
+}
+.product-thumb-placeholder {
+  width: 40px; height: 40px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: #adb5bd;
+  font-size: 16px;
+}
+</style>
+@endpush
+
 @section('content')
 <div x-data="productsPage()">
 
-  {{-- ── Flash Messages ──────────────────────────────────────────────── --}}
+  {{-- ── Flash ─────────────────────────────────────────────────────────── --}}
   @if(session('success'))
-  <div class="alert alert-success alert-dismissible d-flex align-items-center gap-2 mb-3" role="alert">
+  <div class="alert alert-success alert-dismissible d-flex align-items-center gap-2 mb-3">
     <i class="bi bi-check-circle-fill text-success"></i>
     <span>{{ session('success') }}</span>
     <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
   </div>
   @endif
-
   @if(session('error'))
-  <div class="alert alert-danger alert-dismissible d-flex align-items-center gap-2 mb-3" role="alert">
+  <div class="alert alert-danger alert-dismissible d-flex align-items-center gap-2 mb-3">
     <i class="bi bi-exclamation-triangle-fill text-danger"></i>
     <span>{{ session('error') }}</span>
     <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
   </div>
   @endif
-
-  {{-- ── Validation Errors ───────────────────────────────────────────── --}}
   @if($errors->any())
   <div class="alert alert-danger alert-dismissible mb-3">
     <strong><i class="bi bi-exclamation-triangle me-1"></i>Please fix the following errors:</strong>
-    <ul class="mb-0 mt-1">
-      @foreach($errors->all() as $error)
-        <li style="font-size:13px">{{ $error }}</li>
+    <ul class="mb-0 mt-1 ps-3">
+      @foreach($errors->all() as $e)
+        <li style="font-size:13px">{{ $e }}</li>
       @endforeach
     </ul>
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -38,12 +145,10 @@
   <div class="page-header">
     <div>
       <h1>Product Master</h1>
-      <div class="page-breadcrumb">
-        <a href="{{ route('dashboard') }}">Home</a> / Product Master
-      </div>
+      <div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Product Master</div>
     </div>
     <div class="d-flex gap-2">
-      <a href="{{ route('products.index', array_merge(request()->query(), ['export' => 1])) }}"
+      <a href="{{ route('products.index', array_merge(request()->query(), ['export'=>1])) }}"
          class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-download me-1"></i>Export
       </a>
@@ -53,42 +158,30 @@
     </div>
   </div>
 
-  {{-- ── Stat Cards ──────────────────────────────────────────────────── --}}
+  {{-- ── Stats ───────────────────────────────────────────────────────── --}}
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
       <div class="stat-card stat-primary">
         <div class="stat-icon"><i class="bi bi-capsule"></i></div>
-        <div>
-          <div class="stat-value">{{ number_format($stats['total']) }}</div>
-          <div class="stat-label">Total Products</div>
-        </div>
+        <div><div class="stat-value">{{ number_format($stats['total']) }}</div><div class="stat-label">Total Products</div></div>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card stat-success">
         <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
-        <div>
-          <div class="stat-value">{{ number_format($stats['active']) }}</div>
-          <div class="stat-label">Active</div>
-        </div>
+        <div><div class="stat-value">{{ number_format($stats['active']) }}</div><div class="stat-label">Active</div></div>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card stat-warning">
         <div class="stat-icon"><i class="bi bi-hourglass-split"></i></div>
-        <div>
-          <div class="stat-value">{{ number_format($stats['pending']) }}</div>
-          <div class="stat-label">Under Registration</div>
-        </div>
+        <div><div class="stat-value">{{ number_format($stats['pending']) }}</div><div class="stat-label">Under Registration</div></div>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <div class="stat-card stat-danger">
         <div class="stat-icon"><i class="bi bi-x-circle"></i></div>
-        <div>
-          <div class="stat-value">{{ number_format($stats['discontinued']) }}</div>
-          <div class="stat-label">Discontinued</div>
-        </div>
+        <div><div class="stat-value">{{ number_format($stats['discontinued']) }}</div><div class="stat-label">Discontinued</div></div>
       </div>
     </div>
   </div>
@@ -98,30 +191,31 @@
     <div class="card-body py-2">
       <form method="GET" action="{{ route('products.index') }}">
         <div class="row g-2 align-items-center">
-          <div class="col-md-4">
+          <div class="col-md-3">
             <div class="search-wrapper">
               <i class="bi bi-search search-icon"></i>
               <input type="text" name="search" class="form-control form-control-sm"
-                     placeholder="Search by name, PRN, generic name..."
-                     value="{{ $filters['search'] ?? '' }}">
+                     placeholder="Name, PRN, generic…" value="{{ $filters['search'] ?? '' }}">
             </div>
           </div>
           <div class="col-6 col-md-2">
             <select name="dosage_form" class="form-select form-select-sm">
               <option value="">All Forms</option>
-              @foreach(['tablet'=>'Tablet','capsule'=>'Capsule','injection'=>'Injection','syrup'=>'Syrup','cream'=>'Cream','ointment'=>'Ointment','drops'=>'Drops','inhaler'=>'Inhaler','other'=>'Other'] as $val => $label)
-                <option value="{{ $val }}" {{ ($filters['dosage_form'] ?? '') === $val ? 'selected' : '' }}>
-                  {{ $label }}
-                </option>
+              @foreach(['tablet'=>'Tablet','capsule'=>'Capsule','injection'=>'Injection','syrup'=>'Syrup','cream'=>'Cream','ointment'=>'Ointment','drops'=>'Drops','inhaler'=>'Inhaler','other'=>'Other'] as $v=>$l)
+                <option value="{{ $v }}" {{ ($filters['dosage_form'] ?? '') === $v ? 'selected':'' }}>{{ $l }}</option>
               @endforeach
             </select>
           </div>
           <div class="col-6 col-md-2">
+            <input type="text" name="therapeutic_class" class="form-control form-control-sm"
+                   placeholder="Therapeutic class…" value="{{ $filters['therapeutic_class'] ?? '' }}">
+          </div>
+          <div class="col-6 col-md-2">
             <select name="status" class="form-select form-select-sm">
               <option value="">All Status</option>
-              <option value="active"           {{ ($filters['status'] ?? '') === 'active'           ? 'selected' : '' }}>Active</option>
-              <option value="pending_approval" {{ ($filters['status'] ?? '') === 'pending_approval' ? 'selected' : '' }}>Under Registration</option>
-              <option value="discontinued"     {{ ($filters['status'] ?? '') === 'discontinued'     ? 'selected' : '' }}>Discontinued</option>
+              <option value="active"           {{ ($filters['status'] ?? '') === 'active'           ? 'selected':'' }}>Active</option>
+              <option value="pending_approval" {{ ($filters['status'] ?? '') === 'pending_approval' ? 'selected':'' }}>Under Registration</option>
+              <option value="discontinued"     {{ ($filters['status'] ?? '') === 'discontinued'     ? 'selected':'' }}>Discontinued</option>
             </select>
           </div>
           <div class="col-6 col-md-2 d-flex gap-1">
@@ -132,29 +226,31 @@
               <i class="bi bi-x-lg"></i>
             </a>
           </div>
-          <div class="col-6 col-md-2 text-end text-muted" style="font-size:12px">
-            {{ $products->total() }} product(s) found
+          <div class="col-12 col-md-1 text-end text-muted" style="font-size:12px">
+            {{ $products->total() }} found
           </div>
         </div>
       </form>
     </div>
   </div>
 
-  {{-- ── Product Table ────────────────────────────────────────────────── --}}
+  {{-- ── Table ────────────────────────────────────────────────────────── --}}
   <div class="card table-card">
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover mb-0 align-middle">
           <thead>
             <tr>
-              <th style="width:40px"><input type="checkbox" class="form-check-input" id="selectAll"
-                  @change="toggleAll($event.target.checked)"></th>
+              <th style="width:40px">
+                <input type="checkbox" class="form-check-input" @change="toggleAll($event.target.checked)">
+              </th>
+              <th style="width:52px">Image</th>
               <th>PRN</th>
               <th>Product Name</th>
               <th>Generic (INN)</th>
               <th>Form</th>
               <th>Strength</th>
-              <th>Manufacturer</th>
+              <th>Therapeutic Class</th>
               <th>Cold Chain</th>
               <th>Countries</th>
               <th>Status</th>
@@ -164,13 +260,25 @@
           <tbody>
             @forelse($products as $product)
             <tr>
+              <td><input type="checkbox" class="form-check-input row-check" value="{{ $product->id }}" x-model="selected"></td>
+
+              {{-- Thumbnail --}}
               <td>
-                <input type="checkbox" class="form-check-input row-check"
-                       value="{{ $product->id }}" x-model="selected">
+                @if($product->primaryImage)
+                  <img src="{{ $product->primaryImage->url }}"
+                       alt="{{ $product->name }}"
+                       class="product-thumb"
+                       @click="openView({{ $product->id }})"
+                       style="cursor:pointer">
+                @else
+                  <div class="product-thumb-placeholder" @click="openView({{ $product->id }})" style="cursor:pointer">
+                    <i class="bi bi-image"></i>
+                  </div>
+                @endif
               </td>
+
               <td>
-                <span class="text-primary fw-semibold" style="font-size:12px"
-                      role="button"
+                <span class="text-primary fw-semibold" style="font-size:12px;cursor:pointer"
                       @click="openView({{ $product->id }})">
                   {{ $product->prn }}
                 </span>
@@ -188,12 +296,10 @@
                 </span>
               </td>
               <td style="font-size:13px">{{ $product->strength ?? '—' }}</td>
-              <td style="font-size:12px">{{ $product->manufacturer_name ?? '—' }}</td>
+              <td style="font-size:12px">{{ $product->therapeutic_class ?? '—' }}</td>
               <td>
                 @if($product->cold_chain)
-                  <span class="text-info" title="Cold chain required">
-                    <i class="bi bi-thermometer-snow"></i> Yes
-                  </span>
+                  <span class="text-info"><i class="bi bi-thermometer-snow"></i> Yes</span>
                 @else
                   <span class="text-muted" style="font-size:12px">No</span>
                 @endif
@@ -204,33 +310,22 @@
                 </span>
               </td>
               <td>
-                <span class="badge-status {{ $product->status_badge_class }}">
-                  {{ $product->status_label }}
-                </span>
+                <span class="badge-status {{ $product->status_badge_class }}">{{ $product->status_label }}</span>
               </td>
               <td>
                 <div class="d-flex gap-1">
-                  {{-- View --}}
-                  <button class="btn btn-outline-primary btn-sm btn-icon"
-                          title="View details"
+                  <button class="btn btn-outline-primary btn-sm btn-icon" title="View"
                           @click="openView({{ $product->id }})">
                     <i class="bi bi-eye"></i>
                   </button>
-                  {{-- Edit --}}
-                  <button class="btn btn-outline-secondary btn-sm btn-icon"
-                          title="Edit product"
-                          @click="openEdit({{ $product->toJson() }})">
+                  <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit"
+                          @click="openEdit({{ $product->id }})">
                     <i class="bi bi-pencil"></i>
                   </button>
-                  {{-- Delete --}}
-                  <form method="POST"
-                        action="{{ route('products.destroy', $product) }}"
+                  <form method="POST" action="{{ route('products.destroy', $product) }}"
                         @submit.prevent="confirmDelete($event, '{{ addslashes($product->name) }}')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit"
-                            class="btn btn-outline-danger btn-sm btn-icon"
-                            title="Remove product">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="btn btn-outline-danger btn-sm btn-icon" title="Remove">
                       <i class="bi bi-trash"></i>
                     </button>
                   </form>
@@ -239,7 +334,7 @@
             </tr>
             @empty
             <tr>
-              <td colspan="11" class="text-center py-5 text-muted">
+              <td colspan="12" class="text-center py-5 text-muted">
                 <i class="bi bi-capsule" style="font-size:32px;opacity:.2"></i>
                 <div class="mt-2">No products found.
                   @if(array_filter($filters ?? []))
@@ -255,7 +350,7 @@
 
       {{-- Pagination --}}
       @if($products->hasPages())
-      <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top">
+      <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top flex-wrap gap-2">
         <div class="text-muted-sm">
           Showing <strong>{{ $products->firstItem() }}–{{ $products->lastItem() }}</strong>
           of <strong>{{ $products->total() }}</strong> products
@@ -267,362 +362,471 @@
         Showing all <strong>{{ $products->total() }}</strong> products
       </div>
       @endif
+
     </div>
   </div>
 
   {{-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ --}}
-  {{-- VIEW MODAL (AJAX-loaded JSON → Alpine)                            --}}
+  {{-- VIEW MODAL                                                         --}}
   {{-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ --}}
-  <div class="modal fade"
-       :class="{show: showViewModal}"
-       :style="showViewModal ? 'display:block' : ''"
-       tabindex="-1" aria-modal="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content" x-show="viewProduct">
+  <div class="modal fade" :class="{show:showViewModal}" :style="showViewModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
 
-        {{-- Header --}}
         <div class="modal-header">
           <div>
-            <h5 class="modal-title fw-semibold" x-text="viewProduct?.name ?? '...'"></h5>
-            <div class="text-muted-sm">
-              <code x-text="viewProduct?.prn"></code>
-            </div>
+            <h5 class="modal-title fw-semibold" x-text="viewProduct?.name ?? 'Loading…'"></h5>
+            <code class="text-muted-sm" x-text="viewProduct?.prn"></code>
           </div>
           <div class="ms-auto d-flex align-items-center gap-2">
-            <span x-show="viewProduct?.status_badge_class"
-                  class="badge-status"
-                  :class="viewProduct?.status_badge_class"
-                  x-text="viewProduct?.status_label"></span>
-            <button class="btn-close ms-1" @click="showViewModal = false"></button>
+            <span class="badge-status" :class="viewProduct?.status_badge_class" x-text="viewProduct?.status_label"></span>
+            <button class="btn-close ms-1" @click="showViewModal=false"></button>
           </div>
         </div>
 
-        {{-- Body --}}
         <div class="modal-body">
-          <div x-show="viewLoading" class="text-center py-4 text-muted">
-            <div class="spinner-border spinner-border-sm me-2"></div>Loading…
+
+          {{-- Loading spinner --}}
+          <div x-show="viewLoading" class="text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm me-2"></div>Loading product details…
           </div>
-          <div x-show="!viewLoading">
+
+          <div x-show="!viewLoading && viewProduct">
             <div class="row g-3">
-              {{-- Identifiers --}}
-              <div class="col-md-6">
-                <div class="p-3 bg-light rounded-3">
-                  <div class="text-muted-sm mb-1">Product Registration No.</div>
-                  <div class="fw-semibold text-primary font-monospace" x-text="viewProduct?.prn"></div>
+
+              {{-- Image gallery (left) --}}
+              <div class="col-md-4" x-show="viewProduct?.images?.length > 0">
+                <div class="mb-2">
+                  <img :src="activeImage" alt="" class="product-main-img">
                 </div>
-              </div>
-              <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
-                  <div class="text-muted-sm mb-1">ATC Code</div>
-                  <div class="fw-semibold font-monospace" x-text="viewProduct?.atc_code || '—'"></div>
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="p-3 bg-light rounded-3">
-                  <div class="text-muted-sm mb-1">HS Code</div>
-                  <div class="fw-semibold font-monospace" x-text="viewProduct?.hs_code || '—'"></div>
+                <div class="product-gallery">
+                  <template x-for="(img,i) in (viewProduct?.images||[])" :key="img.id">
+                    <img :src="img.url" :alt="img.name"
+                         :class="{active: activeImage===img.url}"
+                         @click="activeImage=img.url">
+                  </template>
                 </div>
               </div>
 
-              {{-- Names --}}
-              <div class="col-md-6">
-                <label class="form-label text-muted-sm">Brand Name</label>
-                <div class="fw-semibold" x-text="viewProduct?.name"></div>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label text-muted-sm">Generic Name (INN)</label>
-                <div x-text="viewProduct?.generic_name || '—'"></div>
-              </div>
+              <div :class="viewProduct?.images?.length > 0 ? 'col-md-8' : 'col-12'">
+                <div class="row g-3">
 
-              {{-- Pharmaceutical --}}
-              <div class="col-md-4">
-                <label class="form-label text-muted-sm">Dosage Form</label>
-                <div x-text="viewProduct?.dosage_form_label"></div>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label text-muted-sm">Strength</label>
-                <div x-text="viewProduct?.strength || '—'"></div>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label text-muted-sm">Pack Size</label>
-                <div x-text="viewProduct?.pack_size || '—'"></div>
-              </div>
+                  {{-- Identifiers --}}
+                  <div class="col-md-5">
+                    <div class="p-3 bg-light rounded-3">
+                      <div class="text-muted-sm mb-1">Product Registration No.</div>
+                      <div class="fw-semibold text-primary font-monospace" x-text="viewProduct?.prn"></div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="p-3 bg-light rounded-3">
+                      <div class="text-muted-sm mb-1">ATC Code</div>
+                      <div class="fw-semibold font-monospace" x-text="viewProduct?.atc_code || '—'"></div>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="p-3 bg-light rounded-3">
+                      <div class="text-muted-sm mb-1">HS Code</div>
+                      <div class="fw-semibold font-monospace" x-text="viewProduct?.hs_code || '—'"></div>
+                    </div>
+                  </div>
 
-              {{-- Manufacturing --}}
-              <div class="col-md-6">
-                <label class="form-label text-muted-sm">Manufacturer</label>
-                <div x-text="viewProduct?.manufacturer_name || '—'"></div>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label text-muted-sm">Country of Origin</label>
-                <div x-text="viewProduct?.country_of_origin || '—'"></div>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label text-muted-sm">Unit Cost (USD)</label>
-                <div x-text="viewProduct?.unit_cost ? '$' + parseFloat(viewProduct.unit_cost).toFixed(4) : '—'"></div>
-              </div>
+                  {{-- Names --}}
+                  <div class="col-md-6">
+                    <label class="form-label text-muted-sm">Brand Name</label>
+                    <div class="fw-semibold" x-text="viewProduct?.name"></div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-muted-sm">Generic Name (INN)</label>
+                    <div x-text="viewProduct?.generic_name || '—'"></div>
+                  </div>
 
-              {{-- Storage --}}
-              <div class="col-md-4">
-                <label class="form-label text-muted-sm">Shelf Life</label>
-                <div x-text="viewProduct?.shelf_life || '—'"></div>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label text-muted-sm">Storage Conditions</label>
-                <div x-text="viewProduct?.storage_conditions || '—'"></div>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label text-muted-sm">Temperature</label>
-                <div class="d-flex align-items-center gap-1">
-                  <i x-show="viewProduct?.cold_chain" class="bi bi-thermometer-snow text-info"></i>
-                  <span x-text="viewProduct?.temperature_sensitivity?.replace('_',' ')"></span>
-                </div>
-              </div>
+                  {{-- Pharma --}}
+                  <div class="col-md-3">
+                    <label class="form-label text-muted-sm">Dosage Form</label>
+                    <div x-text="viewProduct?.dosage_form_label"></div>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label text-muted-sm">Strength</label>
+                    <div x-text="viewProduct?.strength || '—'"></div>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label text-muted-sm">Pack Size</label>
+                    <div x-text="viewProduct?.pack_size || '—'"></div>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label text-muted-sm">Therapeutic Class</label>
+                    <div x-text="viewProduct?.therapeutic_class || '—'"></div>
+                  </div>
 
-              {{-- Countries info --}}
-              <div class="col-12">
-                <div class="info-box info">
-                  <i class="bi bi-globe2 text-primary mt-1"></i>
-                  <div>
-                    <strong x-text="viewProduct?.countries_count ?? 0"></strong>
-                    approved country registration(s) on file.
-                    <a href="{{ route('countries') }}" class="text-primary">Manage Countries →</a>
+                  {{-- Mfg --}}
+                  <div class="col-md-5">
+                    <label class="form-label text-muted-sm">Manufacturer</label>
+                    <div x-text="viewProduct?.manufacturer_name || '—'"></div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-muted-sm">Manufacturing Site</label>
+                    <div x-text="viewProduct?.manufacturing_site || '—'"></div>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label text-muted-sm">Origin</label>
+                    <div x-text="viewProduct?.country_of_origin || '—'"></div>
+                  </div>
+
+                  {{-- Storage --}}
+                  <div class="col-md-4">
+                    <label class="form-label text-muted-sm">Shelf Life</label>
+                    <div x-text="viewProduct?.shelf_life || '—'"></div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-muted-sm">Storage Conditions</label>
+                    <div x-text="viewProduct?.storage_conditions || '—'"></div>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-muted-sm">Temperature</label>
+                    <div class="d-flex align-items-center gap-1">
+                      <i x-show="viewProduct?.cold_chain" class="bi bi-thermometer-snow text-info"></i>
+                      <span x-text="viewProduct?.temperature_sensitivity?.replace(/_/g,' ')"></span>
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-muted-sm">Unit Cost (USD)</label>
+                    <div x-text="viewProduct?.unit_cost ? '$' + parseFloat(viewProduct.unit_cost).toFixed(4) : '—'"></div>
+                  </div>
+
+                  <div class="col-12">
+                    <div class="info-box info">
+                      <i class="bi bi-globe2 text-primary mt-1"></i>
+                      <div>
+                        <strong x-text="viewProduct?.countries_count ?? 0"></strong> approved country registration(s).
+                        <a href="{{ route('countries') }}" class="text-primary">Manage →</a>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-12" x-show="viewProduct?.notes">
+                    <label class="form-label text-muted-sm">Notes</label>
+                    <div style="font-size:13px" x-text="viewProduct?.notes"></div>
                   </div>
                 </div>
               </div>
 
-              {{-- Notes --}}
-              <div class="col-12" x-show="viewProduct?.notes">
-                <label class="form-label text-muted-sm">Notes</label>
-                <div style="font-size:13px" x-text="viewProduct?.notes"></div>
-              </div>
             </div>
           </div>
         </div>
 
-        {{-- Footer --}}
         <div class="modal-footer">
-          <button class="btn btn-outline-secondary btn-sm" @click="showViewModal = false">Close</button>
+          <button class="btn btn-outline-secondary btn-sm" @click="showViewModal=false">Close</button>
           <a href="{{ route('batches') }}" class="btn btn-outline-info btn-sm">
             <i class="bi bi-layers me-1"></i>View Batches
           </a>
           <button class="btn btn-primary btn-sm"
-                  @click="showViewModal = false; openEdit(viewProduct)">
-            <i class="bi bi-pencil me-1"></i>Edit Product
+                  @click="showViewModal=false; openEdit(viewProduct?.id)">
+            <i class="bi bi-pencil me-1"></i>Edit
           </button>
         </div>
-
       </div>
     </div>
   </div>
-  <div class="modal-backdrop fade show" x-show="showViewModal" @click="showViewModal = false"></div>
+  <div class="modal-backdrop fade show" x-show="showViewModal" @click="showViewModal=false"></div>
 
   {{-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ --}}
   {{-- EDIT MODAL                                                         --}}
   {{-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ --}}
-  <div class="modal fade"
-       :class="{show: showEditModal}"
-       :style="showEditModal ? 'display:block' : ''"
-       tabindex="-1" aria-modal="true">
-    <div class="modal-dialog modal-xl">
-      <div class="modal-content" x-show="editProduct">
+  <div class="modal fade" :class="{show:showEditModal}" :style="showEditModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
 
         <div class="modal-header">
           <h5 class="modal-title fw-semibold">
             <i class="bi bi-pencil me-2 text-primary"></i>Edit Product
           </h5>
-          <div class="text-muted-sm ms-2">
-            <code x-text="editProduct?.prn"></code>
-          </div>
-          <button class="btn-close ms-auto" @click="showEditModal = false"></button>
+          <code class="text-muted-sm ms-2" x-text="editProduct?.prn"></code>
+          <button class="btn-close ms-auto" @click="showEditModal=false"></button>
         </div>
 
-        {{-- Form dynamically targets PUT /products/{id} --}}
-        <form method="POST"
+        <div x-show="editLoading" class="text-center py-5 text-muted modal-body">
+          <div class="spinner-border spinner-border-sm me-2"></div>Loading…
+        </div>
+
+        <form x-show="!editLoading" x-ref="editForm"
+              method="POST"
               :action="`{{ url('products') }}/${editProduct?.id}`"
-              @submit="saving = true">
+              enctype="multipart/form-data"
+              @submit.prevent="submitEditForm()">
           @csrf
-          @method('PUT')
+          <input type="hidden" name="_method" value="PUT">
 
           <div class="modal-body">
-            <div class="row g-3">
 
-              {{-- Section: Core --}}
-              <div class="col-12">
-                <div class="fw-semibold text-muted-sm mb-1" style="font-size:11px;letter-spacing:.05em;text-transform:uppercase">Core Information</div>
-                <hr class="my-1">
+            {{-- Inline errors --}}
+            <template x-if="Object.keys(editErrors).length > 0">
+              <div class="alert alert-danger mb-3">
+                <strong><i class="bi bi-exclamation-triangle me-1"></i>Please fix the errors below.</strong>
+                <ul class="mb-0 mt-1 ps-3" style="font-size:13px">
+                  <template x-for="(msgs, field) in editErrors" :key="field">
+                    <template x-for="msg in msgs" :key="msg">
+                      <li x-text="msg"></li>
+                    </template>
+                  </template>
+                </ul>
               </div>
+            </template>
 
+            <div class="row g-3">
+              {{-- ── Core ─────────────────────────────────────────────── --}}
+              <div class="col-12">
+                <div class="section-label">Core Information</div>
+              </div>
               <div class="col-md-6">
                 <label class="form-label">Brand Name <span class="text-danger">*</span></label>
-                <input type="text" name="name" class="form-control"
-                       :value="editProduct?.name" required placeholder="e.g. Amoxil 500mg Capsules">
+                <input type="text" name="name" class="form-control" :value="editProduct?.name" required>
               </div>
               <div class="col-md-6">
                 <label class="form-label">Generic Name (INN)</label>
-                <input type="text" name="generic_name" class="form-control"
-                       :value="editProduct?.generic_name" placeholder="e.g. Amoxicillin">
+                <input type="text" name="generic_name" class="form-control" :value="editProduct?.generic_name">
               </div>
               <div class="col-md-4">
                 <label class="form-label">Dosage Form <span class="text-danger">*</span></label>
-                <select name="dosage_form" class="form-select" required
-                        :value="editProduct?.dosage_form">
-                  <option value="">Select form…</option>
-                  @foreach(['tablet'=>'Tablet','capsule'=>'Capsule','injection'=>'Injection','syrup'=>'Syrup','cream'=>'Cream','ointment'=>'Ointment','drops'=>'Drops','inhaler'=>'Inhaler','other'=>'Other'] as $val => $label)
-                    <option value="{{ $val }}" :selected="editProduct?.dosage_form === '{{ $val }}'">{{ $label }}</option>
+                <select name="dosage_form" class="form-select" required>
+                  <option value="">Select…</option>
+                  @foreach(['tablet'=>'Tablet','capsule'=>'Capsule','injection'=>'Injection','syrup'=>'Syrup','cream'=>'Cream','ointment'=>'Ointment','drops'=>'Drops','inhaler'=>'Inhaler','other'=>'Other'] as $v=>$l)
+                    <option value="{{ $v }}" :selected="editProduct?.dosage_form === '{{ $v }}'">{{ $l }}</option>
                   @endforeach
                 </select>
               </div>
               <div class="col-md-4">
                 <label class="form-label">Strength</label>
-                <input type="text" name="strength" class="form-control"
-                       :value="editProduct?.strength" placeholder="e.g. 500mg">
+                <input type="text" name="strength" class="form-control" :value="editProduct?.strength" placeholder="e.g. 500mg">
               </div>
               <div class="col-md-4">
                 <label class="form-label">Pack Size</label>
-                <input type="text" name="pack_size" class="form-control"
-                       :value="editProduct?.pack_size" placeholder="e.g. 10 tabs/blister × 10">
+                <input type="text" name="pack_size" class="form-control" :value="editProduct?.pack_size" placeholder="e.g. 10 tabs × 10 blisters">
               </div>
 
-              {{-- Section: Classification --}}
-              <div class="col-12 mt-2">
-                <div class="fw-semibold text-muted-sm mb-1" style="font-size:11px;letter-spacing:.05em;text-transform:uppercase">Classification &amp; Coding</div>
-                <hr class="my-1">
+              {{-- ── Classification ──────────────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Classification &amp; Coding</div></div>
+              <div class="col-md-4">
+                <label class="form-label">Therapeutic Class</label>
+                <input type="text" name="therapeutic_class" list="edit_tc_list" class="form-control"
+                       :value="editProduct?.therapeutic_class" placeholder="e.g. Antibiotics">
+                <datalist id="edit_tc_list">
+                  @foreach(['Antibiotics / Antimicrobials','Analgesics / Pain Relief','Anti-inflammatory / NSAIDs','Antidiabetics / Insulin','Cardiovascular','Antihypertensives','Antifungals','Antivirals','Antiparasitics','Respiratory / Bronchodilators','CNS / Neurological','Gastrointestinal','Endocrinology / Hormones','Vaccines / Immunologicals','Vitamins / Supplements','Dermatology','Ophthalmology','Oncology / Antineoplastics','Haematology','Musculoskeletal','Urological','Other'] as $tc)
+                    <option value="{{ $tc }}">
+                  @endforeach
+                </datalist>
               </div>
               <div class="col-md-3">
                 <label class="form-label">ATC Code</label>
-                <input type="text" name="atc_code" class="form-control"
-                       :value="editProduct?.atc_code" placeholder="e.g. J01CA04">
+                <input type="text" name="atc_code" class="form-control" :value="editProduct?.atc_code" placeholder="e.g. J01CA04">
               </div>
               <div class="col-md-3">
                 <label class="form-label">HS Code</label>
-                <input type="text" name="hs_code" class="form-control"
-                       :value="editProduct?.hs_code" placeholder="e.g. 3004.20">
+                <input type="text" name="hs_code" class="form-control" :value="editProduct?.hs_code" placeholder="e.g. 3004.20">
               </div>
-              <div class="col-md-3">
+              <div class="col-md-2">
                 <label class="form-label">Controlled Substance</label>
                 <select name="controlled_substance" class="form-select">
-                  <option value="no"         :selected="editProduct?.controlled_substance === 'no'">No</option>
-                  <option value="schedule_1" :selected="editProduct?.controlled_substance === 'schedule_1'">Schedule 1</option>
-                  <option value="schedule_2" :selected="editProduct?.controlled_substance === 'schedule_2'">Schedule 2</option>
-                  <option value="schedule_3" :selected="editProduct?.controlled_substance === 'schedule_3'">Schedule 3</option>
+                  <option value="no"         :selected="editProduct?.controlled_substance==='no'">No</option>
+                  <option value="schedule_1" :selected="editProduct?.controlled_substance==='schedule_1'">Schedule 1</option>
+                  <option value="schedule_2" :selected="editProduct?.controlled_substance==='schedule_2'">Schedule 2</option>
+                  <option value="schedule_3" :selected="editProduct?.controlled_substance==='schedule_3'">Schedule 3</option>
                 </select>
+              </div>
+
+              {{-- Status + Mfg ─────────────────────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Manufacturing &amp; Status</div></div>
+              <div class="col-md-4">
+                <label class="form-label">Manufacturer Name</label>
+                <input type="text" name="manufacturer_name" class="form-control" :value="editProduct?.manufacturer_name">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Manufacturing Site</label>
+                <input type="text" name="manufacturing_site" class="form-control" :value="editProduct?.manufacturing_site">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Country of Origin</label>
+                <input type="text" name="country_of_origin" class="form-control" :value="editProduct?.country_of_origin" maxlength="5">
               </div>
               <div class="col-md-3">
                 <label class="form-label">Status</label>
                 <select name="status" class="form-select">
-                  <option value="active"           :selected="editProduct?.status === 'active'">Active</option>
-                  <option value="pending_approval" :selected="editProduct?.status === 'pending_approval'">Under Registration</option>
-                  <option value="discontinued"     :selected="editProduct?.status === 'discontinued'">Discontinued</option>
+                  <option value="active"           :selected="editProduct?.status==='active'">Active</option>
+                  <option value="pending_approval" :selected="editProduct?.status==='pending_approval'">Under Registration</option>
+                  <option value="discontinued"     :selected="editProduct?.status==='discontinued'">Discontinued</option>
                 </select>
               </div>
 
-              {{-- Section: Manufacturing --}}
-              <div class="col-12 mt-2">
-                <div class="fw-semibold text-muted-sm mb-1" style="font-size:11px;letter-spacing:.05em;text-transform:uppercase">Manufacturing</div>
-                <hr class="my-1">
-              </div>
-              <div class="col-md-5">
-                <label class="form-label">Manufacturer Name</label>
-                <input type="text" name="manufacturer_name" class="form-control"
-                       :value="editProduct?.manufacturer_name">
-              </div>
-              <div class="col-md-5">
-                <label class="form-label">Manufacturing Site</label>
-                <input type="text" name="manufacturing_site" class="form-control"
-                       :value="editProduct?.manufacturing_site">
-              </div>
-              <div class="col-md-2">
-                <label class="form-label">Country of Origin</label>
-                <input type="text" name="country_of_origin" class="form-control"
-                       :value="editProduct?.country_of_origin" placeholder="US" maxlength="5">
-              </div>
-
-              {{-- Section: Storage & Cost --}}
-              <div class="col-12 mt-2">
-                <div class="fw-semibold text-muted-sm mb-1" style="font-size:11px;letter-spacing:.05em;text-transform:uppercase">Storage &amp; Cost</div>
-                <hr class="my-1">
-              </div>
+              {{-- Storage & Cost ────────────────────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Storage &amp; Cost</div></div>
               <div class="col-md-3">
                 <label class="form-label">Shelf Life</label>
-                <input type="text" name="shelf_life" class="form-control"
-                       :value="editProduct?.shelf_life" placeholder="e.g. 36 months">
+                <input type="text" name="shelf_life" class="form-control" :value="editProduct?.shelf_life" placeholder="e.g. 36 months">
               </div>
               <div class="col-md-3">
                 <label class="form-label">Storage Conditions</label>
-                <input type="text" name="storage_conditions" class="form-control"
-                       :value="editProduct?.storage_conditions" placeholder="e.g. Below 25°C">
+                <input type="text" name="storage_conditions" class="form-control" :value="editProduct?.storage_conditions">
               </div>
               <div class="col-md-3">
                 <label class="form-label">Temperature Sensitivity</label>
                 <select name="temperature_sensitivity" class="form-select">
-                  <option value="ambient"    :selected="editProduct?.temperature_sensitivity === 'ambient'">Ambient</option>
-                  <option value="cool_chain" :selected="editProduct?.temperature_sensitivity === 'cool_chain'">Cool Chain (8–15°C)</option>
-                  <option value="cold_chain" :selected="editProduct?.temperature_sensitivity === 'cold_chain'">Cold Chain (2–8°C)</option>
-                  <option value="frozen"     :selected="editProduct?.temperature_sensitivity === 'frozen'">Frozen (≤ −20°C)</option>
+                  <option value="ambient"    :selected="editProduct?.temperature_sensitivity==='ambient'">Ambient</option>
+                  <option value="cool_chain" :selected="editProduct?.temperature_sensitivity==='cool_chain'">Cool Chain (8–15°C)</option>
+                  <option value="cold_chain" :selected="editProduct?.temperature_sensitivity==='cold_chain'">Cold Chain (2–8°C)</option>
+                  <option value="frozen"     :selected="editProduct?.temperature_sensitivity==='frozen'">Frozen (≤ −20°C)</option>
                 </select>
               </div>
               <div class="col-md-3">
                 <label class="form-label">Unit Cost (USD)</label>
                 <div class="input-group">
                   <span class="input-group-text">$</span>
-                  <input type="number" name="unit_cost" class="form-control"
-                         :value="editProduct?.unit_cost" step="0.0001" min="0" placeholder="0.0000">
+                  <input type="number" name="unit_cost" class="form-control" :value="editProduct?.unit_cost" step="0.0001" min="0">
+                </div>
+              </div>
+
+              {{-- ── Product Images ──────────────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Product Images</div></div>
+              <div class="col-12">
+
+                {{-- Existing images --}}
+                <div x-show="editExistingImages.length > 0" class="mb-3">
+                  <div class="text-muted-sm mb-2">Existing Images
+                    <span class="text-muted">(click image to set primary · click ✕ to remove)</span>
+                  </div>
+                  <div class="img-preview-grid">
+                    <template x-for="(img, i) in editExistingImages" :key="img.id">
+                      <div class="img-preview-item"
+                           :class="{'is-primary': img.is_primary && !img.toRemove, 'to-remove': img.toRemove}"
+                           @click="!img.toRemove && setEditExistingPrimary(i)">
+                        <img :src="img.url" :alt="img.name">
+                        <div class="img-actions">
+                          <button type="button" class="btn btn-danger btn-sm p-0"
+                                  style="width:20px;height:20px;font-size:10px;line-height:1"
+                                  @click.stop="img.toRemove ? restoreEditImage(i) : removeEditImage(i)">
+                            <i :class="img.toRemove ? 'bi-arrow-counterclockwise' : 'bi-x'"></i>
+                          </button>
+                        </div>
+                        <span x-show="img.is_primary && !img.toRemove" class="img-badge-primary">PRIMARY</span>
+                        <span x-show="img.toRemove" class="img-badge-remove">REMOVE</span>
+                        {{-- Hidden input to flag removal --}}
+                        <input type="hidden" name="remove_images[]" :value="img.id" x-show="false"
+                               x-bind:disabled="!img.toRemove">
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                {{-- Hidden remove inputs (Alpine manages these dynamically) --}}
+                <template x-for="id in removeImageIds" :key="id">
+                  <input type="hidden" name="remove_images[]" :value="id">
+                </template>
+
+                {{-- Hidden primary_image_id --}}
+                <template x-if="editPrimaryImageId">
+                  <input type="hidden" name="primary_image_id" :value="editPrimaryImageId">
+                </template>
+
+                {{-- New image uploads --}}
+                <div class="text-muted-sm mb-2">Add New Images
+                  <span class="text-muted">(max 10 total · JPG, PNG, WebP · max 5 MB each)</span>
+                </div>
+
+                {{-- Drop Zone --}}
+                <div class="img-upload-zone"
+                     :class="{'drag-over': editDragOver}"
+                     @dragover.prevent="editDragOver=true"
+                     @dragleave.prevent="editDragOver=false"
+                     @drop.prevent="editDragOver=false; handleEditDrop($event)"
+                     @click="$refs.editFileInput.click()">
+                  <i class="bi bi-cloud-upload" style="font-size:28px;color:#6c757d"></i>
+                  <div class="fw-semibold mt-1" style="font-size:13px">Drop images here or click to browse</div>
+                  <div class="text-muted-sm">JPG · PNG · WebP · GIF — up to 5 MB each</div>
+                  <input type="file" class="d-none" x-ref="editFileInput" multiple accept="image/*"
+                         @change="handleEditFileChange($event)">
+                </div>
+
+                {{-- New image previews --}}
+                <div x-show="editNewPreviews.length > 0" class="img-preview-grid mt-3">
+                  <template x-for="(p, i) in editNewPreviews" :key="i">
+                    <div class="img-preview-item" :class="{'is-primary': p.primary}">
+                      <img :src="p.url" :alt="p.name">
+                      <div class="img-actions">
+                        <button type="button" class="btn btn-danger btn-sm p-0"
+                                style="width:20px;height:20px;font-size:10px;line-height:1"
+                                @click.stop="removeEditNew(i)">
+                          <i class="bi bi-x"></i>
+                        </button>
+                      </div>
+                      <span x-show="p.primary" class="img-badge-primary">PRIMARY</span>
+                    </div>
+                  </template>
                 </div>
               </div>
 
               {{-- Notes --}}
               <div class="col-12">
                 <label class="form-label">Notes</label>
-                <textarea name="notes" class="form-control" rows="2"
-                          x-text="editProduct?.notes" placeholder="Optional internal notes…"></textarea>
+                <textarea name="notes" class="form-control" rows="2" x-text="editProduct?.notes"></textarea>
               </div>
-
             </div>
           </div>
 
           <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" @click="showEditModal = false">Cancel</button>
+            <button type="button" class="btn btn-outline-secondary" @click="showEditModal=false">Cancel</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
               <span x-show="saving" class="spinner-border spinner-border-sm me-1"></span>
               <i class="bi bi-check-lg me-1" x-show="!saving"></i>
               <span x-text="saving ? 'Saving…' : 'Save Changes'"></span>
             </button>
           </div>
-
         </form>
       </div>
     </div>
   </div>
-  <div class="modal-backdrop fade show" x-show="showEditModal" @click="showEditModal = false"></div>
+  <div class="modal-backdrop fade show" x-show="showEditModal" @click="showEditModal=false"></div>
 
   {{-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ --}}
   {{-- ADD PRODUCT MODAL                                                  --}}
   {{-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ --}}
-  <div class="modal fade"
-       :class="{show: showAddModal}"
-       :style="showAddModal ? 'display:block' : ''"
-       tabindex="-1" aria-modal="true">
-    <div class="modal-dialog modal-xl">
+  <div class="modal fade" :class="{show:showAddModal}" :style="showAddModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
       <div class="modal-content">
 
         <div class="modal-header">
           <h5 class="modal-title fw-semibold">
             <i class="bi bi-plus-circle me-2 text-primary"></i>Add New Product
           </h5>
-          <button class="btn-close" @click="showAddModal = false"></button>
+          <button class="btn-close" @click="showAddModal=false; resetAdd()"></button>
         </div>
 
-        <form method="POST" action="{{ route('products.store') }}" @submit="saving = true">
+        <form x-ref="addForm"
+              method="POST"
+              action="{{ route('products.store') }}"
+              enctype="multipart/form-data"
+              @submit.prevent="submitAddForm()">
           @csrf
 
           <div class="modal-body">
+
+            {{-- Inline errors --}}
+            <template x-if="Object.keys(addErrors).length > 0">
+              <div class="alert alert-danger mb-3">
+                <strong><i class="bi bi-exclamation-triangle me-1"></i>Please fix the errors below.</strong>
+                <ul class="mb-0 mt-1 ps-3" style="font-size:13px">
+                  <template x-for="(msgs, field) in addErrors" :key="field">
+                    <template x-for="msg in msgs" :key="msg">
+                      <li x-text="msg"></li>
+                    </template>
+                  </template>
+                </ul>
+              </div>
+            </template>
+
             <div class="row g-3">
 
-              <div class="col-12">
-                <div class="fw-semibold text-muted-sm mb-1" style="font-size:11px;letter-spacing:.05em;text-transform:uppercase">Core Information</div>
-                <hr class="my-1">
-              </div>
+              {{-- ── Core ─────────────────────────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Core Information</div></div>
 
               <div class="col-md-6">
                 <label class="form-label">Brand Name <span class="text-danger">*</span></label>
@@ -639,8 +843,8 @@
                 <label class="form-label">Dosage Form <span class="text-danger">*</span></label>
                 <select name="dosage_form" class="form-select @error('dosage_form') is-invalid @enderror" required>
                   <option value="">Select form…</option>
-                  @foreach(['tablet'=>'Tablet','capsule'=>'Capsule','injection'=>'Injection','syrup'=>'Syrup','cream'=>'Cream','ointment'=>'Ointment','drops'=>'Drops','inhaler'=>'Inhaler','other'=>'Other'] as $val => $label)
-                    <option value="{{ $val }}" {{ old('dosage_form') === $val ? 'selected' : '' }}>{{ $label }}</option>
+                  @foreach(['tablet'=>'Tablet','capsule'=>'Capsule','injection'=>'Injection','syrup'=>'Syrup','cream'=>'Cream','ointment'=>'Ointment','drops'=>'Drops','inhaler'=>'Inhaler','other'=>'Other'] as $v=>$l)
+                    <option value="{{ $v }}" {{ old('dosage_form') === $v ? 'selected':'' }}>{{ $l }}</option>
                   @endforeach
                 </select>
                 @error('dosage_form')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -656,9 +860,18 @@
                        value="{{ old('pack_size') }}" placeholder="e.g. 10 tabs × 10 blisters">
               </div>
 
-              <div class="col-12 mt-2">
-                <div class="fw-semibold text-muted-sm mb-1" style="font-size:11px;letter-spacing:.05em;text-transform:uppercase">Classification &amp; Coding</div>
-                <hr class="my-1">
+              {{-- ── Classification ──────────────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Classification &amp; Coding</div></div>
+
+              <div class="col-md-4">
+                <label class="form-label">Therapeutic Class</label>
+                <input type="text" name="therapeutic_class" list="add_tc_list" class="form-control"
+                       value="{{ old('therapeutic_class') }}" placeholder="e.g. Antibiotics">
+                <datalist id="add_tc_list">
+                  @foreach(['Antibiotics / Antimicrobials','Analgesics / Pain Relief','Anti-inflammatory / NSAIDs','Antidiabetics / Insulin','Cardiovascular','Antihypertensives','Antifungals','Antivirals','Antiparasitics','Respiratory / Bronchodilators','CNS / Neurological','Gastrointestinal','Endocrinology / Hormones','Vaccines / Immunologicals','Vitamins / Supplements','Dermatology','Ophthalmology','Oncology / Antineoplastics','Haematology','Musculoskeletal','Urological','Other'] as $tc)
+                    <option value="{{ $tc }}">
+                  @endforeach
+                </datalist>
               </div>
               <div class="col-md-3">
                 <label class="form-label">ATC Code</label>
@@ -670,34 +883,25 @@
                 <input type="text" name="hs_code" class="form-control"
                        value="{{ old('hs_code') }}" placeholder="e.g. 3004.20">
               </div>
-              <div class="col-md-3">
+              <div class="col-md-2">
                 <label class="form-label">Controlled Substance</label>
                 <select name="controlled_substance" class="form-select">
-                  <option value="no"         {{ old('controlled_substance','no') === 'no'         ? 'selected':'' }}>No</option>
-                  <option value="schedule_1" {{ old('controlled_substance')       === 'schedule_1' ? 'selected':'' }}>Schedule 1</option>
-                  <option value="schedule_2" {{ old('controlled_substance')       === 'schedule_2' ? 'selected':'' }}>Schedule 2</option>
-                  <option value="schedule_3" {{ old('controlled_substance')       === 'schedule_3' ? 'selected':'' }}>Schedule 3</option>
-                </select>
-              </div>
-              <div class="col-md-3">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select">
-                  <option value="active"           {{ old('status','active') === 'active'           ? 'selected':'' }}>Active</option>
-                  <option value="pending_approval" {{ old('status')           === 'pending_approval' ? 'selected':'' }}>Under Registration</option>
-                  <option value="discontinued"     {{ old('status')           === 'discontinued'     ? 'selected':'' }}>Discontinued</option>
+                  <option value="no" {{ old('controlled_substance','no')==='no' ? 'selected':'' }}>No</option>
+                  <option value="schedule_1" {{ old('controlled_substance')==='schedule_1' ? 'selected':'' }}>Schedule 1</option>
+                  <option value="schedule_2" {{ old('controlled_substance')==='schedule_2' ? 'selected':'' }}>Schedule 2</option>
+                  <option value="schedule_3" {{ old('controlled_substance')==='schedule_3' ? 'selected':'' }}>Schedule 3</option>
                 </select>
               </div>
 
-              <div class="col-12 mt-2">
-                <div class="fw-semibold text-muted-sm mb-1" style="font-size:11px;letter-spacing:.05em;text-transform:uppercase">Manufacturing</div>
-                <hr class="my-1">
-              </div>
-              <div class="col-md-5">
+              {{-- ── Manufacturing & Status ──────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Manufacturing &amp; Status</div></div>
+
+              <div class="col-md-4">
                 <label class="form-label">Manufacturer Name</label>
                 <input type="text" name="manufacturer_name" class="form-control"
                        value="{{ old('manufacturer_name') }}" placeholder="e.g. PharmaCo Mfg">
               </div>
-              <div class="col-md-5">
+              <div class="col-md-3">
                 <label class="form-label">Manufacturing Site</label>
                 <input type="text" name="manufacturing_site" class="form-control"
                        value="{{ old('manufacturing_site') }}" placeholder="e.g. Plant A, Los Angeles">
@@ -706,13 +910,20 @@
                 <label class="form-label">Country of Origin</label>
                 <input type="text" name="country_of_origin" class="form-control"
                        value="{{ old('country_of_origin') }}" placeholder="US" maxlength="5">
-                <div class="form-text" style="font-size:10px">Used in PRN auto-generation</div>
+                <div class="form-text" style="font-size:10px">Used in PRN</div>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                  <option value="active"           {{ old('status','active')==='active'           ? 'selected':'' }}>Active</option>
+                  <option value="pending_approval" {{ old('status')==='pending_approval' ? 'selected':'' }}>Under Registration</option>
+                  <option value="discontinued"     {{ old('status')==='discontinued'     ? 'selected':'' }}>Discontinued</option>
+                </select>
               </div>
 
-              <div class="col-12 mt-2">
-                <div class="fw-semibold text-muted-sm mb-1" style="font-size:11px;letter-spacing:.05em;text-transform:uppercase">Storage &amp; Cost</div>
-                <hr class="my-1">
-              </div>
+              {{-- ── Storage & Cost ──────────────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Storage &amp; Cost</div></div>
+
               <div class="col-md-3">
                 <label class="form-label">Shelf Life</label>
                 <input type="text" name="shelf_life" class="form-control"
@@ -726,10 +937,10 @@
               <div class="col-md-3">
                 <label class="form-label">Temperature Sensitivity</label>
                 <select name="temperature_sensitivity" class="form-select">
-                  <option value="ambient"    {{ old('temperature_sensitivity','ambient') === 'ambient'    ? 'selected':'' }}>Ambient</option>
-                  <option value="cool_chain" {{ old('temperature_sensitivity')            === 'cool_chain' ? 'selected':'' }}>Cool Chain (8–15°C)</option>
-                  <option value="cold_chain" {{ old('temperature_sensitivity')            === 'cold_chain' ? 'selected':'' }}>Cold Chain (2–8°C)</option>
-                  <option value="frozen"     {{ old('temperature_sensitivity')            === 'frozen'     ? 'selected':'' }}>Frozen (≤ −20°C)</option>
+                  <option value="ambient"    {{ old('temperature_sensitivity','ambient')==='ambient'    ? 'selected':'' }}>Ambient</option>
+                  <option value="cool_chain" {{ old('temperature_sensitivity')==='cool_chain' ? 'selected':'' }}>Cool Chain (8–15°C)</option>
+                  <option value="cold_chain" {{ old('temperature_sensitivity')==='cold_chain' ? 'selected':'' }}>Cold Chain (2–8°C)</option>
+                  <option value="frozen"     {{ old('temperature_sensitivity')==='frozen'     ? 'selected':'' }}>Frozen (≤ −20°C)</option>
                 </select>
               </div>
               <div class="col-md-3">
@@ -741,6 +952,53 @@
                 </div>
               </div>
 
+              {{-- ── Product Images ──────────────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Product Images</div></div>
+              <div class="col-12">
+
+                {{-- Drop Zone --}}
+                <div class="img-upload-zone mb-3"
+                     :class="{'drag-over': addDragOver}"
+                     @dragover.prevent="addDragOver=true"
+                     @dragleave.prevent="addDragOver=false"
+                     @drop.prevent="addDragOver=false; handleAddDrop($event)"
+                     @click="$refs.addFileInput.click()">
+                  <i class="bi bi-images" style="font-size:32px;color:#6c757d"></i>
+                  <div class="fw-semibold mt-2" style="font-size:14px">Drag &amp; drop product images here</div>
+                  <div class="text-muted-sm mt-1">or <span class="text-primary">click to browse</span></div>
+                  <div class="text-muted-sm">JPG · PNG · WebP · GIF — up to 5 MB each · max 10 images</div>
+                  <input type="file" class="d-none" x-ref="addFileInput" multiple accept="image/*"
+                         @change="handleAddFileChange($event)">
+                </div>
+
+                {{-- Preview Grid --}}
+                <div x-show="addPreviews.length > 0">
+                  <div class="text-muted-sm mb-2">
+                    <span x-text="addPreviews.length"></span> image(s) selected ·
+                    <span class="text-muted">Click image to set as primary · click ✕ to remove</span>
+                  </div>
+                  <div class="img-preview-grid">
+                    <template x-for="(p, i) in addPreviews" :key="i">
+                      <div class="img-preview-item"
+                           :class="{'is-primary': p.primary}"
+                           @click="setAddPrimary(i)">
+                        <img :src="p.url" :alt="p.name">
+                        <div class="img-actions">
+                          <button type="button"
+                                  class="btn btn-danger btn-sm p-0"
+                                  style="width:20px;height:20px;font-size:10px;line-height:1"
+                                  @click.stop="removeAddPreview(i)">
+                            <i class="bi bi-x"></i>
+                          </button>
+                        </div>
+                        <span x-show="p.primary" class="img-badge-primary">PRIMARY</span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+
+              {{-- Notes --}}
               <div class="col-12">
                 <label class="form-label">Notes</label>
                 <textarea name="notes" class="form-control" rows="2"
@@ -752,7 +1010,7 @@
                 <div class="info-box info">
                   <i class="bi bi-info-circle text-primary mt-1"></i>
                   <div style="font-size:12px">
-                    <strong>PRN is auto-generated</strong> from Country of Origin + Dosage Form on save.
+                    <strong>PRN auto-generated</strong> from Country of Origin + Dosage Form on save.
                     Format: <code>PRN-{COUNTRY}-{FORM}-{NNNNN}</code>
                   </div>
                 </div>
@@ -762,7 +1020,7 @@
           </div>
 
           <div class="modal-footer">
-            <button type="button" class="btn btn-outline-secondary" @click="showAddModal = false">Cancel</button>
+            <button type="button" class="btn btn-outline-secondary" @click="showAddModal=false; resetAdd()">Cancel</button>
             <button type="submit" class="btn btn-primary" :disabled="saving">
               <span x-show="saving" class="spinner-border spinner-border-sm me-1"></span>
               <i class="bi bi-check-lg me-1" x-show="!saving"></i>
@@ -774,60 +1032,254 @@
       </div>
     </div>
   </div>
-  <div class="modal-backdrop fade show" x-show="showAddModal" @click="showAddModal = false"></div>
+  <div class="modal-backdrop fade show" x-show="showAddModal" @click="showAddModal=false; resetAdd()"></div>
 
 </div>
 @endsection
 
 @push('scripts')
+<style>
+.section-label {
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#6c757d;
+  padding-bottom:4px;
+  border-bottom:1px solid var(--border-color,#dee2e6);
+}
+</style>
 <script>
 function productsPage() {
   return {
-    // ── Modal state ─────────────────────────────────────────────────────
-    showAddModal:  {{ $errors->any() ? 'true' : 'false' }},   // re-open if validation failed
+    /* ── Modal state ─────────────────────────────────────────────── */
+    showAddModal:  {{ $errors->any() ? 'true' : 'false' }},
     showViewModal: false,
     showEditModal: false,
-
     viewProduct:  null,
     editProduct:  null,
     viewLoading:  false,
+    editLoading:  false,
     saving:       false,
+    addErrors:    {},
+    editErrors:   {},
 
-    // ── Bulk selection ───────────────────────────────────────────────────
+    /* ── View modal gallery ──────────────────────────────────────── */
+    activeImage: null,
+
+    /* ── Add modal images ────────────────────────────────────────── */
+    addDragOver:  false,
+    addPreviews:  [],   // {url, name, primary}
+    addFiles:     [],   // File objects
+
+    /* ── Edit modal images ───────────────────────────────────────── */
+    editDragOver:        false,
+    editExistingImages:  [],   // from DB: {id, url, name, is_primary, toRemove}
+    editNewPreviews:     [],   // {url, name, primary}
+    editFiles:           [],   // File objects
+    removeImageIds:      [],   // IDs to send as remove_images[]
+
+    /* ── Bulk select ─────────────────────────────────────────────── */
     selected: [],
 
-    toggleAll(checked) {
-      const checkboxes = document.querySelectorAll('.row-check');
-      this.selected = checked ? [...checkboxes].map(c => c.value) : [];
-      checkboxes.forEach(c => c.checked = checked);
-    },
-
-    // ── View modal — loads product via AJAX ──────────────────────────────
+    /* ══ VIEW MODAL ════════════════════════════════════════════════ */
     openView(id) {
       this.viewProduct  = null;
       this.viewLoading  = true;
       this.showViewModal = true;
+      this._fetchProduct(id).then(data => {
+        this.viewProduct  = data;
+        this.activeImage  = data.images?.[0]?.url ?? null;
+        this.viewLoading  = false;
+      });
+    },
 
-      fetch(`{{ url('products') }}/${id}`, {
-        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    /* ══ EDIT MODAL ════════════════════════════════════════════════ */
+    openEdit(id) {
+      this.editProduct        = null;
+      this.editLoading        = true;
+      this.editExistingImages = [];
+      this.editNewPreviews    = [];
+      this.editFiles          = [];
+      this.removeImageIds     = [];
+      this.editErrors         = {};
+      this.saving             = false;
+      this.showEditModal      = true;
+      this._fetchProduct(id).then(data => {
+        this.editProduct        = data;
+        this.editExistingImages = (data.images ?? []).map(img => ({...img, toRemove: false}));
+        this.editLoading        = false;
+      });
+    },
+
+    /* ── Shared fetch ────────────────────────────────────────────── */
+    _fetchProduct(id) {
+      return fetch(`{{ url('products') }}/${id}`, {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
       })
-      .then(r => r.json())
-      .then(data => { this.viewProduct = data; this.viewLoading = false; })
-      .catch(() => { this.viewLoading = false; alert('Could not load product details.'); });
+      .then(r => { if (!r.ok) throw new Error('Network error'); return r.json(); })
+      .catch(() => { alert('Could not load product details.'); return {}; });
     },
 
-    // ── Edit modal — product data already available from table row ───────
-    openEdit(product) {
-      this.editProduct  = product;
-      this.saving       = false;
-      this.showEditModal = true;
+    /* ══ IMAGE HANDLING — ADD ══════════════════════════════════════ */
+    handleAddDrop(e)       { this._processFiles(e.dataTransfer.files, 'add'); },
+    handleAddFileChange(e) { this._processFiles(e.target.files, 'add'); },
+
+    _processFiles(fileList, mode) {
+      const allowed = ['image/jpeg','image/png','image/gif','image/webp'];
+      Array.from(fileList).forEach(file => {
+        if (!allowed.includes(file.type)) return;
+        const total = mode === 'add'
+          ? this.addPreviews.length
+          : this.editNewPreviews.length + this.editExistingImages.filter(i => !i.toRemove).length;
+        if (total >= 10) { alert('Maximum 10 images allowed.'); return; }
+        const url      = URL.createObjectURL(file);
+        const isPrimary = mode === 'add'
+          ? this.addPreviews.length === 0
+          : false;
+        if (mode === 'add') {
+          this.addPreviews.push({ url, name: file.name, primary: isPrimary });
+          this.addFiles.push(file);
+        } else {
+          this.editNewPreviews.push({ url, name: file.name, primary: false });
+          this.editFiles.push(file);
+        }
+      });
+      // Reset input so same file can be re-selected
+      if (mode === 'add' && this.$refs.addFileInput)  this.$refs.addFileInput.value  = '';
+      if (mode === 'edit' && this.$refs.editFileInput) this.$refs.editFileInput.value = '';
     },
 
-    // ── Delete confirmation ──────────────────────────────────────────────
+    removeAddPreview(i) {
+      URL.revokeObjectURL(this.addPreviews[i].url);
+      this.addPreviews.splice(i, 1);
+      this.addFiles.splice(i, 1);
+      if (this.addPreviews.length && !this.addPreviews.some(p => p.primary)) {
+        this.addPreviews[0].primary = true;
+      }
+    },
+
+    setAddPrimary(i) {
+      this.addPreviews.forEach((p, idx) => p.primary = (idx === i));
+    },
+
+    /* ══ IMAGE HANDLING — EDIT ═════════════════════════════════════ */
+    handleEditDrop(e)       { this._processFiles(e.dataTransfer.files, 'edit'); },
+    handleEditFileChange(e) { this._processFiles(e.target.files, 'edit'); },
+
+    removeEditImage(i) {
+      const id = this.editExistingImages[i].id;
+      if (!this.removeImageIds.includes(id)) this.removeImageIds.push(id);
+      this.editExistingImages[i].toRemove = true;
+    },
+    restoreEditImage(i) {
+      const id = this.editExistingImages[i].id;
+      this.removeImageIds = this.removeImageIds.filter(x => x !== id);
+      this.editExistingImages[i].toRemove = false;
+    },
+    setEditExistingPrimary(i) {
+      this.editExistingImages.forEach((img, idx) => img.is_primary = (idx === i));
+      this.editNewPreviews.forEach(p => p.primary = false);
+    },
+    removeEditNew(i) {
+      URL.revokeObjectURL(this.editNewPreviews[i].url);
+      this.editNewPreviews.splice(i, 1);
+      this.editFiles.splice(i, 1);
+    },
+
+    get editPrimaryImageId() {
+      const p = this.editExistingImages.find(img => img.is_primary && !img.toRemove);
+      return p ? p.id : null;
+    },
+
+    /* ══ FORM SUBMISSIONS ══════════════════════════════════════════ */
+    async submitAddForm() {
+      this.saving    = true;
+      this.addErrors = {};
+
+      const formData = new FormData(this.$refs.addForm);
+      // Replace native file input with our managed files
+      formData.delete('images[]');
+      this.addFiles.forEach(f => formData.append('images[]', f));
+      const primaryIdx = this.addPreviews.findIndex(p => p.primary);
+      if (primaryIdx >= 0) formData.set('primary_image_index', primaryIdx);
+
+      try {
+        const res  = await fetch('{{ route("products.store") }}', {
+          method:  'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+          body:    formData,
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = data.redirect;
+        } else {
+          this.addErrors = data.errors ?? {};
+          this.saving    = false;
+        }
+      } catch (e) {
+        alert('Server error. Please try again.');
+        this.saving = false;
+      }
+    },
+
+    async submitEditForm() {
+      this.saving     = true;
+      this.editErrors = {};
+
+      const formData = new FormData(this.$refs.editForm);
+      formData.set('_method', 'PUT');
+
+      // New files
+      formData.delete('images[]');
+      this.editFiles.forEach(f => formData.append('images[]', f));
+
+      // Remove IDs
+      formData.delete('remove_images[]');
+      this.removeImageIds.forEach(id => formData.append('remove_images[]', id));
+
+      // Primary image
+      if (this.editPrimaryImageId) formData.set('primary_image_id', this.editPrimaryImageId);
+
+      const url = `{{ url('products') }}/${this.editProduct.id}`;
+      try {
+        const res  = await fetch(url, {
+          method:  'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+          body:    formData,
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = data.redirect;
+        } else {
+          this.editErrors = data.errors ?? {};
+          this.saving     = false;
+        }
+      } catch (e) {
+        alert('Server error. Please try again.');
+        this.saving = false;
+      }
+    },
+
+    /* ── Helpers ─────────────────────────────────────────────────── */
+    resetAdd() {
+      this.addPreviews.forEach(p => URL.revokeObjectURL(p.url));
+      this.addPreviews = [];
+      this.addFiles    = [];
+      this.addErrors   = {};
+      this.saving      = false;
+    },
+
     confirmDelete(event, name) {
-      if (confirm(`Remove product "${name}"?\n\nThis will soft-delete the record and can be restored by an administrator.`)) {
+      if (confirm(`Remove product "${name}"?\n\nThis will soft-delete the record.`)) {
         event.target.submit();
       }
+    },
+
+    toggleAll(checked) {
+      const boxes = document.querySelectorAll('.row-check');
+      this.selected = checked ? [...boxes].map(c => c.value) : [];
+      boxes.forEach(c => c.checked = checked);
     },
   };
 }
