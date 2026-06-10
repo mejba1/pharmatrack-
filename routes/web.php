@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProductController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,9 +35,11 @@ Route::middleware([])->group(function () {
     })->name('dashboard');
 
     // ── Products & Batches ────────────────────────────────────────────────
-    Route::get('/products', function () {
-        return view('products');
-    })->name('products');
+    // Full resource: index, store, show (JSON), update, destroy
+    // 'create' and 'edit' are omitted — handled by inline modals in the view
+    Route::resource('products', ProductController::class)
+         ->only(['index', 'store', 'show', 'update', 'destroy'])
+         ->names('products');
 
     Route::get('/batches', function () {
         return view('batches');
