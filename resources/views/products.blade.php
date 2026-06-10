@@ -93,6 +93,28 @@
   border-radius: 10px;
   background: #f8f9fa;
 }
+/* ── Searchable Therapeutic-Class Combobox ──────────────────────────────── */
+.tc-combo { position: relative; }
+.tc-combo-wrap { position: relative; display: flex; align-items: center; }
+.tc-combo-wrap .form-control { padding-right: 28px; }
+.tc-combo-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: #adb5bd; font-size: 14px;
+  cursor: pointer; line-height: 1; padding: 0; z-index: 2;
+}
+.tc-combo-clear:hover { color: #495057; }
+.tc-dropdown {
+  position: absolute; top: calc(100% + 2px); left: 0; right: 0;
+  background: #fff; border: 1px solid #dee2e6; border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.12);
+  list-style: none; margin: 0; padding: 4px 0;
+  max-height: 210px; overflow-y: auto;
+  z-index: 9999;
+}
+[data-bs-theme="dark"] .tc-dropdown { background: #2b3035; border-color: #495057; }
+.tc-dropdown li { padding: 7px 14px; font-size: 13px; cursor: pointer; }
+.tc-dropdown li:hover, .tc-dropdown li.tc-hl { background: rgba(13,110,253,.1); color: #0d6efd; }
+.tc-dropdown .tc-empty { color: #adb5bd; font-style: italic; }
 /* ── Table thumbnail ────────────────────────────────────────────────────── */
 .product-thumb {
   width: 40px; height: 40px;
@@ -554,7 +576,8 @@
               method="POST"
               :action="`{{ url('products') }}/${editProduct?.id}`"
               enctype="multipart/form-data"
-              @submit.prevent="submitEditForm()">
+              @submit.prevent="submitEditForm()"
+              style="display:flex;flex-direction:column;flex:1 1 auto;overflow:hidden;min-height:0">
           @csrf
           <input type="hidden" name="_method" value="PUT">
 
@@ -609,13 +632,31 @@
               <div class="col-12"><div class="section-label">Classification &amp; Coding</div></div>
               <div class="col-md-4">
                 <label class="form-label">Therapeutic Class</label>
-                <input type="text" name="therapeutic_class" list="edit_tc_list" class="form-control"
-                       :value="editProduct?.therapeutic_class" placeholder="e.g. Antibiotics">
-                <datalist id="edit_tc_list">
-                  @foreach(['Antibiotics / Antimicrobials','Analgesics / Pain Relief','Anti-inflammatory / NSAIDs','Antidiabetics / Insulin','Cardiovascular','Antihypertensives','Antifungals','Antivirals','Antiparasitics','Respiratory / Bronchodilators','CNS / Neurological','Gastrointestinal','Endocrinology / Hormones','Vaccines / Immunologicals','Vitamins / Supplements','Dermatology','Ophthalmology','Oncology / Antineoplastics','Haematology','Musculoskeletal','Urological','Other'] as $tc)
-                    <option value="{{ $tc }}">
-                  @endforeach
-                </datalist>
+                <div class="tc-combo">
+                  <input type="hidden" name="therapeutic_class" :value="editTcValue">
+                  <div class="tc-combo-wrap">
+                    <input type="text" class="form-control"
+                           placeholder="Search or type class…"
+                           x-model="editTcQuery"
+                           @focus="editTcOpen=true"
+                           @blur="setTimeout(()=>{editTcOpen=false; editTcValue=editTcQuery.trim()}, 200)"
+                           @input="editTcOpen=true; editTcHl=-1"
+                           @keydown.escape="editTcOpen=false"
+                           @keydown.arrow-down.prevent="editTcHl=Math.min(editTcHl+1, editTcFiltered.length-1)"
+                           @keydown.arrow-up.prevent="editTcHl=Math.max(editTcHl-1, -1)"
+                           @keydown.enter.prevent="if(editTcHl>=0){selectEditTc(editTcFiltered[editTcHl])}else{editTcValue=editTcQuery;editTcOpen=false}">
+                    <button type="button" class="tc-combo-clear" x-show="editTcQuery"
+                            @mousedown.prevent="editTcValue='';editTcQuery='';editTcOpen=true">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </div>
+                  <ul class="tc-dropdown" x-show="editTcOpen" x-cloak @mousedown.prevent>
+                    <template x-for="(opt, i) in editTcFiltered" :key="opt">
+                      <li :class="{'tc-hl': i===editTcHl}" @click="selectEditTc(opt)" x-text="opt"></li>
+                    </template>
+                    <li class="tc-empty" x-show="editTcFiltered.length===0">No match — value will be saved as typed</li>
+                  </ul>
+                </div>
               </div>
               <div class="col-md-3">
                 <label class="form-label">ATC Code</label>
@@ -804,7 +845,8 @@
               method="POST"
               action="{{ route('products.store') }}"
               enctype="multipart/form-data"
-              @submit.prevent="submitAddForm()">
+              @submit.prevent="submitAddForm()"
+              style="display:flex;flex-direction:column;flex:1 1 auto;overflow:hidden;min-height:0">
           @csrf
 
           <div class="modal-body">
@@ -865,13 +907,31 @@
 
               <div class="col-md-4">
                 <label class="form-label">Therapeutic Class</label>
-                <input type="text" name="therapeutic_class" list="add_tc_list" class="form-control"
-                       value="{{ old('therapeutic_class') }}" placeholder="e.g. Antibiotics">
-                <datalist id="add_tc_list">
-                  @foreach(['Antibiotics / Antimicrobials','Analgesics / Pain Relief','Anti-inflammatory / NSAIDs','Antidiabetics / Insulin','Cardiovascular','Antihypertensives','Antifungals','Antivirals','Antiparasitics','Respiratory / Bronchodilators','CNS / Neurological','Gastrointestinal','Endocrinology / Hormones','Vaccines / Immunologicals','Vitamins / Supplements','Dermatology','Ophthalmology','Oncology / Antineoplastics','Haematology','Musculoskeletal','Urological','Other'] as $tc)
-                    <option value="{{ $tc }}">
-                  @endforeach
-                </datalist>
+                <div class="tc-combo">
+                  <input type="hidden" name="therapeutic_class" :value="addTcValue">
+                  <div class="tc-combo-wrap">
+                    <input type="text" class="form-control"
+                           placeholder="Search or type class…"
+                           x-model="addTcQuery"
+                           @focus="addTcOpen=true"
+                           @blur="setTimeout(()=>{addTcOpen=false; addTcValue=addTcQuery.trim()}, 200)"
+                           @input="addTcOpen=true; addTcHl=-1"
+                           @keydown.escape="addTcOpen=false"
+                           @keydown.arrow-down.prevent="addTcHl=Math.min(addTcHl+1, addTcFiltered.length-1)"
+                           @keydown.arrow-up.prevent="addTcHl=Math.max(addTcHl-1, -1)"
+                           @keydown.enter.prevent="if(addTcHl>=0){selectAddTc(addTcFiltered[addTcHl])}else{addTcValue=addTcQuery;addTcOpen=false}">
+                    <button type="button" class="tc-combo-clear" x-show="addTcQuery"
+                            @mousedown.prevent="addTcValue='';addTcQuery='';addTcOpen=true">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </div>
+                  <ul class="tc-dropdown" x-show="addTcOpen" x-cloak @mousedown.prevent>
+                    <template x-for="(opt, i) in addTcFiltered" :key="opt">
+                      <li :class="{'tc-hl': i===addTcHl}" @click="selectAddTc(opt)" x-text="opt"></li>
+                    </template>
+                    <li class="tc-empty" x-show="addTcFiltered.length===0">No match — value will be saved as typed</li>
+                  </ul>
+                </div>
               </div>
               <div class="col-md-3">
                 <label class="form-label">ATC Code</label>
@@ -1082,6 +1142,40 @@ function productsPage() {
     /* ── Bulk select ─────────────────────────────────────────────── */
     selected: [],
 
+    /* ── Therapeutic Class Combobox ──────────────────────────────── */
+    tcOptions: [
+      'Antibiotics / Antimicrobials','Analgesics / Pain Relief',
+      'Anti-inflammatory / NSAIDs','Antidiabetics / Insulin',
+      'Cardiovascular','Antihypertensives','Antifungals',
+      'Antivirals','Antiparasitics','Respiratory / Bronchodilators',
+      'CNS / Neurological','Gastrointestinal',
+      'Endocrinology / Hormones','Vaccines / Immunologicals',
+      'Vitamins / Supplements','Dermatology','Ophthalmology',
+      'Oncology / Antineoplastics','Haematology','Musculoskeletal',
+      'Urological','Other'
+    ],
+    // Add modal
+    addTcValue: '{{ old("therapeutic_class","") }}',
+    addTcQuery: '{{ old("therapeutic_class","") }}',
+    addTcOpen:  false,
+    addTcHl:    -1,
+    // Edit modal
+    editTcValue: '',
+    editTcQuery: '',
+    editTcOpen:  false,
+    editTcHl:    -1,
+
+    get addTcFiltered() {
+      const q = this.addTcQuery.trim().toLowerCase();
+      return q ? this.tcOptions.filter(o => o.toLowerCase().includes(q)) : this.tcOptions;
+    },
+    get editTcFiltered() {
+      const q = this.editTcQuery.trim().toLowerCase();
+      return q ? this.tcOptions.filter(o => o.toLowerCase().includes(q)) : this.tcOptions;
+    },
+    selectAddTc(opt)  { this.addTcValue  = opt; this.addTcQuery  = opt; this.addTcOpen  = false; this.addTcHl  = -1; },
+    selectEditTc(opt) { this.editTcValue = opt; this.editTcQuery = opt; this.editTcOpen = false; this.editTcHl = -1; },
+
     /* ══ VIEW MODAL ════════════════════════════════════════════════ */
     openView(id) {
       this.viewProduct  = null;
@@ -1103,11 +1197,16 @@ function productsPage() {
       this.editFiles          = [];
       this.removeImageIds     = [];
       this.editErrors         = {};
+      this.editTcValue        = '';
+      this.editTcQuery        = '';
+      this.editTcOpen         = false;
       this.saving             = false;
       this.showEditModal      = true;
       this._fetchProduct(id).then(data => {
         this.editProduct        = data;
         this.editExistingImages = (data.images ?? []).map(img => ({...img, toRemove: false}));
+        this.editTcValue        = data.therapeutic_class ?? '';
+        this.editTcQuery        = data.therapeutic_class ?? '';
         this.editLoading        = false;
       });
     },
@@ -1197,7 +1296,14 @@ function productsPage() {
       this.saving    = true;
       this.addErrors = {};
 
+      // Sync TC: use selected list value OR whatever was typed
+      this.addTcValue = this.addTcValue.trim() || this.addTcQuery.trim();
+
+      await this.$nextTick(); // let Alpine flush the hidden input's :value binding
+
       const formData = new FormData(this.$refs.addForm);
+      // Ensure TC value is in FormData (belt-and-suspenders)
+      if (this.addTcValue) formData.set('therapeutic_class', this.addTcValue);
       // Replace native file input with our managed files
       formData.delete('images[]');
       this.addFiles.forEach(f => formData.append('images[]', f));
@@ -1227,8 +1333,15 @@ function productsPage() {
       this.saving     = true;
       this.editErrors = {};
 
+      // Sync TC: use selected list value OR whatever was typed
+      this.editTcValue = this.editTcValue.trim() || this.editTcQuery.trim();
+
+      await this.$nextTick(); // let Alpine flush the hidden input
+
       const formData = new FormData(this.$refs.editForm);
       formData.set('_method', 'PUT');
+      // Ensure TC value is in FormData
+      formData.set('therapeutic_class', this.editTcValue);
 
       // New files
       formData.delete('images[]');
@@ -1267,6 +1380,10 @@ function productsPage() {
       this.addPreviews = [];
       this.addFiles    = [];
       this.addErrors   = {};
+      this.addTcValue  = '';
+      this.addTcQuery  = '';
+      this.addTcOpen   = false;
+      this.addTcHl     = -1;
       this.saving      = false;
     },
 
