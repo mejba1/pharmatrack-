@@ -41,6 +41,12 @@ class UpdateProductRequest extends FormRequest
             'unit_of_measure'         => 'nullable|string|max:20',
             'status'                  => 'nullable|in:active,discontinued,pending_approval',
             'notes'                   => 'nullable|string|max:2000',
+            'website_url'             => 'nullable|url|max:255',
+            'pdf'                     => 'nullable|file|mimes:pdf|max:10240',
+            'remove_pdf'              => 'nullable|boolean',
+            'country_of_origin_name'  => 'nullable|string|max:255',
+            'countries'               => 'nullable|array',
+            'countries.*'             => 'string|max:255',
         ];
     }
 
@@ -49,6 +55,9 @@ class UpdateProductRequest extends FormRequest
         return [
             'name.required'        => 'Product brand name is required.',
             'dosage_form.required' => 'Please select a dosage form.',
+            'website_url.url'      => 'Please enter a valid website URL (including http:// or https://).',
+            'pdf.mimes'            => 'The document must be a PDF file.',
+            'pdf.max'              => 'The PDF may not be larger than 10 MB.',
         ];
     }
 }

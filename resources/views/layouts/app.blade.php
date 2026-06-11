@@ -19,7 +19,7 @@
   {{-- Logo row with collapse toggle --}}
   <div class="sidebar-logo">
     <div class="logo-icon" x-show="!sidebarCollapsed"><i class="bi bi-capsule-pill"></i></div>
-    <div class="logo-text" x-show="!sidebarCollapsed">Pharma<span>Track</span></div>
+    <div class="logo-text" x-show="!sidebarCollapsed">Beacon Pharma<span>Track</span></div>
     <button class="sidebar-collapse-btn"
             :class="{'ms-auto': !sidebarCollapsed}"
             @click="toggleSidebar()"
@@ -43,9 +43,20 @@
       <span class="nav-icon"><i class="bi bi-capsule"></i></span>
       <span x-show="!sidebarCollapsed">Product Master</span>
     </a>
-    <a href="{{ route('batches') }}" class="nav-item-link {{ request()->routeIs('batches') ? 'active' : '' }}">
+    <a href="{{ route('batches') }}" class="nav-item-link {{ request()->routeIs('batches') || request()->routeIs('batches.*') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-layers"></i></span>
       <span x-show="!sidebarCollapsed">Batch &amp; Lot Mgmt</span>
+    </a>
+
+    {{-- Master Data --}}
+    <div class="sidebar-section-label" x-show="!sidebarCollapsed">Master Data</div>
+    <a href="{{ route('master.countries.index') }}" class="nav-item-link {{ request()->routeIs('master.countries.*') ? 'active' : '' }}">
+      <span class="nav-icon"><i class="bi bi-globe2"></i></span>
+      <span x-show="!sidebarCollapsed">Countries</span>
+    </a>
+    <a href="{{ route('master.tclasses.index') }}" class="nav-item-link {{ request()->routeIs('master.tclasses.*') ? 'active' : '' }}">
+      <span class="nav-icon"><i class="bi bi-tags"></i></span>
+      <span x-show="!sidebarCollapsed">Therapeutic Classes</span>
     </a>
 
     {{-- Order Documents --}}

@@ -33,11 +33,31 @@ class Product extends Model
         'unit_of_measure',
         'status',
         'notes',
+        'website_url',
+        'pdf_path',
     ];
 
     protected $casts = [
         'unit_cost' => 'decimal:4',
     ];
+
+    /**
+     * Full public URL for the uploaded PDF document, or null if none.
+     */
+    public function getPdfUrlAttribute(): ?string
+    {
+        return $this->pdf_path
+            ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->pdf_path)
+            : null;
+    }
+
+    /**
+     * Original-ish display name for the uploaded PDF (basename), or null.
+     */
+    public function getPdfNameAttribute(): ?string
+    {
+        return $this->pdf_path ? basename($this->pdf_path) : null;
+    }
 
     // ── Relationships ─────────────────────────────────────────────────────
 
