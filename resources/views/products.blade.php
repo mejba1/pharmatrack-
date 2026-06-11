@@ -130,6 +130,17 @@
   color: #adb5bd;
   font-size: 16px;
 }
+/* ── Scrollable modal with a <form> wrapping body + footer ───────────────── */
+/* The form is a flex column; the body must be allowed to shrink/scroll so   */
+/* the footer (Save / Update button) stays pinned and visible.               */
+.modal-content > form > .modal-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+.modal-content > form > .modal-footer {
+  flex-shrink: 0;
+}
 </style>
 @endpush
 
@@ -612,10 +623,11 @@
               </div>
               <div class="col-md-4">
                 <label class="form-label">Dosage Form <span class="text-danger">*</span></label>
-                <select name="dosage_form" class="form-select" required>
+                <select name="dosage_form" class="form-select" required
+                        x-effect="$el.value = editProduct?.dosage_form ?? ''">
                   <option value="">Select…</option>
                   @foreach(['tablet'=>'Tablet','capsule'=>'Capsule','injection'=>'Injection','syrup'=>'Syrup','cream'=>'Cream','ointment'=>'Ointment','drops'=>'Drops','inhaler'=>'Inhaler','other'=>'Other'] as $v=>$l)
-                    <option value="{{ $v }}" :selected="editProduct?.dosage_form === '{{ $v }}'">{{ $l }}</option>
+                    <option value="{{ $v }}">{{ $l }}</option>
                   @endforeach
                 </select>
               </div>
@@ -668,11 +680,12 @@
               </div>
               <div class="col-md-2">
                 <label class="form-label">Controlled Substance</label>
-                <select name="controlled_substance" class="form-select">
-                  <option value="no"         :selected="editProduct?.controlled_substance==='no'">No</option>
-                  <option value="schedule_1" :selected="editProduct?.controlled_substance==='schedule_1'">Schedule 1</option>
-                  <option value="schedule_2" :selected="editProduct?.controlled_substance==='schedule_2'">Schedule 2</option>
-                  <option value="schedule_3" :selected="editProduct?.controlled_substance==='schedule_3'">Schedule 3</option>
+                <select name="controlled_substance" class="form-select"
+                        x-effect="$el.value = editProduct?.controlled_substance ?? 'no'">
+                  <option value="no">No</option>
+                  <option value="schedule_1">Schedule 1</option>
+                  <option value="schedule_2">Schedule 2</option>
+                  <option value="schedule_3">Schedule 3</option>
                 </select>
               </div>
 
@@ -692,10 +705,11 @@
               </div>
               <div class="col-md-3">
                 <label class="form-label">Status</label>
-                <select name="status" class="form-select">
-                  <option value="active"           :selected="editProduct?.status==='active'">Active</option>
-                  <option value="pending_approval" :selected="editProduct?.status==='pending_approval'">Under Registration</option>
-                  <option value="discontinued"     :selected="editProduct?.status==='discontinued'">Discontinued</option>
+                <select name="status" class="form-select"
+                        x-effect="$el.value = editProduct?.status ?? 'active'">
+                  <option value="active">Active</option>
+                  <option value="pending_approval">Under Registration</option>
+                  <option value="discontinued">Discontinued</option>
                 </select>
               </div>
 
@@ -711,11 +725,12 @@
               </div>
               <div class="col-md-3">
                 <label class="form-label">Temperature Sensitivity</label>
-                <select name="temperature_sensitivity" class="form-select">
-                  <option value="ambient"    :selected="editProduct?.temperature_sensitivity==='ambient'">Ambient</option>
-                  <option value="cool_chain" :selected="editProduct?.temperature_sensitivity==='cool_chain'">Cool Chain (8–15°C)</option>
-                  <option value="cold_chain" :selected="editProduct?.temperature_sensitivity==='cold_chain'">Cold Chain (2–8°C)</option>
-                  <option value="frozen"     :selected="editProduct?.temperature_sensitivity==='frozen'">Frozen (≤ −20°C)</option>
+                <select name="temperature_sensitivity" class="form-select"
+                        x-effect="$el.value = editProduct?.temperature_sensitivity ?? 'ambient'">
+                  <option value="ambient">Ambient</option>
+                  <option value="cool_chain">Cool Chain (8–15°C)</option>
+                  <option value="cold_chain">Cold Chain (2–8°C)</option>
+                  <option value="frozen">Frozen (≤ −20°C)</option>
                 </select>
               </div>
               <div class="col-md-3">
@@ -808,7 +823,8 @@
               {{-- Notes --}}
               <div class="col-12">
                 <label class="form-label">Notes</label>
-                <textarea name="notes" class="form-control" rows="2" x-text="editProduct?.notes"></textarea>
+                <textarea name="notes" class="form-control" rows="2"
+                          x-effect="$el.value = editProduct?.notes ?? ''"></textarea>
               </div>
             </div>
           </div>
@@ -818,7 +834,7 @@
             <button type="submit" class="btn btn-primary" :disabled="saving">
               <span x-show="saving" class="spinner-border spinner-border-sm me-1"></span>
               <i class="bi bi-check-lg me-1" x-show="!saving"></i>
-              <span x-text="saving ? 'Saving…' : 'Save Changes'"></span>
+              <span x-text="saving ? 'Updating…' : 'Update Product'"></span>
             </button>
           </div>
         </form>
