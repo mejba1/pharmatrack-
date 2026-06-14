@@ -123,6 +123,18 @@
           <div class="export-title"><i class="bi bi-box-arrow-down me-1"></i>Export codes</div>
           <form method="GET" action="{{ route('batches.export', $batch) }}" class="d-flex flex-wrap gap-2 align-items-end">
             <div>
+              <label class="form-label mb-1 text-muted-sm">Scope</label>
+              <select name="partial_ref" class="form-select form-select-sm" style="min-width:200px">
+                <option value="full">Full batch ({{ number_format($statusCounts->sum()) }})</option>
+                @if($extensions->count())
+                  <option value="original">Original units only ({{ number_format($originalCount) }})</option>
+                  @foreach($extensions as $ext)
+                    <option value="{{ $ext->partial_ref }}">{{ $ext->partial_ref }} · {{ number_format($ext->additional_quantity) }} (serials {{ number_format($ext->serial_start) }}–{{ number_format($ext->serial_end) }})</option>
+                  @endforeach
+                @endif
+              </select>
+            </div>
+            <div>
               <label class="form-label mb-1 text-muted-sm">Field</label>
               <select name="field" class="form-select form-select-sm" style="min-width:170px">
                 <option value="secret_code">Secret Code</option>
@@ -157,6 +169,7 @@
               <th><a href="{{ $sortUrl('unique_number') }}" class="th-sort {{ $curSort==='unique_number'?'on':'' }}">Unique Number (label) {!! $caret('unique_number') !!}</a></th>
               <th><a href="{{ $sortUrl('secret_code') }}" class="th-sort {{ $curSort==='secret_code'?'on':'' }}">Secret Code (QR / verify) {!! $caret('secret_code') !!}</a></th>
               <th><a href="{{ $sortUrl('status') }}" class="th-sort {{ $curSort==='status'?'on':'' }}">Status {!! $caret('status') !!}</a></th>
+              <th>Source</th>
               <th><a href="{{ $sortUrl('created_at') }}" class="th-sort {{ $curSort==='created_at'?'on':'' }}">Created {!! $caret('created_at') !!}</a></th>
               <th class="text-end" style="width:100px">Actions</th>
             </tr>
@@ -176,6 +189,13 @@
               <td class="font-monospace" style="font-size:13px">{{ $unit->unique_number }}</td>
               <td class="font-monospace" style="font-size:13px">{{ $unit->secret_code }}</td>
               <td><span class="badge-status {{ $unit->status_badge_class }}">{{ ucfirst($unit->status) }}</span></td>
+              <td>
+                @if($unit->partial_batch_ref)
+                  <span class="badge text-bg-info" style="font-size:11px" title="Added via partial batch extension">{{ $unit->partial_batch_ref }}</span>
+                @else
+                  <span class="text-muted-sm">Original</span>
+                @endif
+              </td>
               <td style="font-size:12px" class="text-muted">{{ $unit->created_at?->format('M d, Y H:i') }}</td>
               <td class="text-end">
                 <div class="d-flex gap-1 justify-content-end">
@@ -187,7 +207,7 @@
               </td>
             </tr>
             @empty
-            <tr><td colspan="7" class="text-center py-5 text-muted">
+            <tr><td colspan="8" class="text-center py-5 text-muted">
               <i class="bi bi-upc-scan" style="font-size:32px;opacity:.2"></i>
               <div class="mt-2">No units found.</div>
             </td></tr>

@@ -47,6 +47,10 @@
       <span class="nav-icon"><i class="bi bi-layers"></i></span>
       <span x-show="!sidebarCollapsed">Batch &amp; Lot Mgmt</span>
     </a>
+    <a href="{{ route('partial-batches') }}" class="nav-item-link {{ request()->routeIs('partial-batches') || request()->routeIs('partial-batches.*') ? 'active' : '' }}">
+      <span class="nav-icon"><i class="bi bi-layer-forward"></i></span>
+      <span x-show="!sidebarCollapsed">Partial Batch Qty</span>
+    </a>
 
     {{-- Master Data --}}
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Master Data</div>

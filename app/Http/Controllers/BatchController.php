@@ -143,7 +143,10 @@ class BatchController extends Controller
             ->groupBy('status')
             ->pluck('c', 'status');
 
-        return view('batch-units', compact('batch', 'units', 'statusCounts'));
+        $extensions   = $batch->extensions()->get();
+        $originalCount = $batch->units()->whereNull('partial_batch_ref')->count();
+
+        return view('batch-units', compact('batch', 'units', 'statusCounts', 'extensions', 'originalCount'));
     }
 
     public function logs(Batch $batch): View
@@ -175,12 +178,26 @@ class BatchController extends Controller
         $field  = $request->input('field') === 'unique_number' ? 'unique_number' : 'secret_code';
         $format = in_array($request->input('format'), ['txt', 'excel', 'pdf']) ? $request->input('format') : 'txt';
 
-        $rows = $batch->units()->orderBy('serial_number')->get(['serial_number', $field]);
+        // Scope: '' / 'full' = whole batch, 'original' = pre-extension units only,
+        // or a specific Partial Batch Reference Number.
+        $scope = (string) $request->input('partial_ref', '');
+
+        $rows = $batch->units()
+            ->when($scope === 'original', fn ($q) => $q->whereNull('partial_batch_ref'))
+            ->when($scope !== '' && $scope !== 'full' && $scope !== 'original',
+                   fn ($q) => $q->where('partial_batch_ref', $scope))
+            ->orderBy('serial_number')
+            ->get(['serial_number', $field]);
 
         $label    = $field === 'unique_number' ? 'Unique Number' : 'Secret Code';
         $product  = Str::slug($batch->product?->name ?? 'product', '_');
         $batchTag = Str::slug($batch->batch_number, '_');
-        $base     = "{$product}_{$batchTag}_{$field}";
+        $scopeTag = match (true) {
+            $scope === 'original'                          => '_original',
+            $scope !== '' && $scope !== 'full'             => '_' . Str::slug($scope, '_'),
+            default                                        => '',
+        };
+        $base     = "{$product}_{$batchTag}{$scopeTag}_{$field}";
 
         if ($format === 'pdf') {
             $pdf = Pdf::loadView('exports.batch-codes', compact('batch', 'rows', 'field', 'label'));
@@ -322,14 +339,20 @@ class BatchController extends Controller
     {
         $target = min((int) $batch->quantity_produced, self::MAX_UNITS);
 
+        // Only the original batch units (partial_batch_ref = NULL) are reconciled
+        // here. Units added later via Partial Batch extensions are left untouched.
         // Remove from the end (serials beyond target) — generated-only
         $removed = $batch->units()
+            ->whereNull('partial_batch_ref')
             ->where('serial_number', '>', $target)
             ->where('status', 'generated')
             ->delete();
 
         // Anything still beyond target is locked (printed/packed/etc.)
-        $blocked = $batch->units()->where('serial_number', '>', $target)->count();
+        $blocked = $batch->units()
+            ->whereNull('partial_batch_ref')
+            ->where('serial_number', '>', $target)
+            ->count();
 
         // Fill any missing serials within 1..target (handles fresh batches and gaps)
         $added = $this->fillUnits($batch, $target);
@@ -349,7 +372,8 @@ class BatchController extends Controller
             return 0;
         }
 
-        $existing = $batch->units()->where('serial_number', '<=', $target)
+        $existing = $batch->units()->whereNull('partial_batch_ref')
+                          ->where('serial_number', '<=', $target)
                           ->pluck('serial_number')->flip();
         if ($existing->count() >= $target) {
             return 0;

@@ -14,7 +14,7 @@ class Batch extends Model
     protected $fillable = [
         'product_id', 'brn', 'batch_number', 'lot_number',
         'manufacture_date', 'expiry_date',
-        'quantity_produced', 'quantity_available',
+        'quantity_produced', 'quantity_available', 'quantity_extended',
         'manufacturing_site', 'manufacturing_country',
         'qc_status', 'qc_approved_by', 'qc_approval_date',
         'coa_document_path', 'storage_conditions',
@@ -28,6 +28,7 @@ class Batch extends Model
         'qc_approval_date'   => 'date',
         'quantity_produced'  => 'integer',
         'quantity_available' => 'integer',
+        'quantity_extended'  => 'integer',
         'storage_temp_min'   => 'decimal:2',
         'storage_temp_max'   => 'decimal:2',
     ];
@@ -49,6 +50,11 @@ class Batch extends Model
         return $this->hasMany(BatchUnitLog::class)->latest();
     }
 
+    public function extensions()
+    {
+        return $this->hasMany(BatchExtension::class)->latest();
+    }
+
     // ── Accessors ─────────────────────────────────────────────────────────
 
     public function getCoaUrlAttribute(): ?string
@@ -61,6 +67,12 @@ class Batch extends Model
     public function getCoaNameAttribute(): ?string
     {
         return $this->coa_document_path ? basename($this->coa_document_path) : null;
+    }
+
+    /** Original produced quantity plus everything added via partial extensions. */
+    public function getTotalQuantityAttribute(): int
+    {
+        return (int) $this->quantity_produced + (int) $this->quantity_extended;
     }
 
     /** Days until expiry (negative if already expired). */
@@ -148,6 +160,22 @@ class Batch extends Model
                         ->where('brn', 'like', $prefix . '%')
                         ->orderByDesc('brn')
                         ->value('brn');
+
+        $seq = $last ? ((int) substr($last, -3) + 1) : 1;
+
+        return $prefix . str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Auto-generate the next Partial Batch Reference Number.
+     * Format: PBN-{PRODUCT_ID}-{YYMM}-{NNN}
+     */
+    public static function generatePartialRef(int $productId): string
+    {
+        $prefix = 'PBN-' . str_pad((string) $productId, 5, '0', STR_PAD_LEFT) . '-' . date('ym') . '-';
+        $last   = BatchExtension::where('partial_ref', 'like', $prefix . '%')
+                        ->orderByDesc('partial_ref')
+                        ->value('partial_ref');
 
         $seq = $last ? ((int) substr($last, -3) + 1) : 1;
 

@@ -115,7 +115,13 @@
           <tbody>
             @forelse($batches as $batch)
             <tr>
-              <td><span class="text-primary fw-semibold" style="font-size:12px;cursor:pointer" @click="openView({{ $batch->id }})">{{ $batch->brn }}</span></td>
+              <td>
+                <span class="text-primary fw-semibold" style="font-size:12px;cursor:pointer" @click="openView({{ $batch->id }})">{{ $batch->brn }}</span>
+                @if($batch->quantity_extended > 0)
+                  <div><span class="badge text-bg-info mt-1" style="font-size:10px" title="This batch has been extended with partial batch quantities">
+                    <i class="bi bi-layer-forward me-1"></i>Extended +{{ number_format($batch->quantity_extended) }}</span></div>
+                @endif
+              </td>
               <td>
                 <div class="fw-semibold" style="font-size:13px">{{ $batch->product?->name ?? '—' }}</div>
                 <div class="text-muted-sm">{{ $batch->product?->prn }}</div>

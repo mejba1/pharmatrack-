@@ -66,6 +66,11 @@ class Product extends Model
         return $this->hasMany(ProductCountryRegistration::class);
     }
 
+    public function batches()
+    {
+        return $this->hasMany(Batch::class);
+    }
+
     public function approvedRegistrations()
     {
         return $this->hasMany(ProductCountryRegistration::class)

@@ -8,6 +8,7 @@ class BatchUnit extends Model
 {
     protected $fillable = [
         'batch_id',
+        'partial_batch_ref',
         'serial_number',
         'secret_code',
         'unique_number',

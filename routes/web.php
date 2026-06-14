@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\BatchController;
+use App\Http\Controllers\PartialBatchController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\TherapeuticClassController;
 
@@ -56,6 +57,12 @@ Route::middleware([])->group(function () {
     Route::get('/batches/{batch}', [BatchController::class, 'show'])->name('batches.show');
     Route::put('/batches/{batch}', [BatchController::class, 'update'])->name('batches.update');
     Route::delete('/batches/{batch}', [BatchController::class, 'destroy'])->name('batches.destroy');
+
+    // ── Partial Batch Quantity (Batch Quantity Extension) ─────────────────
+    Route::get('/partial-batches', [PartialBatchController::class, 'index'])->name('partial-batches');
+    Route::get('/partial-batches/products/{product}/batches', [PartialBatchController::class, 'batches'])->name('partial-batches.batches');
+    Route::get('/partial-batches/batches/{batch}/info', [PartialBatchController::class, 'batchInfo'])->name('partial-batches.batch-info');
+    Route::post('/partial-batches', [PartialBatchController::class, 'store'])->name('partial-batches.store');
 
     // ── Master Data (add countries & therapeutic classes dynamically) ──────
     Route::prefix('master')->name('master.')->group(function () {
