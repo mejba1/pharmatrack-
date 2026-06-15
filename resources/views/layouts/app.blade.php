@@ -51,6 +51,14 @@
       <span class="nav-icon"><i class="bi bi-layer-forward"></i></span>
       <span x-show="!sidebarCollapsed">Partial Batch Qty</span>
     </a>
+    <a href="{{ route('batch-downloads') }}" class="nav-item-link {{ request()->routeIs('batch-downloads') ? 'active' : '' }}">
+      <span class="nav-icon"><i class="bi bi-cloud-download"></i></span>
+      <span x-show="!sidebarCollapsed">Batch Downloads</span>
+    </a>
+    <a href="{{ route('master-cartons') }}" class="nav-item-link {{ request()->routeIs('master-cartons') || request()->routeIs('master-cartons.*') ? 'active' : '' }}">
+      <span class="nav-icon"><i class="bi bi-box-seam"></i></span>
+      <span x-show="!sidebarCollapsed">Master Carton Mgmt</span>
+    </a>
 
     {{-- Master Data --}}
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Master Data</div>

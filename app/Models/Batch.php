@@ -55,6 +55,11 @@ class Batch extends Model
         return $this->hasMany(BatchExtension::class)->latest();
     }
 
+    public function masterCartons()
+    {
+        return $this->hasMany(MasterCarton::class);
+    }
+
     // ── Accessors ─────────────────────────────────────────────────────────
 
     public function getCoaUrlAttribute(): ?string

@@ -10,6 +10,21 @@
 .modal-content > form > .modal-footer { flex-shrink:0; }
 .section-label { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
   color:#6c757d; padding-bottom:4px; border-bottom:1px solid var(--border-color,#dee2e6); }
+
+/* Quantity tracking timeline */
+.track-sum { flex:1 1 140px; border:1px solid var(--border-color,#e9ecef); border-radius:11px; padding:10px 14px; }
+.track-timeline { list-style:none; margin:0; padding:0; position:relative; }
+.track-timeline > li { position:relative; padding:0 0 14px 44px; }
+.track-timeline > li::before { content:''; position:absolute; left:15px; top:4px; bottom:-4px; width:2px; background:var(--border-color,#dee2e6); }
+.track-timeline > li:last-child::before { display:none; }
+.track-dot { position:absolute; left:0; top:0; width:32px; height:32px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#fff;
+  background:#0d6efd; box-shadow:0 0 0 3px rgba(13,110,253,.15); z-index:1; }
+.track-timeline > li.partial .track-dot { background:#0dcaf0; box-shadow:0 0 0 3px rgba(13,202,240,.15); }
+.track-card { border:1px solid var(--border-color,#e9ecef); border-radius:12px; padding:10px 13px; }
+.track-qty { font-weight:700; font-size:15px; }
+.track-dl { font-size:12px; text-decoration:none; }
+.track-dl:hover { text-decoration:underline; }
 </style>
 @endpush
 
@@ -142,6 +157,7 @@
               <td>
                 <div class="d-flex gap-1">
                   <button class="btn btn-outline-primary btn-sm btn-icon" title="View" @click="openView({{ $batch->id }})"><i class="bi bi-eye"></i></button>
+                  <button class="btn btn-outline-success btn-sm btn-icon" title="Quantity tracking log" @click="openTracking({{ $batch->id }})"><i class="bi bi-clock-history"></i></button>
                   <a href="{{ route('batches.units', $batch) }}" class="btn btn-outline-info btn-sm btn-icon" title="Serialized units ({{ number_format($batch->units_count) }})"><i class="bi bi-upc-scan"></i></a>
                   <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ $batch->id }})"><i class="bi bi-pencil"></i></button>
                   <form method="POST" action="{{ route('batches.destroy', $batch) }}" @submit.prevent="confirmDelete($event, '{{ $batch->brn }}')">
@@ -226,6 +242,87 @@
   </div>
   <div class="modal-backdrop fade show" x-show="showViewModal" @click="showViewModal=false"></div>
 
+  {{-- ═══════════ TRACKING LOG MODAL ═══════════ --}}
+  <div class="modal fade" :class="{show:showTrackModal}" :style="showTrackModal?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title fw-semibold"><i class="bi bi-clock-history me-2 text-success"></i>Quantity Tracking Log</h5>
+            <code class="text-muted-sm" x-text="track ? (track.brn + ' · ' + (track.product_name || '')) : ''"></code>
+          </div>
+          <button class="btn-close ms-auto" @click="showTrackModal=false"></button>
+        </div>
+        <div class="modal-body">
+          <div x-show="trackLoading" class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Loading…</div>
+
+          <template x-if="!trackLoading && track">
+            <div>
+              {{-- Summary --}}
+              <div class="d-flex flex-wrap gap-3 mb-3">
+                <div class="track-sum"><div class="text-muted-sm">Original Produced</div><div class="fw-bold" x-text="(track.quantity_produced||0).toLocaleString()"></div></div>
+                <div class="track-sum"><div class="text-muted-sm">Added via Partials</div><div class="fw-bold text-info" x-text="'+' + (track.quantity_extended||0).toLocaleString()"></div></div>
+                <div class="track-sum"><div class="text-muted-sm">Total Quantity</div><div class="fw-bold text-success" x-text="(track.total_quantity||0).toLocaleString()"></div></div>
+              </div>
+
+              {{-- Timeline --}}
+              <ul class="track-timeline">
+                <template x-for="(e, i) in track.entries" :key="i">
+                  <li :class="e.type">
+                    <div class="track-dot" x-text="i + 1"></div>
+                    <div class="track-card">
+                      <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                        <div>
+                          <span class="fw-semibold" x-text="(i + 1) + '. ' + e.label"></span>
+                          <span class="badge ms-1" :class="e.type==='original' ? 'text-bg-primary' : 'text-bg-info'" x-text="e.reference"></span>
+                          <template x-if="e.serial_mode">
+                            <span class="badge text-bg-light ms-1" x-text="e.serial_mode==='restart' ? 'restarted from 1' : 'continued'"></span>
+                          </template>
+                        </div>
+                        <div class="text-end">
+                          <span class="track-qty" :class="e.type==='original' ? 'text-primary' : 'text-info'"
+                                x-text="(e.type==='original' ? '' : '+') + (e.quantity||0).toLocaleString() + ' units'"></span>
+                          <div class="text-muted-sm">running total: <strong x-text="(e.running_total||0).toLocaleString()"></strong></div>
+                        </div>
+                      </div>
+                      <div class="text-muted-sm mt-1">
+                        <i class="bi bi-upc-scan me-1"></i>Serials <span class="font-monospace" x-text="(e.serial_start||0).toLocaleString() + '–' + (e.serial_end||0).toLocaleString()"></span>
+                        <span class="mx-2">·</span>
+                        <i class="bi bi-calendar-event me-1"></i>Mfg <span x-text="fmtDate(e.manufacture_date)"></span>
+                        · Exp <span x-text="fmtDate(e.expiry_date)"></span>
+                      </div>
+                      <div class="text-muted-sm mt-1" x-show="e.created_at || e.performed_by">
+                        <i class="bi bi-clock me-1"></i><span x-text="fmtDateTime(e.created_at)"></span>
+                        <template x-if="e.performed_by"><span> · by <span x-text="e.performed_by"></span></span></template>
+                      </div>
+                      <div class="text-muted-sm mt-1 fst-italic" x-show="e.notes" x-text="e.notes"></div>
+                      <div class="d-flex align-items-center gap-2 mt-2 pt-2 border-top" x-show="e.quantity > 0">
+                        <span class="text-muted-sm"><i class="bi bi-box-arrow-down me-1"></i>Codes:</span>
+                        <a :href="codesUrl(e,'txt')"   class="track-dl">Text</a>
+                        <a :href="codesUrl(e,'excel')" class="track-dl text-success">Excel</a>
+                        <a :href="codesUrl(e,'pdf')"   class="track-dl text-danger">PDF</a>
+                      </div>
+                    </div>
+                  </li>
+                </template>
+              </ul>
+            </div>
+          </template>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <div class="d-flex align-items-center gap-2" x-show="track && track.entries && track.entries.length">
+            <span class="text-muted-sm"><i class="bi bi-box-arrow-down me-1"></i>Export:</span>
+            <a :href="trackExportUrl('txt')" class="btn btn-outline-secondary btn-sm"><i class="bi bi-filetype-txt me-1"></i>Text</a>
+            <a :href="trackExportUrl('excel')" class="btn btn-outline-success btn-sm"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Excel</a>
+            <a :href="trackExportUrl('pdf')" class="btn btn-outline-danger btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+          </div>
+          <button class="btn btn-outline-secondary btn-sm" @click="showTrackModal=false">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showTrackModal" @click="showTrackModal=false"></div>
+
   {{-- ═══════════ ADD MODAL ═══════════ --}}
   <div class="modal fade" :class="{show:showAddModal}" :style="showAddModal?'display:block':''" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -296,11 +393,27 @@
 <script>
 function batchesPage() {
   return {
-    showAddModal:false, showViewModal:false, showEditModal:false,
-    viewBatch:null, editBatch:null, viewLoading:false, editLoading:false,
+    showAddModal:false, showViewModal:false, showEditModal:false, showTrackModal:false,
+    viewBatch:null, editBatch:null, track:null, trackId:null, viewLoading:false, editLoading:false, trackLoading:false,
     saving:false, addErrors:{}, editErrors:{},
 
     fmtDate(d){ if(!d) return '—'; const x=new Date(d); return isNaN(x)? '—' : x.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}); },
+    fmtDateTime(d){ if(!d) return '—'; const x=new Date(d); return isNaN(x)? '—' : x.toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); },
+
+    openTracking(id){
+      this.track=null; this.trackId=id; this.trackLoading=true; this.showTrackModal=true;
+      fetch(`{{ url('batches') }}/${id}/tracking`, { headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'} })
+        .then(r=>{ if(!r.ok) throw new Error(); return r.json(); })
+        .then(d=>{ this.track=d; this.trackLoading=false; })
+        .catch(()=>{ alert('Could not load tracking log.'); this.showTrackModal=false; this.trackLoading=false; });
+    },
+    trackExportUrl(format){ return `{{ url('batches') }}/${this.trackId}/tracking/export?format=${format}`; },
+    // Per-entry ("partial wise") download of the actual unit codes for that
+    // original/partial slice, via the scoped batch-codes export.
+    codesUrl(e, format){
+      const scope = e.type === 'original' ? 'original' : e.reference;
+      return `{{ url('batches') }}/${this.trackId}/export?partial_ref=${encodeURIComponent(scope)}&field=secret_code&format=${format}`;
+    },
 
     openView(id){
       this.viewBatch=null; this.viewLoading=true; this.showViewModal=true;

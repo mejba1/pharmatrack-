@@ -157,6 +157,180 @@ class BatchController extends Controller
         return view('batch-logs', compact('batch', 'logs'));
     }
 
+    /**
+     * Quantity-composition tracking for a batch (JSON for the list modal):
+     * the original batch creation followed by each partial batch extension,
+     * with a running total so the build-up is easy to read.
+     */
+    public function tracking(Batch $batch): JsonResponse
+    {
+        return response()->json($this->buildTracking($batch));
+    }
+
+    /**
+     * Export the quantity-tracking log (original batch + partial batches)
+     * as TXT / CSV(Excel) / PDF.
+     */
+    public function trackingExport(Request $request, Batch $batch)
+    {
+        $data   = $this->buildTracking($batch);
+        $format = in_array($request->input('format'), ['txt', 'excel', 'pdf']) ? $request->input('format') : 'txt';
+
+        $batchTag = Str::slug($batch->batch_number, '_');
+        $product  = Str::slug($batch->product?->name ?? 'product', '_');
+        $base     = "{$product}_{$batchTag}_tracking";
+
+        $cols = ['#', 'Type', 'Reference', 'Quantity', 'Serial Start', 'Serial End', 'Serial Mode',
+                 'Mfg Date', 'Expiry Date', 'Running Total', 'Performed By', 'Created', 'Notes'];
+
+        $rows = [];
+        foreach ($data['entries'] as $i => $e) {
+            $rows[] = [
+                $i + 1,
+                $e['label'],
+                $e['reference'],
+                $e['quantity'],
+                $e['serial_start'],
+                $e['serial_end'],
+                $e['serial_mode'] ?? '—',
+                $e['manufacture_date'] ?? '—',
+                $e['expiry_date'] ?? '—',
+                $e['running_total'],
+                $e['performed_by'] ?? '—',
+                $e['created_at'] ? \Illuminate\Support\Carbon::parse($e['created_at'])->format('Y-m-d H:i') : '—',
+                $e['notes'] ?? '',
+            ];
+        }
+
+        if ($format === 'pdf') {
+            $pdf = Pdf::loadView('exports.batch-tracking', compact('batch', 'data'));
+            return $pdf->download("{$base}.pdf");
+        }
+
+        if ($format === 'excel') {
+            $csv = "\xEF\xBB\xBF";                                   // UTF-8 BOM for Excel
+            $csv .= implode(',', $cols) . "\r\n";
+            foreach ($rows as $r) {
+                $csv .= implode(',', array_map(fn ($v) => '"' . str_replace('"', '""', (string) $v) . '"', $r)) . "\r\n";
+            }
+            return response($csv, 200, [
+                'Content-Type'        => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => "attachment; filename=\"{$base}.csv\"",
+            ]);
+        }
+
+        // txt — readable, aligned summary + one line per entry
+        $txt  = "Quantity Tracking Log\r\n";
+        $txt .= "Batch: {$data['brn']}  ·  Product: " . ($data['product_name'] ?? '—') . "\r\n";
+        $txt .= "Original: {$data['quantity_produced']}  ·  Added via partials: {$data['quantity_extended']}  ·  Total: {$data['total_quantity']}\r\n";
+        $txt .= str_repeat('-', 60) . "\r\n";
+        foreach ($data['entries'] as $i => $e) {
+            $sign  = $e['type'] === 'original' ? '' : '+';
+            $txt  .= ($i + 1) . ". {$e['label']} [{$e['reference']}]  {$sign}{$e['quantity']} units"
+                   . "  serials {$e['serial_start']}-{$e['serial_end']}  running total: {$e['running_total']}\r\n";
+            $txt  .= "    Mfg " . ($e['manufacture_date'] ?? '—') . "  ·  Exp " . ($e['expiry_date'] ?? '—')
+                   . ($e['serial_mode'] ? "  ·  " . $e['serial_mode'] : '') . "\r\n";
+            if (!empty($e['notes'])) {
+                $txt .= "    Notes: {$e['notes']}\r\n";
+            }
+        }
+        return response($txt, 200, [
+            'Content-Type'        => 'text/plain; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$base}.txt\"",
+        ]);
+    }
+
+    /**
+     * Export scope options for a batch (JSON): full batch, original-only, and
+     * one entry per partial batch. Used by the Batch Downloads page.
+     */
+    public function exportScopes(Batch $batch): JsonResponse
+    {
+        $batch->load(['product', 'extensions' => fn ($q) => $q->orderBy('id')]);
+
+        $total    = $batch->units()->count();
+        $original = $batch->units()->whereNull('partial_batch_ref')->count();
+
+        $scopes = [['value' => 'full', 'label' => 'Full batch — all units', 'count' => $total]];
+
+        if ($batch->extensions->count()) {
+            $scopes[] = ['value' => 'original', 'label' => 'Original units only', 'count' => $original];
+            foreach ($batch->extensions as $ext) {
+                $scopes[] = [
+                    'value' => $ext->partial_ref,
+                    'label' => $ext->partial_ref . ' — partial (serials ' . $ext->serial_start . '–' . $ext->serial_end . ')',
+                    'count' => (int) $ext->additional_quantity,
+                ];
+            }
+        }
+
+        return response()->json([
+            'brn'          => $batch->brn,
+            'batch_number' => $batch->batch_number,
+            'product_name' => $batch->product?->name,
+            'total'        => $total,
+            'has_partials' => $batch->extensions->isNotEmpty(),
+            'scopes'       => $scopes,
+        ]);
+    }
+
+    /** Build the quantity-composition tracking payload (original + extensions). */
+    private function buildTracking(Batch $batch): array
+    {
+        $batch->load(['product', 'extensions' => fn ($q) => $q->orderBy('id')]);
+
+        $running = 0;
+        $entries = [];
+
+        // 1) Original batch
+        $running += (int) $batch->quantity_produced;
+        $entries[] = [
+            'type'             => 'original',
+            'label'            => 'Original Batch',
+            'reference'        => $batch->brn,
+            'quantity'         => (int) $batch->quantity_produced,
+            'serial_start'     => $batch->quantity_produced > 0 ? 1 : 0,
+            'serial_end'       => (int) $batch->quantity_produced,
+            'serial_mode'      => null,
+            'manufacture_date' => optional($batch->manufacture_date)->toDateString(),
+            'expiry_date'      => optional($batch->expiry_date)->toDateString(),
+            'performed_by'     => null,
+            'notes'            => null,
+            'created_at'       => optional($batch->created_at)->toIso8601String(),
+            'running_total'    => $running,
+        ];
+
+        // 2..n) Partial batch extensions
+        foreach ($batch->extensions as $ext) {
+            $running += (int) $ext->additional_quantity;
+            $entries[] = [
+                'type'             => 'partial',
+                'label'            => 'Partial Batch',
+                'reference'        => $ext->partial_ref,
+                'quantity'         => (int) $ext->additional_quantity,
+                'serial_start'     => (int) $ext->serial_start,
+                'serial_end'       => (int) $ext->serial_end,
+                'serial_mode'      => $ext->serial_mode,
+                'manufacture_date' => optional($ext->manufacture_date)->toDateString(),
+                'expiry_date'      => optional($ext->expiry_date)->toDateString(),
+                'performed_by'     => $ext->performed_by,
+                'notes'            => $ext->notes,
+                'created_at'       => optional($ext->created_at)->toIso8601String(),
+                'running_total'    => $running,
+            ];
+        }
+
+        return [
+            'brn'               => $batch->brn,
+            'product_name'      => $batch->product?->name,
+            'batch_number'      => $batch->batch_number,
+            'quantity_produced' => (int) $batch->quantity_produced,
+            'quantity_extended' => (int) $batch->quantity_extended,
+            'total_quantity'    => $batch->total_quantity,
+            'entries'           => $entries,
+        ];
+    }
+
     /** Printable sheet of QR labels for all units in a batch. */
     public function labels(Batch $batch): View
     {
