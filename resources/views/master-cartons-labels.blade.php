@@ -29,6 +29,29 @@
     <span>Choose what to include, optionally narrow by status / fill / <strong>date range</strong>, then <strong>Print</strong> (9-up cut-friendly sheet) or <strong>Download PDF</strong>.</span>
   </div>
 
+  {{-- Quick QR downloads: packed-only / unpacked-only --}}
+  <div class="row g-2 mb-3">
+    <div class="col-md-6">
+      <div class="card h-100"><div class="card-body d-flex flex-wrap align-items-center gap-2">
+        <div><div class="fw-semibold"><i class="bi bi-box2-heart text-success me-1"></i>Packed cartons</div><div class="text-muted-sm">QR labels for cartons that hold units</div></div>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-outline-primary btn-sm" @click="quick('packed','print')"><i class="bi bi-printer me-1"></i>Print</button>
+          <button class="btn btn-danger btn-sm" @click="quick('packed','pdf')"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</button>
+        </div>
+      </div></div>
+    </div>
+    <div class="col-md-6">
+      <div class="card h-100"><div class="card-body d-flex flex-wrap align-items-center gap-2">
+        <div><div class="fw-semibold"><i class="bi bi-box text-secondary me-1"></i>Unpacked cartons</div><div class="text-muted-sm">QR labels for empty cartons</div></div>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-outline-primary btn-sm" @click="quick('empty','print')"><i class="bi bi-printer me-1"></i>Print</button>
+          <button class="btn btn-danger btn-sm" @click="quick('empty','pdf')"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</button>
+        </div>
+      </div></div>
+    </div>
+    <div class="col-12"><div class="text-muted-sm"><i class="bi bi-info-circle me-1"></i>Quick downloads honour the <strong>date range</strong> below if set; for product/batch scoping use the panel beneath.</div></div>
+  </div>
+
   <div class="card mb-3"><div class="card-body">
     {{-- Scope --}}
     <div class="section-label">Scope</div>
@@ -124,6 +147,14 @@ function labelsCenter(){
       const base = action==='pdf' ? '{{ route('master-cartons.labels-pdf') }}' : '{{ route('master-cartons.labels') }}';
       const qs = this.params();
       const url = base + (qs ? ('?'+qs) : '');
+      if(action==='print') window.open(url,'_blank'); else window.location.href=url;
+    },
+    quick(fillVal, action){
+      const base = action==='pdf' ? '{{ route('master-cartons.labels-pdf') }}' : '{{ route('master-cartons.labels') }}';
+      const p=new URLSearchParams(); p.set('fill', fillVal);
+      if(this.dateFrom) p.set('date_from', this.dateFrom);
+      if(this.dateTo) p.set('date_to', this.dateTo);
+      const url = base + '?' + p.toString();
       if(action==='print') window.open(url,'_blank'); else window.location.href=url;
     },
   };
