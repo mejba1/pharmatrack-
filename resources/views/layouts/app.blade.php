@@ -74,6 +74,10 @@
           <span class="nav-icon"><i class="bi bi-clipboard-data"></i></span>
           <span x-show="!sidebarCollapsed">Batch-wise Summary</span>
         </a>
+        <a href="{{ route('master-cartons.labels-center') }}" class="nav-item-link {{ request()->routeIs('master-cartons.labels-center') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-printer"></i></span>
+          <span x-show="!sidebarCollapsed">Carton Labels</span>
+        </a>
       </div>
     </div>
 

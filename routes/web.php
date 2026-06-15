@@ -92,6 +92,7 @@ Route::middleware([])->group(function () {
     Route::post('/master-cartons/contents', [MasterCartonController::class, 'addContent'])->name('master-cartons.contents.add');
     Route::post('/master-cartons/contents-serials', [MasterCartonController::class, 'addContentSerials'])->name('master-cartons.contents.add-serials');
     Route::delete('/master-cartons/contents/{content}', [MasterCartonController::class, 'removeContent'])->name('master-cartons.contents.remove');
+    Route::get('/master-cartons/labels-center', [MasterCartonController::class, 'labelsCenter'])->name('master-cartons.labels-center');
     Route::get('/master-cartons/labels', [MasterCartonController::class, 'labels'])->name('master-cartons.labels');
     Route::get('/master-cartons/labels/pdf', [MasterCartonController::class, 'labelsPdf'])->name('master-cartons.labels-pdf');
     Route::get('/master-cartons/batches/{batch}/pack-info', [MasterCartonController::class, 'batchPackInfo'])->name('master-cartons.pack-info');

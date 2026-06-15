@@ -73,6 +73,13 @@ class MasterCartonController extends Controller
         return view('master-cartons-batch-summary', compact('summary'));
     }
 
+    /** Label centre — choose scope + date range, then print or download PDF. */
+    public function labelsCenter(): View
+    {
+        $products = Product::orderBy('name')->get(['id', 'name', 'prn']);
+        return view('master-cartons-labels', compact('products'));
+    }
+
     /** JSON: cartons holding a given batch (bounded), for the batch-summary modal. */
     public function batchCartons(Batch $batch): JsonResponse
     {
