@@ -475,7 +475,13 @@
               </div>
 
               {{-- Add a segment --}}
-              <div class="section-label mt-2">Add Serials <span class="text-muted-sm" x-show="pkMode==='generic'">(choose product · batch)</span></div>
+              <div class="section-label mt-2 d-flex align-items-center justify-content-between">
+                <span>Add Serials <span class="text-muted-sm" x-show="pkMode==='generic'">(choose product · batch)</span></span>
+                <div class="btn-group btn-group-sm" role="group">
+                  <button type="button" class="btn" :class="segMode==='range' ? 'btn-info text-white' : 'btn-outline-secondary'" @click="segMode='range'">Range</button>
+                  <button type="button" class="btn" :class="segMode==='list' ? 'btn-info text-white' : 'btn-outline-secondary'" @click="segMode='list'">Specific serials</button>
+                </div>
+              </div>
               <template x-if="Object.keys(pErrors).length">
                 <div class="alert alert-danger py-2 mb-2"><ul class="mb-0 ps-3" style="font-size:13px"><template x-for="(m,f) in pErrors" :key="f"><template x-for="x in m" :key="x"><li x-text="x"></li></template></template></ul></div>
               </template>
@@ -494,25 +500,43 @@
                     <template x-for="b in segBatches" :key="b.id"><option :value="b.id" x-text="b.label"></option></template>
                   </select>
                 </div>
-                <div class="col-6 col-md-2">
+                {{-- Range mode --}}
+                <div class="col-6 col-md-2" x-show="segMode==='range'">
                   <label class="form-label">Start serial <i class="bi bi-pencil text-primary" title="auto-filled — type to override"></i></label>
                   <input type="number" min="1" class="form-control form-control-sm" x-model.number="segStart" @input="prefillEnd()" placeholder="e.g. 421">
                 </div>
-                <div class="col-6 col-md-2">
+                <div class="col-6 col-md-2" x-show="segMode==='range'">
                   <label class="form-label">End serial <span class="text-danger">*</span></label>
                   <input type="number" min="1" class="form-control form-control-sm" x-model.number="segEnd" placeholder="e.g. 500">
                 </div>
+                {{-- Specific-serials mode --}}
+                <div class="col-md-4" x-show="segMode==='list'">
+                  <label class="form-label">Serials <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control form-control-sm" x-model="segSerials" placeholder="e.g. 1,3,6,8 or 1-5,10-12">
+                </div>
               </div>
               <div class="text-muted-sm mt-1" x-show="segBatchId && segMaxSerial">
-                <i class="bi bi-info-circle me-1"></i>Available serials in this batch: <strong x-text="segMinSerial"></strong>–<strong x-text="segMaxSerial"></strong>. You can type any start/end within range.
+                <i class="bi bi-info-circle me-1"></i>Available serials in this batch: <strong x-text="segMinSerial"></strong>–<strong x-text="segMaxSerial"></strong>.
+                <span x-show="segMode==='range'">Type any start/end within range.</span>
+                <span x-show="segMode==='list'">Enter specific serials or ranges, separated by commas.</span>
               </div>
               <div class="d-flex align-items-center justify-content-between mt-2">
-                <div class="text-muted-sm" x-show="segStart>0 && segEnd>=segStart">
+                {{-- Range qty --}}
+                <div class="text-muted-sm" x-show="segMode==='range' && segStart>0 && segEnd>=segStart">
                   Qty <strong x-text="(segEnd-segStart+1).toLocaleString()"></strong>
                   <span x-show="segMaxSerial && segEnd>segMaxSerial" class="text-danger">· batch ends at <span x-text="segMaxSerial"></span></span>
                   <span x-show="pkCarton && (segEnd-segStart+1) > pkCarton.remaining" class="text-danger">· exceeds remaining (<span x-text="pkCarton?.remaining"></span>)</span>
                 </div>
-                <button class="btn btn-info text-white btn-sm" @click="addSeg()" :disabled="pkBusy || !segValid">
+                {{-- List qty --}}
+                <div class="text-muted-sm" x-show="segMode==='list' && segListQty>0">
+                  Qty <strong x-text="segListQty.toLocaleString()"></strong> serial(s)
+                  <span x-show="pkCarton && segListQty > pkCarton.remaining" class="text-danger">· exceeds remaining (<span x-text="pkCarton?.remaining"></span>)</span>
+                </div>
+                <div class="text-muted-sm" x-show="(segMode==='range' && !(segStart>0)) || (segMode==='list' && !segListQty)"></div>
+                <button class="btn btn-info text-white btn-sm" x-show="segMode==='range'" @click="addSeg()" :disabled="pkBusy || !segValid">
+                  <span x-show="pkBusy" class="spinner-border spinner-border-sm me-1"></span><i class="bi bi-plus-lg me-1" x-show="!pkBusy"></i>Add to carton
+                </button>
+                <button class="btn btn-info text-white btn-sm" x-show="segMode==='list'" @click="addSegList()" :disabled="pkBusy || !segListValid">
                   <span x-show="pkBusy" class="spinner-border spinner-border-sm me-1"></span><i class="bi bi-plus-lg me-1" x-show="!pkBusy"></i>Add to carton
                 </button>
               </div>
@@ -671,6 +695,7 @@ function cartonPage() {
     showPack:false, pkMode:'standard', pkCartons:[], pkCartonId:'', pkContents:[], pkLoading:false, pkBusy:false, pkChanged:false, pErrors:{}, pkSearch:'',
     pmProductId:'', pmBatchId:'', pmBatches:[], pmLoadingB:false,
     segProductId:'', segBatchId:'', segBatches:[], segStart:null, segEnd:null, segMaxSerial:0, segMinSerial:0, segLoadingB:false,
+    segMode:'range', segSerials:'',
     // view
     showView:false, vCarton:null, vLoading:false, vLocation:'', vMoving:false,
     // batch cartons modal (from batch summary)
@@ -742,6 +767,20 @@ function cartonPage() {
     get segValid(){ return this.pkCartonId && this.segProductId && this.segBatchId && this.segStart>0 && this.segEnd>=this.segStart
         && (!this.segMaxSerial || this.segEnd<=this.segMaxSerial)
         && (!this.pkCarton || (this.segEnd-this.segStart+1) <= this.pkCarton.remaining); },
+    // specific-serials mode
+    parsedSerials(){
+      const q=(this.segSerials||'').trim(); if(!/^[\d\s,\-]+$/.test(q)) return [];
+      const out=[];
+      q.split(/[\s,]+/).filter(Boolean).forEach(t=>{
+        const m=t.match(/^(\d+)-(\d+)$/);
+        if(m){ let a=+m[1], b=+m[2]; if(b<a){ const z=a; a=b; b=z; } for(let i=a;i<=b && out.length<5000;i++) out.push(i); }
+        else if(/^\d+$/.test(t)) out.push(+t);
+      });
+      return [...new Set(out)];
+    },
+    get segListQty(){ return this.parsedSerials().length; },
+    get segListValid(){ const q=this.segListQty; return this.pkCartonId && this.segProductId && this.segBatchId && q>0
+        && (!this.pkCarton || q <= this.pkCarton.remaining); },
     // computed — view movement
     get vPacked(){ return (this.vCarton?.packed_quantity||0) > 0; },
     get vDispatched(){ return this.vCarton?.status==='dispatched' || this.vCarton?.status==='received' || !!this.vCarton?.dispatched_at; },
@@ -767,7 +806,7 @@ function cartonPage() {
     async openPack(cartonId=null){
       this.showPack=true; this.pkChanged=false; this.pErrors={}; this.pkContents=[]; this.pkCartonId=''; this.pkSearch='';
       this.pkMode='standard'; this.pmProductId=''; this.pmBatchId=''; this.pmBatches=[]; this.pkCartons=[];
-      this.segProductId=''; this.segBatchId=''; this.segBatches=[]; this.segStart=null; this.segEnd=null; this.segMaxSerial=0;
+      this.segProductId=''; this.segBatchId=''; this.segBatches=[]; this.segStart=null; this.segEnd=null; this.segMaxSerial=0; this.segSerials='';
       if(cartonId){
         this.pkLoading=true;
         const r=await fetch(`{{ route('master-cartons.packing-cartons') }}?id=${cartonId}`,{headers:{'Accept':'application/json'}});
@@ -792,7 +831,7 @@ function cartonPage() {
       this.pkCartons=await r.json(); this.pkLoading=false;
     },
     async setPkMode(m){ this.pkMode=m; this.pkCartonId=''; this.pkContents=[]; this.pkSearch=''; this.pmProductId=''; this.pmBatchId=''; this.pmBatches=[]; this.pkCartons=[];
-      this.segProductId=''; this.segBatchId=''; this.segBatches=[]; this.segStart=null; this.segEnd=null; this.segMaxSerial=0; this.pErrors={};
+      this.segProductId=''; this.segBatchId=''; this.segBatches=[]; this.segStart=null; this.segEnd=null; this.segMaxSerial=0; this.segSerials=''; this.pErrors={};
       if(m==='generic') await this.fetchPkCartons(); },
     cartonPlaceholder(){
       if(this.pkMode==='standard' && !this.pmBatchId) return 'Select product & batch first…';
@@ -812,8 +851,8 @@ function cartonPage() {
       if(d.carton){ const i=this.pkCartons.findIndex(c=>String(c.id)===String(d.carton.id));
         if(i>=0){ this.pkCartons[i].packed_quantity=d.carton.packed_quantity; this.pkCartons[i].remaining=d.carton.remaining; } }
     },
-    async segOnProduct(){ this.segBatchId=''; this.segBatches=[]; this.segStart=null; this.segEnd=null; this.segMaxSerial=0; if(!this.segProductId) return; this.segLoadingB=true; this.segBatches=await this._batches(this.segProductId); this.segLoadingB=false; },
-    async segOnBatch(){ this.segStart=null; this.segEnd=null; this.segMaxSerial=0; this.segMinSerial=0; if(!this.segBatchId) return;
+    async segOnProduct(){ this.segBatchId=''; this.segBatches=[]; this.segStart=null; this.segEnd=null; this.segMaxSerial=0; this.segSerials=''; if(!this.segProductId) return; this.segLoadingB=true; this.segBatches=await this._batches(this.segProductId); this.segLoadingB=false; },
+    async segOnBatch(){ this.segStart=null; this.segEnd=null; this.segMaxSerial=0; this.segSerials=''; this.segMinSerial=0; if(!this.segBatchId) return;
       const r=await fetch(`{{ url('master-cartons/batches') }}/${this.segBatchId}/pack-info`,{headers:{'Accept':'application/json'}}); const d=await r.json();
       this.segStart=d.next_serial; this.segMaxSerial=d.max_serial; this.segMinSerial=d.min_serial; this.prefillEnd(); },
     prefillEnd(){
@@ -829,6 +868,16 @@ function cartonPage() {
       fd.append('serial_start',this.segStart??''); fd.append('serial_end',this.segEnd??'');
       try { const res=await fetch('{{ route('master-cartons.contents.add') }}',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},body:fd});
         const d=await res.json(); if(d.success){ this._applyPack(d); this.pkChanged=true; await this.segOnBatch(); } else { this.pErrors=d.errors??{}; }
+      } catch(e){ alert('Server error.'); }
+      this.pkBusy=false;
+    },
+    async addSegList(){
+      this.pkBusy=true; this.pErrors={};
+      const fd=new FormData(); fd.append('_token','{{ csrf_token() }}');
+      fd.append('carton_id',this.pkCartonId); fd.append('product_id',this.segProductId); fd.append('batch_id',this.segBatchId);
+      fd.append('serials',this.segSerials??'');
+      try { const res=await fetch('{{ route('master-cartons.contents.add-serials') }}',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},body:fd});
+        const d=await res.json(); if(d.success){ this._applyPack(d); this.pkChanged=true; this.segSerials=''; await this.segOnBatch(); } else { this.pErrors=d.errors??{}; }
       } catch(e){ alert('Server error.'); }
       this.pkBusy=false;
     },

@@ -308,6 +308,125 @@ class MasterCartonController extends Controller
         ]);
     }
 
+    // ── Packing: add a list of specific serials (e.g. 1,3,6,8 or 1-5,10) ──
+
+    public function addContentSerials(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'carton_id'  => 'required|exists:master_cartons,id',
+            'product_id' => 'required|exists:products,id',
+            'batch_id'   => 'required|exists:batches,id',
+            'serials'    => 'required|string|max:5000',
+        ]);
+
+        $carton = MasterCarton::with('contents')->findOrFail((int) $data['carton_id']);
+        $batch  = Batch::findOrFail((int) $data['batch_id']);
+
+        if (in_array($carton->status, ['dispatched', 'received'], true)) {
+            return $this->failJson('carton_id', "Carton {$carton->carton_number} has already been {$carton->status}; it can no longer be packed.");
+        }
+        if ((int) $batch->product_id !== (int) $data['product_id']) {
+            return $this->failJson('batch_id', 'The selected batch does not belong to the selected product.');
+        }
+
+        $serials = $this->parseSerialList($data['serials']);
+        if (empty($serials)) {
+            return $this->failJson('serials', 'Enter one or more serials, e.g. 1,3,6,8 or 1-5,10-12.');
+        }
+        $qty = count($serials);
+
+        if ($carton->packed_quantity + $qty > $carton->capacity) {
+            return $this->failJson('serials', "Adding {$qty} units exceeds the carton's remaining capacity ({$carton->remaining_capacity}).");
+        }
+        // Every serial must exist in the batch.
+        $existing = BatchUnit::where('batch_id', $batch->id)
+                        ->whereIn('serial_number', $serials)
+                        ->distinct()->count('serial_number');
+        if ($existing < $qty) {
+            return $this->failJson('serials', "Some of those serials don't exist in batch '{$batch->brn}'.");
+        }
+        // None already packed anywhere (overlap with existing contents for this batch).
+        $overlap = MasterCartonContent::with('carton')
+                        ->where('batch_id', $batch->id)
+                        ->where(function ($w) use ($serials) {
+                            foreach ($serials as $s) {
+                                $w->orWhere(fn ($x) => $x->where('serial_start', '<=', $s)->where('serial_end', '>=', $s));
+                            }
+                        })->first();
+        if ($overlap) {
+            return $this->failJson('serials', "One or more serials are already packed in carton {$overlap->carton?->carton_number} ({$overlap->serial_range}).");
+        }
+
+        $runs = $this->compressRuns($serials);   // store non-contiguous serials as compact runs
+
+        DB::transaction(function () use ($carton, $batch, $runs, $serials) {
+            foreach ($runs as [$start, $end]) {
+                MasterCartonContent::create([
+                    'master_carton_id' => $carton->id,
+                    'product_id'       => $batch->product_id,
+                    'batch_id'         => $batch->id,
+                    'serial_start'     => $start,
+                    'serial_end'       => $end,
+                    'quantity'         => $end - $start + 1,
+                ]);
+            }
+            BatchUnit::where('batch_id', $batch->id)
+                ->whereIn('serial_number', $serials)
+                ->where('status', 'generated')
+                ->update(['status' => 'packed']);
+
+            $carton->recomputeFromContents();
+            $carton->save();
+        });
+
+        $this->forgetCaches();
+        return response()->json([
+            'success'  => true,
+            'message'  => 'Added ' . count($serials) . ' serial(s) to ' . $carton->carton_number . '.',
+            'carton'   => $this->cartonPayload($carton->fresh('contents')),
+            'contents' => $this->contentsPayload($carton->fresh(['contents.product', 'contents.batch'])),
+        ]);
+    }
+
+    /** Parse "1,3,6,8" / "1-5,10-12" into a sorted unique list of serials (cap 5000). */
+    private function parseSerialList(string $q): array
+    {
+        $q = trim($q);
+        if ($q === '' || !preg_match('/^[\d\s,\-]+$/', $q)) {
+            return [];
+        }
+        $out = [];
+        foreach (preg_split('/[\s,]+/', $q, -1, PREG_SPLIT_NO_EMPTY) as $token) {
+            if (preg_match('/^(\d+)-(\d+)$/', $token, $m)) {
+                [$a, $b] = [(int) $m[1], (int) $m[2]];
+                if ($b < $a) [$a, $b] = [$b, $a];
+                for ($i = $a; $i <= $b && count($out) < 5000; $i++) {
+                    $out[] = $i;
+                }
+            } elseif (ctype_digit($token)) {
+                $out[] = (int) $token;
+            }
+            if (count($out) >= 5000) break;
+        }
+        sort($out);
+        return array_values(array_unique($out));
+    }
+
+    /** Compress a sorted serial list into [start,end] contiguous runs. */
+    private function compressRuns(array $serials): array
+    {
+        $runs = [];
+        $start = $prev = null;
+        foreach ($serials as $s) {
+            if ($start === null) { $start = $prev = $s; continue; }
+            if ($s === $prev + 1) { $prev = $s; continue; }
+            $runs[] = [$start, $prev];
+            $start = $prev = $s;
+        }
+        if ($start !== null) $runs[] = [$start, $prev];
+        return $runs;
+    }
+
     // ── Packing: remove a content segment ─────────────────────────────────
 
     public function removeContent(MasterCartonContent $content): JsonResponse
