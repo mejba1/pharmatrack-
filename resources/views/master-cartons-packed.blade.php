@@ -127,9 +127,16 @@ function packedForm(){
     removeLine(i){ this.lines.splice(i,1); if(!this.lines.length) this.addLine(); },
     _batches(pid){ return fetch(`{{ url('partial-batches/products') }}/${pid}/batches`,{headers:{'Accept':'application/json'}}).then(r=>r.json()); },
     async onProduct(i){ const l=this.lines[i]; l.batchId=''; l.batches=[]; l.range=''; if(!l.productId) return; l.loadingB=true; l.batches=await this._batches(l.productId); l.loadingB=false; },
-    async onBatch(i){ const l=this.lines[i]; l.range=''; if(!l.batchId) return;
+    async onBatch(i){ const l=this.lines[i]; l.range=''; l.start=''; l.end=''; if(!l.batchId) return;
       try{ const d=await fetch(`{{ url('master-cartons/batches') }}/${l.batchId}/pack-info`,{headers:{'Accept':'application/json'}}).then(r=>r.json());
-        if(d.max_serial) l.range=d.min_serial+'–'+d.max_serial+' (next free '+d.next_serial+')'; }catch(e){}
+        if(d.max_serial){
+          l.range = d.min_serial+'–'+d.max_serial+' (next free '+d.next_serial+')';
+          // Auto-fill Start/End like the pack modal: from the next free serial to
+          // the end of the batch. Capacity then splits it into multiple cartons.
+          l.start = d.next_serial;
+          l.end   = d.max_serial;
+        }
+      }catch(e){}
     },
     parse(serials){
       const q=(serials||'').trim(); if(!/^[\d\s,\-]+$/.test(q)) return [];
