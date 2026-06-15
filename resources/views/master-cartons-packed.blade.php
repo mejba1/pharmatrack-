@@ -147,7 +147,13 @@
   <div class="card mt-3">
     <div class="card-header bg-transparent d-flex flex-wrap align-items-center gap-2">
       <span class="fw-semibold"><i class="bi bi-clock-history me-1"></i>Recent Master Cartons <span class="text-muted-sm fw-normal">(last 100)</span></span>
-      <div class="ms-auto d-flex align-items-center gap-2">
+      <div class="ms-auto d-flex align-items-center gap-2 flex-wrap">
+        <span class="text-muted-sm">Select:</span>
+        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" @click="selectRecent('all')">All</button>
+        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-success" @click="selectRecent('packed')">Packed</button>
+        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-secondary" @click="selectRecent('unpacked')">Unpacked</button>
+        <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" @click="selectRecent('none')">None</button>
+        <span class="text-muted">|</span>
         <label class="text-muted-sm mb-0">Show</label>
         <select class="form-select form-select-sm" style="width:auto" x-model.number="pageSize">
           <option :value="10">10</option><option :value="20">20</option><option :value="30">30</option>
@@ -155,9 +161,19 @@
         </select>
       </div>
     </div>
+
+    {{-- Bulk download bar --}}
+    <div class="px-3 py-2 border-bottom d-flex flex-wrap align-items-center gap-2" style="background:linear-gradient(180deg,rgba(13,110,253,.07),rgba(13,110,253,.02))" x-show="selRecent.length" x-cloak>
+      <span class="fw-semibold"><i class="bi bi-check2-square me-1 text-primary"></i><span x-text="selRecent.length"></span> selected</span>
+      <button class="btn btn-outline-primary btn-sm" @click="recentLabels('print')"><i class="bi bi-printer me-1"></i>Print QR Labels</button>
+      <button class="btn btn-danger btn-sm" @click="recentLabels('pdf')"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
+      <button class="btn btn-link btn-sm text-muted ms-auto text-decoration-none" @click="selectRecent('none')">Clear</button>
+    </div>
+
     <div class="card-body p-0"><div class="table-responsive">
       <table class="table table-sm table-hover align-middle mb-0">
         <thead><tr>
+          <th style="width:36px" class="text-center"><input type="checkbox" class="form-check-input" :checked="allPagedChecked" @change="togglePaged($event)"></th>
           <th style="cursor:pointer" @click="sortBy('carton_number')">MC No <i class="bi" :class="caret('carton_number')"></i></th>
           <th>Product</th><th>Batch</th>
           <th class="text-end" style="cursor:pointer" @click="sortBy('qty')">QTY <i class="bi" :class="caret('qty')"></i></th>
@@ -168,7 +184,8 @@
         </tr></thead>
         <tbody>
           <template x-for="c in pagedRecent" :key="c.id">
-            <tr>
+            <tr :class="selRecent.includes(c.id) ? 'table-active' : ''">
+              <td class="text-center"><input type="checkbox" class="form-check-input" :checked="selRecent.includes(c.id)" @change="toggleRow(c.id)"></td>
               <td class="font-monospace fw-semibold" style="font-size:12px" x-text="c.carton_number"></td>
               <td style="font-size:13px" x-text="c.product"></td>
               <td class="font-monospace" style="font-size:12px" x-text="c.batch"></td>
@@ -182,7 +199,7 @@
               </td>
             </tr>
           </template>
-          <tr x-show="!recent.length"><td colspan="8" class="text-center text-muted py-4">No master cartons yet.</td></tr>
+          <tr x-show="!recent.length"><td colspan="9" class="text-center text-muted py-4">No master cartons yet.</td></tr>
         </tbody>
       </table>
     </div>
@@ -211,6 +228,24 @@ function packedForm(){
       });
     },
     get pagedRecent(){ return this.sortedRecent.slice(0, this.pageSize); },
+    // recent selection + bulk QR download
+    selRecent:[],
+    get allPagedChecked(){ const ids=this.pagedRecent.map(c=>c.id); return ids.length>0 && ids.every(id=>this.selRecent.includes(id)); },
+    togglePaged(e){ const ids=this.pagedRecent.map(c=>c.id);
+      this.selRecent = e.target.checked ? [...new Set([...this.selRecent,...ids])] : this.selRecent.filter(id=>!ids.includes(id)); },
+    toggleRow(id){ const i=this.selRecent.indexOf(id); if(i<0) this.selRecent.push(id); else this.selRecent.splice(i,1); },
+    selectRecent(kind){
+      if(kind==='all') this.selRecent=this.recent.map(c=>c.id);
+      else if(kind==='packed') this.selRecent=this.recent.filter(c=>c.packed).map(c=>c.id);
+      else if(kind==='unpacked') this.selRecent=this.recent.filter(c=>!c.packed).map(c=>c.id);
+      else this.selRecent=[];
+    },
+    recentLabels(action){
+      if(!this.selRecent.length) return;
+      const base = action==='pdf' ? '{{ route('master-cartons.labels-pdf') }}' : '{{ route('master-cartons.labels') }}';
+      const url = base + '?ids=' + this.selRecent.join(',');
+      if(action==='print') window.open(url,'_blank'); else window.location.href=url;
+    },
     init(){ this.addLine(); },
     blank(){ return {productId:'', batchId:'', batches:[], loadingB:false, mode:'range', start:'', end:'', serials:'', capacity:'', label:'', range:''}; },
     specStr(line){
