@@ -49,8 +49,9 @@ class DistributionController extends Controller
             ->orderByDesc('updated_at')->limit(15)->get();
 
         $hierarchy = $this->hierarchy();
+        $products  = Product::orderBy('name')->get(['id', 'name', 'prn']);
 
-        return view('distribution', compact('stats', 'recentShipments', 'missingCartons', 'damagedCartons', 'hierarchy'));
+        return view('distribution', compact('stats', 'recentShipments', 'missingCartons', 'damagedCartons', 'hierarchy', 'products'));
     }
 
     /** Product → Batch → carton/shipment rollup for the hierarchy tree. */
@@ -94,66 +95,104 @@ class DistributionController extends Controller
 
     public function lookup(Request $request): JsonResponse
     {
-        $q = trim((string) $request->query('q', ''));
-        if (mb_strlen($q) < 1) {
+        $q         = trim((string) $request->query('q', ''));
+        $productId = $request->query('product_id') ?: null;
+        $batchId   = $request->query('batch_id') ?: null;
+
+        if ($q === '' && !$productId && !$batchId) {
             return response()->json(['results' => []]);
         }
 
         $results = collect();
+        $serials = $this->parseSerials($q);   // single, list (1,2,3) or range (1-50)
 
-        // Shipments (number / QR).
-        Consignment::with('cartons')
-            ->where('consignment_number', 'like', "%{$q}%")
-            ->orWhere('qr_code', $q)
-            ->limit(5)->get()
-            ->each(fn ($c) => $results->push([
-                'kind'        => 'Shipment',
-                'headline'    => $c->consignment_number,
-                'product'     => $c->product_list->join(', ') ?: '—',
-                'batch'       => $c->batch_list->join(', ') ?: '—',
-                'carton'      => $c->carton_count . ' cartons',
-                'shipment'    => $c->consignment_number,
-                'status'      => $c->status_label,
-                'status_badge'=> $c->status_badge_class,
-                'serial'      => '—',
-                'link'        => route('shipment.scan', $c->qr_code),
-            ]));
+        // ── Serial trace (optionally scoped to a product and/or batch) ──
+        if (!empty($serials)) {
+            $query = MasterCartonContent::with(['carton.consignment', 'product', 'batch']);
+            if ($batchId)        $query->where('batch_id', $batchId);
+            elseif ($productId)  $query->where('product_id', $productId);
 
-        // Cartons (number / QR).
-        MasterCarton::with(['consignment', 'product', 'batch'])
-            ->where('carton_number', 'like', "%{$q}%")
-            ->orWhere('qr_code', $q)
-            ->limit(10)->get()
-            ->each(fn ($c) => $results->push($this->cartonRow($c)));
+            // Any content whose range covers one of the requested serials.
+            $query->where(function ($w) use ($serials) {
+                foreach ($serials as $s) {
+                    $w->orWhere(fn ($x) => $x->where('serial_start', '<=', $s)->where('serial_end', '>=', $s));
+                }
+            });
 
-        // Serial number → which carton holds it.
-        if (ctype_digit($q)) {
-            $serial = (int) $q;
-            MasterCartonContent::with(['carton.consignment', 'product', 'batch'])
-                ->where('serial_start', '<=', $serial)
-                ->where('serial_end', '>=', $serial)
-                ->limit(20)->get()
-                ->each(function ($ct) use ($results, $serial) {
-                    if ($ct->carton) {
-                        $results->push($this->cartonRow($ct->carton, $serial, $ct));
+            foreach ($query->limit(200)->get() as $ct) {
+                if (!$ct->carton) continue;
+                foreach ($serials as $s) {
+                    if ($ct->serial_start <= $s && $ct->serial_end >= $s) {
+                        $results->push($this->cartonRow($ct->carton, $s, $ct));
                     }
-                });
+                }
+            }
         }
 
-        // Batch reference / number.
-        $batchIds = Batch::where('brn', 'like', "%{$q}%")->orWhere('batch_number', 'like', "%{$q}%")->limit(5)->pluck('id');
-        if ($batchIds->isNotEmpty()) {
+        // ── Free-text entity search (skip if the query was purely serials) ──
+        if ($q !== '' && empty($serials)) {
+            Consignment::where('consignment_number', 'like', "%{$q}%")
+                ->orWhere('qr_code', $q)
+                ->limit(5)->get()
+                ->each(fn ($c) => $results->push([
+                    'kind' => 'Shipment', 'headline' => $c->consignment_number,
+                    'product' => '—', 'batch' => '—', 'carton' => $c->carton_count . ' cartons',
+                    'shipment' => $c->consignment_number, 'status' => $c->status_label,
+                    'status_badge' => $c->status_badge_class, 'serial' => '—',
+                    'link' => route('shipment.scan', $c->qr_code),
+                ]));
+
             MasterCarton::with(['consignment', 'product', 'batch'])
-                ->whereIn('batch_id', $batchIds)
-                ->orWhereHas('contents', fn ($c) => $c->whereIn('batch_id', $batchIds))
-                ->limit(15)->get()
+                ->where('carton_number', 'like', "%{$q}%")->orWhere('qr_code', $q)
+                ->when($batchId, fn ($w) => $w->where('batch_id', $batchId))
+                ->limit(10)->get()
+                ->each(fn ($c) => $results->push($this->cartonRow($c)));
+
+            $batchIds = Batch::where('brn', 'like', "%{$q}%")->orWhere('batch_number', 'like', "%{$q}%")->limit(5)->pluck('id');
+            if ($batchIds->isNotEmpty()) {
+                MasterCarton::with(['consignment', 'product', 'batch'])
+                    ->whereIn('batch_id', $batchIds)
+                    ->orWhereHas('contents', fn ($c) => $c->whereIn('batch_id', $batchIds))
+                    ->limit(15)->get()
+                    ->each(fn ($c) => $results->push($this->cartonRow($c)));
+            }
+        } elseif (empty($serials) && ($productId || $batchId)) {
+            // Browse cartons for a chosen product/batch with no serial given.
+            MasterCarton::with(['consignment', 'product', 'batch'])
+                ->when($batchId, fn ($w) => $w->where('batch_id', $batchId))
+                ->when(!$batchId && $productId, fn ($w) => $w->where('product_id', $productId))
+                ->orderByDesc('id')->limit(25)->get()
                 ->each(fn ($c) => $results->push($this->cartonRow($c)));
         }
 
-        // De-duplicate (a carton can match several ways).
         $unique = $results->unique(fn ($r) => $r['kind'] . '|' . $r['headline'] . '|' . $r['serial'])->values();
 
-        return response()->json(['results' => $unique->take(40)->all()]);
+        return response()->json(['results' => $unique->take(100)->all()]);
+    }
+
+    /**
+     * Parse a serial query into a bounded list of integers.
+     * Accepts "12345", "1,2,3", "1-50", or a mix — capped to 200 serials.
+     */
+    private function parseSerials(string $q): array
+    {
+        if ($q === '' || !preg_match('/^[\d\s,\-]+$/', $q)) {
+            return [];
+        }
+        $serials = [];
+        foreach (preg_split('/[\s,]+/', trim($q), -1, PREG_SPLIT_NO_EMPTY) as $token) {
+            if (preg_match('/^(\d+)-(\d+)$/', $token, $m)) {
+                [$a, $b] = [(int) $m[1], (int) $m[2]];
+                if ($b < $a) [$a, $b] = [$b, $a];
+                for ($i = $a; $i <= $b && count($serials) < 200; $i++) {
+                    $serials[] = $i;
+                }
+            } elseif (ctype_digit($token)) {
+                $serials[] = (int) $token;
+            }
+            if (count($serials) >= 200) break;
+        }
+        return array_values(array_unique($serials));
     }
 
     private function cartonRow(MasterCarton $c, ?int $serial = null, ?MasterCartonContent $content = null): array

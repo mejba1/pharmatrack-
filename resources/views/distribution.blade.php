@@ -30,13 +30,25 @@
   <div class="trace-box mb-3">
     <div class="d-flex align-items-center gap-2 mb-2"><i class="bi bi-search"></i><strong>Universal Traceability Search</strong></div>
     <div class="row g-2 align-items-center">
-      <div class="col">
+      <div class="col-12 col-lg">
         <input type="text" class="form-control" x-model="q" @keydown.enter="search()"
-               placeholder="Serial no · Carton (MC-…) · Shipment (SHP-…) · Batch (BRN-…) · QR code">
+               placeholder="Serial(s): 12345 · 1,2,3 · 1-50  ·  or Carton / Shipment / Batch / QR">
       </div>
-      <div class="col-auto"><button class="btn btn-light" @click="search()" :disabled="searching"><span x-show="searching" class="spinner-border spinner-border-sm me-1"></span>Trace</button></div>
+      <div class="col-6 col-lg-auto">
+        <select class="form-select" x-model="productId" @change="onProduct()">
+          <option value="">Any product</option>
+          @foreach($products as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach
+        </select>
+      </div>
+      <div class="col-6 col-lg-auto">
+        <select class="form-select" x-model="batchId" :disabled="!productId || loadingB">
+          <option value="" x-text="!productId ? 'Any batch' : (batches.length ? 'Any batch' : 'No batches')"></option>
+          <template x-for="b in batches" :key="b.id"><option :value="b.id" x-text="b.label"></option></template>
+        </select>
+      </div>
+      <div class="col-12 col-lg-auto"><button class="btn btn-light w-100" @click="search()" :disabled="searching"><span x-show="searching" class="spinner-border spinner-border-sm me-1"></span>Trace</button></div>
     </div>
-    <div class="small mt-2 opacity-75">Find the full chain — product → batch → master carton → shipment → current status.</div>
+    <div class="small mt-2 opacity-75">Find the full chain — product → batch → master carton → shipment → status. Scope a product/batch to disambiguate a serial that exists across several batches; enter multiple serials or a range (e.g. <code class="text-white">1-50</code>).</div>
   </div>
 
   {{-- Search results --}}
@@ -183,12 +195,26 @@
 <script>
 function distributionPage(){
   return {
-    q:'', results:[], searching:false, searched:false,
+    q:'', productId:'', batchId:'', batches:[], loadingB:false,
+    results:[], searching:false, searched:false,
+    async onProduct(){
+      this.batchId=''; this.batches=[];
+      if(!this.productId) return;
+      this.loadingB=true;
+      try{ this.batches=await fetch(`{{ url('partial-batches/products') }}/${this.productId}/batches`,{headers:{'Accept':'application/json'}}).then(r=>r.json()); }
+      catch(e){ this.batches=[]; }
+      this.loadingB=false;
+    },
     async search(){
-      if(!this.q.trim()){ this.searched=false; this.results=[]; return; }
+      const hasScope = this.productId || this.batchId;
+      if(!this.q.trim() && !hasScope){ this.searched=false; this.results=[]; return; }
       this.searching=true;
       try{
-        const r=await fetch(`{{ route('distribution.lookup') }}?q=`+encodeURIComponent(this.q.trim()),{headers:{'Accept':'application/json'}});
+        const p=new URLSearchParams();
+        if(this.q.trim()) p.set('q', this.q.trim());
+        if(this.productId) p.set('product_id', this.productId);
+        if(this.batchId) p.set('batch_id', this.batchId);
+        const r=await fetch(`{{ route('distribution.lookup') }}?`+p.toString(),{headers:{'Accept':'application/json'}});
         const d=await r.json(); this.results=d.results||[]; this.searched=true;
       }catch(e){ alert('Search failed.'); }
       this.searching=false;

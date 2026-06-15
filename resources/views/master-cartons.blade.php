@@ -89,16 +89,13 @@
   </div>
 
   {{-- Batch-wise summary (lazy-loaded — heavy aggregate kept off the initial paint) --}}
-  <div class="card mb-3" x-data="{open:false, loaded:false, html:'', loading:false,
-      async toggle(){ this.open=!this.open; if(this.open && !this.loaded){ this.loading=true;
-        try{ const r=await fetch('{{ route('master-cartons.batch-summary') }}',{headers:{'X-Requested-With':'XMLHttpRequest'}}); this.html=await r.text(); this.loaded=true; }catch(e){ this.html='<div class=\'text-danger p-3\'>Could not load summary.</div>'; }
-        this.loading=false; } }">
-    <div class="card-header bg-transparent fw-semibold d-flex align-items-center" style="cursor:pointer" @click="toggle()">
+  <div class="card mb-3">
+    <div class="card-header bg-transparent fw-semibold d-flex align-items-center" style="cursor:pointer" @click="toggleBatchSummary()">
       <i class="bi bi-clipboard-data me-1"></i>Batch-wise Carton Summary
       <span class="text-muted-sm fw-normal ms-2">(recent batches)</span>
-      <span class="ms-auto"><span x-show="loading" class="spinner-border spinner-border-sm me-2"></span><i class="bi" :class="open?'bi-chevron-up':'bi-chevron-down'"></i></span>
+      <span class="ms-auto"><span x-show="bsLoading" class="spinner-border spinner-border-sm me-2"></span><i class="bi" :class="bsOpen?'bi-chevron-up':'bi-chevron-down'"></i></span>
     </div>
-    <div class="card-body p-0" x-show="open" x-cloak x-html="html"></div>
+    <div class="card-body p-0" x-show="bsOpen" x-cloak x-html="bsHtml"></div>
   </div>
 
   {{-- Filters --}}
@@ -635,9 +632,19 @@ function cartonPage() {
     segProductId:'', segBatchId:'', segBatches:[], segStart:null, segEnd:null, segMaxSerial:0, segLoadingB:false,
     // view
     showView:false, vCarton:null, vLoading:false, vLocation:'', vMoving:false,
-    // summary expand
-    expandedBatch:null,
-    toggleBatch(id){ this.expandedBatch = this.expandedBatch===id ? null : id; },
+    // lazy batch summary
+    bsOpen:false, bsLoaded:false, bsHtml:'', bsLoading:false,
+    async toggleBatchSummary(){
+      this.bsOpen = !this.bsOpen;
+      if(this.bsOpen && !this.bsLoaded){
+        this.bsLoading = true;
+        try {
+          const r = await fetch('{{ route('master-cartons.batch-summary') }}', {headers:{'X-Requested-With':'XMLHttpRequest'}});
+          this.bsHtml = await r.text(); this.bsLoaded = true;
+        } catch(e){ this.bsHtml = '<div class="text-danger p-3">Could not load summary.</div>'; }
+        this.bsLoading = false;
+      }
+    },
     // multi-select (bulk label download)
     selected:[],
     pageIds: @json($cartons->pluck('id')->map(fn($i)=>(string)$i)->values()),
