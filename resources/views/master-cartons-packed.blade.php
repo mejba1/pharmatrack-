@@ -245,8 +245,9 @@ function packedForm(){
     recentLabels(action){
       if(!this.selRecent.length) return;
       const base = action==='pdf' ? '{{ route('master-cartons.labels-pdf') }}' : '{{ route('master-cartons.labels') }}';
-      let url = base + '?ids=' + this.selRecent.join(',');
-      if(action==='print'){ window.open(url+'&print=1','_blank'); } else { window.location.href=url; }
+      const url = base + '?ids=' + this.selRecent.join(',');
+      // Recent table = browse/reprint previous cartons → open the sheet (no auto-print).
+      if(action==='print'){ window.open(url,'_blank'); } else { window.location.href=url; }
     },
     init(){ this.addLine(); },
     blank(){ return {productId:'', batchId:'', batches:[], loadingB:false, mode:'range', start:'', end:'', serials:'', capacity:'', label:'', range:''}; },
