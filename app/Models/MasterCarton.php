@@ -222,6 +222,7 @@ class MasterCarton extends Model
         if (!empty($filters['fill'])) {
             match ($filters['fill']) {
                 'empty'   => $query->where('packed_quantity', 0),
+                'packed'  => $query->where('packed_quantity', '>', 0),
                 'partial' => $query->where('packed_quantity', '>', 0)->whereColumn('packed_quantity', '<', 'capacity'),
                 'full'    => $query->where('packed_quantity', '>', 0)->whereColumn('packed_quantity', '>=', 'capacity'),
                 default   => $query,

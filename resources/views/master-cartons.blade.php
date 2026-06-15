@@ -79,13 +79,13 @@
     </div>
   </div></div>
 
-  {{-- Stats --}}
+  {{-- Stats (click a card to filter the table) --}}
   <div class="row g-2 mb-3">
-    <div class="col-6 col-md"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-box-seam"></i></div><div><div class="stat-value">{{ number_format($stats['total']) }}</div><div class="stat-label">Total Cartons</div></div></div></div>
-    <div class="col-6 col-md"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-box2-heart"></i></div><div><div class="stat-value">{{ number_format($stats['packed']) }}</div><div class="stat-label">Packed</div></div></div></div>
-    <div class="col-6 col-md"><div class="stat-card stat-secondary"><div class="stat-icon"><i class="bi bi-box"></i></div><div><div class="stat-value">{{ number_format($stats['empty']) }}</div><div class="stat-label">Empty / Unpacked</div></div></div></div>
-    <div class="col-6 col-md"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-box-arrow-up"></i></div><div><div class="stat-value">{{ number_format($stats['dispatched']) }}</div><div class="stat-label">Dispatched</div></div></div></div>
-    <div class="col-6 col-md"><div class="stat-card stat-info"><div class="stat-icon"><i class="bi bi-box-arrow-in-down"></i></div><div><div class="stat-value">{{ number_format($stats['received']) }}</div><div class="stat-label">Received</div></div></div></div>
+    <div class="col-6 col-md"><a href="{{ route('master-cartons') }}" class="text-decoration-none"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-box-seam"></i></div><div><div class="stat-value">{{ number_format($stats['total']) }}</div><div class="stat-label">Total Cartons</div></div></div></a></div>
+    <div class="col-6 col-md"><a href="{{ route('master-cartons', ['fill'=>'packed']) }}" class="text-decoration-none"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-box2-heart"></i></div><div><div class="stat-value">{{ number_format($stats['packed']) }}</div><div class="stat-label">Packed</div></div></div></a></div>
+    <div class="col-6 col-md"><a href="{{ route('master-cartons', ['fill'=>'empty']) }}" class="text-decoration-none"><div class="stat-card stat-secondary"><div class="stat-icon"><i class="bi bi-box"></i></div><div><div class="stat-value">{{ number_format($stats['empty']) }}</div><div class="stat-label">Empty / Unpacked</div></div></div></a></div>
+    <div class="col-6 col-md"><a href="{{ route('master-cartons', ['status'=>'dispatched']) }}" class="text-decoration-none"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-box-arrow-up"></i></div><div><div class="stat-value">{{ number_format($stats['dispatched']) }}</div><div class="stat-label">Dispatched</div></div></div></a></div>
+    <div class="col-6 col-md"><a href="{{ route('master-cartons', ['status'=>'received']) }}" class="text-decoration-none"><div class="stat-card stat-info"><div class="stat-icon"><i class="bi bi-box-arrow-in-down"></i></div><div><div class="stat-value">{{ number_format($stats['received']) }}</div><div class="stat-label">Received</div></div></div></a></div>
   </div>
 
   {{-- Batch-wise summary (lazy-loaded — heavy aggregate kept off the initial paint) --}}
@@ -95,7 +95,7 @@
       <span class="text-muted-sm fw-normal ms-2">(recent batches)</span>
       <span class="ms-auto"><span x-show="bsLoading" class="spinner-border spinner-border-sm me-2"></span><i class="bi" :class="bsOpen?'bi-chevron-up':'bi-chevron-down'"></i></span>
     </div>
-    <div class="card-body p-0" x-show="bsOpen" x-cloak x-html="bsHtml"></div>
+    <div class="card-body p-0" x-show="bsOpen" x-cloak x-html="bsHtml" @click="onBatchSummaryClick($event)"></div>
   </div>
 
   {{-- Filters --}}
@@ -495,13 +495,16 @@
                   </select>
                 </div>
                 <div class="col-6 col-md-2">
-                  <label class="form-label">Start <i class="bi bi-magic text-primary" title="auto-filled with the next available serial"></i></label>
-                  <input type="number" min="1" class="form-control form-control-sm" x-model.number="segStart" @input="prefillEnd()">
+                  <label class="form-label">Start serial <i class="bi bi-pencil text-primary" title="auto-filled — type to override"></i></label>
+                  <input type="number" min="1" class="form-control form-control-sm" x-model.number="segStart" @input="prefillEnd()" placeholder="e.g. 421">
                 </div>
                 <div class="col-6 col-md-2">
-                  <label class="form-label">End <span class="text-danger">*</span></label>
-                  <input type="number" min="1" class="form-control form-control-sm" x-model.number="segEnd">
+                  <label class="form-label">End serial <span class="text-danger">*</span></label>
+                  <input type="number" min="1" class="form-control form-control-sm" x-model.number="segEnd" placeholder="e.g. 500">
                 </div>
+              </div>
+              <div class="text-muted-sm mt-1" x-show="segBatchId && segMaxSerial">
+                <i class="bi bi-info-circle me-1"></i>Available serials in this batch: <strong x-text="segMinSerial"></strong>–<strong x-text="segMaxSerial"></strong>. You can type any start/end within range.
               </div>
               <div class="d-flex align-items-center justify-content-between mt-2">
                 <div class="text-muted-sm" x-show="segStart>0 && segEnd>=segStart">
@@ -523,6 +526,44 @@
     </div></div>
   </div>
   <div class="modal-backdrop fade show" x-show="showPack" @click="closePack()"></div>
+
+  {{-- ═══════════ BATCH CARTONS MODAL ═══════════ --}}
+  <div class="modal fade" :class="{show:bcShow}" :style="bcShow?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable"><div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-semibold"><i class="bi bi-clipboard-data me-2 text-info"></i>Cartons in <span class="font-monospace" x-text="bcBrn"></span></h5>
+        <button class="btn-close" @click="bcShow=false"></button>
+      </div>
+      <div class="modal-body">
+        <div x-show="bcLoading" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading…</div>
+        <div x-show="!bcLoading && !bcCartons.length" class="text-center py-4 text-muted">No cartons hold this batch.</div>
+        <div class="table-responsive" x-show="!bcLoading && bcCartons.length">
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Carton</th><th class="text-end">Qty (this batch)</th><th>Status</th><th class="text-end"></th></tr></thead>
+            <tbody>
+              <template x-for="c in bcCartons" :key="c.id">
+                <tr>
+                  <td class="font-monospace" style="font-size:12px">
+                    <span x-text="c.carton_number"></span>
+                    <span class="badge text-bg-warning ms-1" style="font-size:9px" x-show="c.mixed">mixed</span>
+                  </td>
+                  <td class="text-end" x-text="c.qty"></td>
+                  <td><span class="badge-status" :class="c.status_badge" x-text="c.status"></span></td>
+                  <td class="text-end"><button class="btn btn-outline-primary btn-sm btn-icon" title="View / track" @click="bcShow=false; openView(c.id)"><i class="bi bi-eye"></i></button></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <div class="text-muted-sm mt-2" x-show="bcCartons.length>=100">Showing the first 100 cartons. Use the filter for the full list.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a :href="bcBatchId ? `{{ route('master-cartons') }}?batch_id=${bcBatchId}` : '#'" class="btn btn-outline-primary btn-sm me-auto"><i class="bi bi-box-seam me-1"></i>Open full list</a>
+        <button class="btn btn-outline-secondary btn-sm" @click="bcShow=false">Close</button>
+      </div>
+    </div></div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="bcShow" @click="bcShow=false"></div>
 
   {{-- ═══════════ VIEW / TRACK MODAL ═══════════ --}}
   <div class="modal fade" :class="{show:showView}" :style="showView?'display:block':''" tabindex="-1">
@@ -629,9 +670,23 @@ function cartonPage() {
     // pack
     showPack:false, pkMode:'standard', pkCartons:[], pkCartonId:'', pkContents:[], pkLoading:false, pkBusy:false, pkChanged:false, pErrors:{}, pkSearch:'',
     pmProductId:'', pmBatchId:'', pmBatches:[], pmLoadingB:false,
-    segProductId:'', segBatchId:'', segBatches:[], segStart:null, segEnd:null, segMaxSerial:0, segLoadingB:false,
+    segProductId:'', segBatchId:'', segBatches:[], segStart:null, segEnd:null, segMaxSerial:0, segMinSerial:0, segLoadingB:false,
     // view
     showView:false, vCarton:null, vLoading:false, vLocation:'', vMoving:false,
+    // batch cartons modal (from batch summary)
+    bcShow:false, bcBrn:'', bcBatchId:'', bcCartons:[], bcLoading:false,
+    onBatchSummaryClick(e){
+      const btn = e.target.closest('[data-batch-cartons]');
+      if(btn){ e.preventDefault(); this.openBatchCartons(btn.dataset.batchCartons, btn.dataset.brn); }
+    },
+    async openBatchCartons(batchId, brn){
+      this.bcShow=true; this.bcBrn=brn||''; this.bcBatchId=batchId; this.bcCartons=[]; this.bcLoading=true;
+      try{
+        const r=await fetch(`{{ url('master-cartons/batch') }}/${batchId}/cartons`,{headers:{'Accept':'application/json'}});
+        const d=await r.json(); this.bcCartons=d.cartons||[];
+      }catch(e){ this.bcCartons=[]; }
+      this.bcLoading=false;
+    },
     // lazy batch summary
     bsOpen:false, bsLoaded:false, bsHtml:'', bsLoading:false,
     async toggleBatchSummary(){
@@ -758,9 +813,9 @@ function cartonPage() {
         if(i>=0){ this.pkCartons[i].packed_quantity=d.carton.packed_quantity; this.pkCartons[i].remaining=d.carton.remaining; } }
     },
     async segOnProduct(){ this.segBatchId=''; this.segBatches=[]; this.segStart=null; this.segEnd=null; this.segMaxSerial=0; if(!this.segProductId) return; this.segLoadingB=true; this.segBatches=await this._batches(this.segProductId); this.segLoadingB=false; },
-    async segOnBatch(){ this.segStart=null; this.segEnd=null; this.segMaxSerial=0; if(!this.segBatchId) return;
+    async segOnBatch(){ this.segStart=null; this.segEnd=null; this.segMaxSerial=0; this.segMinSerial=0; if(!this.segBatchId) return;
       const r=await fetch(`{{ url('master-cartons/batches') }}/${this.segBatchId}/pack-info`,{headers:{'Accept':'application/json'}}); const d=await r.json();
-      this.segStart=d.next_serial; this.segMaxSerial=d.max_serial; this.prefillEnd(); },
+      this.segStart=d.next_serial; this.segMaxSerial=d.max_serial; this.segMinSerial=d.min_serial; this.prefillEnd(); },
     prefillEnd(){
       if(!this.segStart || !this.pkCarton) return;
       let end=this.segStart + this.pkCarton.remaining - 1;

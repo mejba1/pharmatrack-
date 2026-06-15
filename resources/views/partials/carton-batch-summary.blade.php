@@ -17,7 +17,8 @@
         <td class="text-end {{ $s['unpacked'] > 0 ? 'text-warning fw-semibold' : 'text-muted' }}">{{ number_format($s['unpacked']) }}</td>
         <td class="text-end">
           @if($s['batch'])
-          <a href="{{ route('master-cartons', ['batch_id'=>$s['batch']->id]) }}" class="btn btn-outline-primary btn-sm" title="View these cartons"><i class="bi bi-box-seam"></i></a>
+          <button type="button" class="btn btn-outline-info btn-sm" data-batch-cartons="{{ $s['batch']->id }}" data-brn="{{ $s['batch']->brn }}" title="Show cartons in this batch"><i class="bi bi-eye"></i></button>
+          <a href="{{ route('master-cartons', ['batch_id'=>$s['batch']->id]) }}" class="btn btn-outline-primary btn-sm" title="Filter the table to these cartons"><i class="bi bi-box-seam"></i></a>
           <a href="{{ route('master-cartons.labels', ['batch_id'=>$s['batch']->id]) }}" target="_blank" class="btn btn-outline-secondary btn-sm" title="Print labels"><i class="bi bi-printer"></i></a>
           <a href="{{ route('master-cartons.labels-pdf', ['batch_id'=>$s['batch']->id]) }}" class="btn btn-outline-danger btn-sm" title="Labels PDF"><i class="bi bi-file-earmark-pdf"></i></a>
           @endif

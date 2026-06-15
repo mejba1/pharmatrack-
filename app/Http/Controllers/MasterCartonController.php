@@ -66,6 +66,38 @@ class MasterCartonController extends Controller
         return view('partials.carton-batch-summary', compact('summary'));
     }
 
+    /** JSON: cartons holding a given batch (bounded), for the batch-summary modal. */
+    public function batchCartons(Batch $batch): JsonResponse
+    {
+        $rows = MasterCartonContent::selectRaw('master_carton_id, SUM(quantity) q')
+                    ->where('batch_id', $batch->id)
+                    ->groupBy('master_carton_id')
+                    ->orderBy('master_carton_id')
+                    ->limit(100)->get();
+
+        $cartonIds = $rows->pluck('master_carton_id');
+        $cartons   = MasterCarton::whereIn('id', $cartonIds)->get()->keyBy('id');
+
+        $mixed = MasterCartonContent::selectRaw('master_carton_id, COUNT(DISTINCT product_id) p, COUNT(DISTINCT batch_id) b')
+                    ->whereIn('master_carton_id', $cartonIds)
+                    ->groupBy('master_carton_id')->get()
+                    ->filter(fn ($r) => $r->p > 1 || $r->b > 1)
+                    ->pluck('master_carton_id')->flip();
+
+        return response()->json([
+            'brn'     => $batch->brn,
+            'product' => $batch->product?->name,
+            'cartons' => $rows->map(fn ($r) => [
+                'id'            => $r->master_carton_id,
+                'carton_number' => $cartons[$r->master_carton_id]?->carton_number ?? '—',
+                'qty'           => (int) $r->q,
+                'status'        => $cartons[$r->master_carton_id]?->status_label ?? '—',
+                'status_badge'  => $cartons[$r->master_carton_id]?->status_badge_class ?? 'badge-draft',
+                'mixed'         => $mixed->has($r->master_carton_id),
+            ])->values(),
+        ]);
+    }
+
     /** Invalidate cached stat counters + batch summary after a mutation. */
     private function forgetCaches(): void
     {
