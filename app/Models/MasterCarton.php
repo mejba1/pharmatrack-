@@ -11,7 +11,7 @@ class MasterCarton extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'product_id', 'batch_id', 'carton_number', 'qr_code', 'carton_type', 'label',
+        'consignment_id', 'product_id', 'batch_id', 'carton_number', 'qr_code', 'carton_type', 'label',
         'capacity', 'packed_quantity', 'serial_start', 'serial_end',
         'status', 'dispatched_at', 'received_at', 'notes',
     ];
@@ -35,6 +35,11 @@ class MasterCarton extends Model
     public function batch()
     {
         return $this->belongsTo(Batch::class);
+    }
+
+    public function consignment()
+    {
+        return $this->belongsTo(Consignment::class);
     }
 
     public function scans()

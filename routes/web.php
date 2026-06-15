@@ -6,6 +6,7 @@ use App\Http\Controllers\BatchController;
 use App\Http\Controllers\PartialBatchController;
 use App\Http\Controllers\BatchDownloadController;
 use App\Http\Controllers\MasterCartonController;
+use App\Http\Controllers\ConsignmentController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\TherapeuticClassController;
 
@@ -38,6 +39,9 @@ Route::get('/verify/{code}', [BatchController::class, 'verify'])->name('verify')
 
 // ── Public master-carton scan (reached from a carton's QR code) ────────────
 Route::get('/carton/{qr}', [MasterCartonController::class, 'scan'])->name('carton.scan');
+
+// ── Public shipment scan (reached from a parent shipment QR code) ──────────
+Route::get('/shipment/{qr}', [ConsignmentController::class, 'scan'])->name('shipment.scan');
 
 // ── Main Application ──────────────────────────────────────────────────────
 Route::middleware([])->group(function () {
@@ -121,10 +125,15 @@ Route::middleware([])->group(function () {
         })->name('ci');
     });
 
-    // ── Shipments ─────────────────────────────────────────────────────────
-    Route::get('/shipments', function () {
-        return view('shipments');
-    })->name('shipments');
+    // ── Shipments / Consignments (parent aggregation over master cartons) ──
+    Route::get('/shipments', [ConsignmentController::class, 'index'])->name('shipments');
+    Route::post('/shipments', [ConsignmentController::class, 'store'])->name('shipments.store');
+    Route::get('/shipments/available-cartons', [ConsignmentController::class, 'availableCartons'])->name('shipments.available-cartons');
+    Route::get('/shipments/{consignment}', [ConsignmentController::class, 'show'])->name('shipments.show');
+    Route::post('/shipments/{consignment}/cartons', [ConsignmentController::class, 'addCartons'])->name('shipments.cartons.add');
+    Route::delete('/shipments/{consignment}/cartons/{masterCarton}', [ConsignmentController::class, 'removeCarton'])->name('shipments.cartons.remove');
+    Route::post('/shipments/{consignment}/move', [ConsignmentController::class, 'move'])->name('shipments.move');
+    Route::delete('/shipments/{consignment}', [ConsignmentController::class, 'destroy'])->name('shipments.destroy');
 
     // ── Distribution ─────────────────────────────────────────────────────
     Route::get('/distribution', function () {

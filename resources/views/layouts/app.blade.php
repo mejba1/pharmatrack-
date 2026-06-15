@@ -101,10 +101,9 @@
 
     {{-- Logistics --}}
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Logistics</div>
-    <a href="{{ route('shipments') }}" class="nav-item-link {{ request()->routeIs('shipments') ? 'active' : '' }}">
+    <a href="{{ route('shipments') }}" class="nav-item-link {{ request()->routeIs('shipments') || request()->routeIs('shipments.*') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-truck"></i></span>
       <span x-show="!sidebarCollapsed">Shipment Management</span>
-      <span class="nav-badge" x-show="!sidebarCollapsed">3</span>
     </a>
     <a href="{{ route('distribution') }}" class="nav-item-link {{ request()->routeIs('distribution') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-diagram-3"></i></span>
