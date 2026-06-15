@@ -274,9 +274,10 @@ class ConsignmentController extends Controller
             'note'             => $data['note'] ?? null,
         ]);
 
-        // Auto-close shipment status once every carton has been accounted for.
+        // Auto-mark the shipment received once no cartons are still pending
+        // (everything has been received, damaged, or recorded missing).
         $consignment->refresh()->loadMissing('cartons');
-        if ($consignment->cartons->whereNull('received_at')->where('carton_condition', '!=', 'missing')->isEmpty()) {
+        if ($consignment->pending_cartons->isEmpty()) {
             $consignment->update(['status' => 'received', 'received_at' => $consignment->received_at ?? now()]);
         }
 
@@ -285,6 +286,55 @@ class ConsignmentController extends Controller
             'message'  => "Carton {$masterCarton->carton_number} marked {$data['outcome']}.",
             'shipment' => $this->payload($consignment->fresh('cartons'), true),
         ]);
+    }
+
+    // ── Printable shipment QR labels & PDF (single / multiple / date-wise) ─
+
+    /** Browser print view; honours list filters + an explicit id selection. */
+    public function labels(Request $request): View
+    {
+        $filters      = $request->only(['status', 'destination', 'search', 'date_from', 'date_to', 'ids']);
+        $consignments = $this->labelsQuery($filters)->paginate(60)->withQueryString();
+        $title        = $this->labelsTitle($filters);
+
+        return view('shipment-labels', compact('consignments', 'title', 'filters'));
+    }
+
+    /** Downloadable PDF of shipment QR labels; same filters as the print view. */
+    public function labelsPdf(Request $request)
+    {
+        $filters      = $request->only(['status', 'destination', 'search', 'date_from', 'date_to', 'ids']);
+        $consignments = $this->labelsQuery($filters)->get();
+        abort_if($consignments->isEmpty(), 404, 'No shipments match the selected filters.');
+
+        $title = $this->labelsTitle($filters);
+        $name  = \Illuminate\Support\Str::slug($title ?: 'shipment', '_') . '_qr_labels';
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.shipment-labels', compact('consignments', 'title'))
+                    ->setPaper('a4', 'portrait')
+                    ->setOption('isRemoteEnabled', true);
+        return $pdf->download("{$name}.pdf");
+    }
+
+    private function labelsQuery(array $filters)
+    {
+        return Consignment::with('cartons')->filter($filters)->orderBy('consignment_number');
+    }
+
+    private function labelsTitle(array $filters): string
+    {
+        if (!empty($filters['ids'])) {
+            return 'Selected Shipments';
+        }
+        if (!empty($filters['date_from']) || !empty($filters['date_to'])) {
+            $from = $filters['date_from'] ?? '…';
+            $to   = $filters['date_to'] ?? '…';
+            return "Shipments {$from} → {$to}";
+        }
+        if (!empty($filters['destination'])) {
+            return 'Shipments to ' . $filters['destination'];
+        }
+        return 'All Shipments';
     }
 
     // ── Public parent-QR scan page ────────────────────────────────────────
@@ -342,6 +392,8 @@ class ConsignmentController extends Controller
             'product_list'    => $consignment->product_list,
             'batch_list'      => $consignment->batch_list,
             'received_count'  => $consignment->received_carton_count,
+            'received_ok'     => $consignment->received_ok_count,
+            'pending_cartons' => $consignment->pending_cartons,
             'missing_cartons' => $consignment->missing_cartons,
             'dispatched_at'   => $consignment->dispatched_at?->toIso8601String(),
             'received_at'     => $consignment->received_at?->toIso8601String(),

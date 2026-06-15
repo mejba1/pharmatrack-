@@ -76,20 +76,41 @@ class Consignment extends Model
 
     // ── Receiving reconciliation (expected vs received) ───────────────────
 
+    /** Cartons that physically arrived (good or damaged). */
     public function getReceivedCartonCountAttribute(): int
     {
         return $this->cartonCollection()->whereNotNull('received_at')->count();
     }
 
-    /** Cartons that have not arrived yet (expected − received). */
-    public function getMissingCartonsAttribute()
+    /** Arrived in good condition. */
+    public function getReceivedOkCountAttribute(): int
     {
-        return $this->cartonCollection()->whereNull('received_at')->pluck('carton_number')->values();
+        return $this->cartonCollection()
+            ->whereNotNull('received_at')
+            ->where('carton_condition', 'good')->count();
     }
 
     public function getDamagedCartonsAttribute()
     {
         return $this->cartonCollection()->where('carton_condition', 'damaged')->pluck('carton_number')->values();
+    }
+
+    /**
+     * Genuinely missing/short — a receiver explicitly marked the carton as
+     * not arrived. (Cartons still travelling are "pending", not missing.)
+     */
+    public function getMissingCartonsAttribute()
+    {
+        return $this->cartonCollection()->where('carton_condition', 'missing')->pluck('carton_number')->values();
+    }
+
+    /** Dispatched but not yet scanned at destination (still in transit). */
+    public function getPendingCartonsAttribute()
+    {
+        return $this->cartonCollection()
+            ->whereNull('received_at')
+            ->where('carton_condition', '!=', 'missing')
+            ->pluck('carton_number')->values();
     }
 
     private function cartonCollection()
@@ -131,6 +152,13 @@ class Consignment extends Model
         }
         if (!empty($filters['date_to'])) {
             $query->whereDate('created_at', '<=', $filters['date_to']);
+        }
+        if (!empty($filters['ids'])) {
+            $ids = is_array($filters['ids']) ? $filters['ids'] : explode(',', (string) $filters['ids']);
+            $ids = array_filter(array_map('intval', $ids));
+            if ($ids) {
+                $query->whereIn('id', $ids);
+            }
         }
         if (!empty($filters['search'])) {
             $s = $filters['search'];

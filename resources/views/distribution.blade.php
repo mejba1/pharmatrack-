@@ -112,18 +112,23 @@
 
     {{-- Exception reports --}}
     <div class="col-lg-5">
-      <div class="card mb-3"><div class="card-header bg-transparent fw-semibold text-danger"><i class="bi bi-question-octagon me-1"></i>Missing Cartons</div>
+      <div class="card mb-3"><div class="card-header bg-transparent">
+        <div class="fw-semibold text-danger"><i class="bi bi-question-octagon me-1"></i>Missing / Short Cartons</div>
+        <div class="text-muted-sm">Cartons a depot marked as <strong>never arrived</strong> when receiving a shipment (genuine shortage — not just in&nbsp;transit).</div>
+      </div>
       <div class="card-body p-0"><div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">
+          <thead><tr><th>Carton</th><th>Product</th><th>Shipment</th><th>Marked</th></tr></thead>
           <tbody>
             @forelse($missingCartons as $c)
             <tr>
               <td class="font-monospace" style="font-size:12px">{{ $c->carton_number }}</td>
               <td style="font-size:12px">{{ $c->products_summary }}</td>
-              <td class="font-monospace text-muted" style="font-size:11px">{{ $c->consignment?->consignment_number }}</td>
+              <td class="font-monospace text-muted" style="font-size:11px">{{ $c->consignment?->consignment_number ?? '—' }}</td>
+              <td class="text-muted" style="font-size:11px">{{ $c->updated_at?->format('M d') }}</td>
             </tr>
             @empty
-            <tr><td class="text-center text-muted py-3">No missing cartons. 🎉</td></tr>
+            <tr><td colspan="4" class="text-center text-muted py-3"><i class="bi bi-check-circle text-success me-1"></i>No missing cartons — nothing reported short.</td></tr>
             @endforelse
           </tbody>
         </table>

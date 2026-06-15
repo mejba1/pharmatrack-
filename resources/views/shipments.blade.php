@@ -34,6 +34,7 @@
       <div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Shipment / Consignment</div>
     </div>
     <div class="d-flex gap-2">
+      <a href="{{ route('shipments.labels', request()->only('status','destination','search','date_from','date_to')) }}" target="_blank" class="btn btn-outline-secondary btn-sm" title="Print QR labels for the current filter (date-wise)"><i class="bi bi-qr-code me-1"></i>QR Labels</a>
       <button class="btn btn-primary btn-sm" @click="openCreate()"><i class="bi bi-plus-lg me-1"></i>Create Shipment</button>
     </div>
   </div>
@@ -71,15 +72,27 @@
   </div></div>
 
   {{-- Shipments table --}}
-  <div class="card table-card"><div class="card-body p-0"><div class="table-responsive">
+  <div class="card table-card"><div class="card-body p-0">
+
+    {{-- Bulk QR download toolbar --}}
+    <div class="px-3 py-2 d-flex flex-wrap align-items-center gap-2 border-bottom" style="background:linear-gradient(180deg,rgba(13,110,253,.07),rgba(13,110,253,.02))" x-show="selected.length" x-cloak>
+      <span class="fw-semibold"><i class="bi bi-check2-square me-1 text-primary"></i><span x-text="selected.length"></span> selected</span>
+      <button class="btn btn-outline-primary btn-sm" @click="downloadSelected('print')"><i class="bi bi-printer me-1"></i>Print QR labels</button>
+      <button class="btn btn-danger btn-sm" @click="downloadSelected('pdf')"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
+      <button class="btn btn-link btn-sm text-muted ms-auto text-decoration-none" @click="clearSel()">Clear selection</button>
+    </div>
+
+    <div class="table-responsive">
     <table class="table table-hover mb-0 align-middle">
       <thead><tr>
+        <th style="width:38px" class="text-center"><input type="checkbox" class="form-check-input" title="Select all on this page" :checked="allChecked" @change="toggleAll($event)"></th>
         <th>Shipment No</th><th>Destination</th><th class="text-end">Cartons</th><th class="text-end">Units</th>
         <th>Products / Batches</th><th>Status</th><th>Created</th><th class="text-end" style="width:130px">Actions</th>
       </tr></thead>
       <tbody>
         @forelse($consignments as $s)
-        <tr>
+        <tr :class="selected.includes('{{ $s->id }}') ? 'table-active' : ''">
+          <td class="text-center"><input type="checkbox" class="form-check-input" value="{{ $s->id }}" x-model="selected"></td>
           <td>
             <span class="fw-semibold font-monospace" style="font-size:12px">{{ $s->consignment_number }}</span>
             <div class="text-muted-sm font-monospace">{{ $s->qr_code }}</div>
@@ -106,7 +119,7 @@
           </div></td>
         </tr>
         @empty
-        <tr><td colspan="8" class="text-center py-5 text-muted">
+        <tr><td colspan="9" class="text-center py-5 text-muted">
           <i class="bi bi-truck" style="font-size:32px;opacity:.2"></i>
           <div class="mt-2">No shipments yet. Click <strong>Create Shipment</strong> to group packed cartons into a consignment.</div>
         </td></tr>
@@ -214,12 +227,20 @@
               <div class="section-label">Receiving Reconciliation</div>
               <div class="recon">
                 <div class="box"><div class="n text-primary" x-text="v?.carton_count"></div><div class="text-muted-sm">Expected</div></div>
-                <div class="box"><div class="n text-success" x-text="v?.received_count"></div><div class="text-muted-sm">Received</div></div>
+                <div class="box"><div class="n text-success" x-text="v?.received_ok||0"></div><div class="text-muted-sm">Received OK</div></div>
                 <div class="box"><div class="n" :class="(v?.damaged_cartons?.length? 'text-danger':'text-muted')" x-text="v?.damaged_cartons?.length||0"></div><div class="text-muted-sm">Damaged</div></div>
                 <div class="box"><div class="n" :class="(v?.missing_cartons?.length? 'text-danger':'text-muted')" x-text="v?.missing_cartons?.length||0"></div><div class="text-muted-sm">Missing</div></div>
+                <div class="box"><div class="n" :class="(v?.pending_cartons?.length? 'text-warning':'text-muted')" x-text="v?.pending_cartons?.length||0"></div><div class="text-muted-sm">In Transit</div></div>
+              </div>
+              <div class="alert alert-light border mt-2 mb-0 py-2" style="font-size:12px">
+                <i class="bi bi-info-circle me-1 text-primary"></i>
+                <strong>Expected</strong> = total cartons sent. As they arrive, mark each
+                <strong class="text-success">Received</strong>, <strong class="text-danger">Damaged</strong>, or
+                <strong class="text-danger">Missing</strong> (short / never arrived).
+                <strong class="text-warning">In Transit</strong> = still on the way, not yet scanned.
               </div>
               <div class="mt-2" x-show="v?.missing_cartons?.length">
-                <span class="text-muted-sm me-1">Missing:</span>
+                <span class="text-muted-sm me-1">Missing cartons:</span>
                 <template x-for="m in v?.missing_cartons" :key="m"><span class="badge text-bg-danger me-1 font-monospace" x-text="m"></span></template>
               </div>
             </div>
@@ -327,6 +348,18 @@ function shipmentPage(){
     showView:false, v:null, vLoading:false, vLocation:'', vMoving:false,
     // receiving verification
     rcBusy:false, dmgCarton:null, dmgNote:'', dmgFile:null,
+    // multi-select (bulk QR labels)
+    selected:[],
+    pageIds: @json($consignments->pluck('id')->map(fn($i)=>(string)$i)->values()),
+    get allChecked(){ return this.pageIds.length>0 && this.pageIds.every(id=>this.selected.includes(id)); },
+    toggleAll(e){ this.selected = e.target.checked ? [...this.pageIds] : []; },
+    clearSel(){ this.selected=[]; },
+    downloadSelected(action){
+      if(!this.selected.length) return;
+      const base = action==='pdf' ? '{{ route('shipments.labels-pdf') }}' : '{{ route('shipments.labels') }}';
+      const url = base + '?ids=' + this.selected.join(',');
+      if(action==='print') window.open(url,'_blank'); else window.location.href=url;
+    },
 
     get canDispatch(){ return this.v && this.v.status==='created' && this.v.carton_count>0; },
     get canTransit(){ return this.v && this.v.status==='dispatched'; },

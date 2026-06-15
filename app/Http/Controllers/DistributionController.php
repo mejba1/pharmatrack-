@@ -28,19 +28,21 @@ class DistributionController extends Controller
             'shipments'  => Consignment::count(),
             'in_transit' => Consignment::whereIn('status', ['dispatched', 'in_transit'])->count(),
             'received'   => MasterCarton::whereNotNull('received_at')->count(),
-            'missing'    => MasterCarton::whereNotNull('consignment_id')
-                                ->whereNull('received_at')
+            // In transit: dispatched, not yet received, not flagged missing.
+            'pending'    => MasterCarton::whereNull('received_at')
+                                ->where('carton_condition', '!=', 'missing')
                                 ->whereHas('consignment', fn ($c) => $c->whereNotNull('dispatched_at'))
                                 ->count(),
+            // Genuinely missing/short: a receiver marked it as never arrived.
+            'missing'    => MasterCarton::where('carton_condition', 'missing')->count(),
             'damaged'    => MasterCarton::where('carton_condition', 'damaged')->count(),
         ];
 
         $recentShipments = Consignment::with('cartons')->orderByDesc('id')->limit(8)->get();
 
         $missingCartons = MasterCarton::with(['consignment', 'product', 'batch'])
-            ->whereNotNull('consignment_id')->whereNull('received_at')
-            ->whereHas('consignment', fn ($c) => $c->whereNotNull('dispatched_at'))
-            ->orderByDesc('id')->limit(15)->get();
+            ->where('carton_condition', 'missing')
+            ->orderByDesc('updated_at')->limit(15)->get();
 
         $damagedCartons = MasterCarton::with(['consignment', 'product', 'batch'])
             ->where('carton_condition', 'damaged')

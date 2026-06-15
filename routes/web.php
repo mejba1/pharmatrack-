@@ -130,6 +130,8 @@ Route::middleware([])->group(function () {
     Route::get('/shipments', [ConsignmentController::class, 'index'])->name('shipments');
     Route::post('/shipments', [ConsignmentController::class, 'store'])->name('shipments.store');
     Route::get('/shipments/available-cartons', [ConsignmentController::class, 'availableCartons'])->name('shipments.available-cartons');
+    Route::get('/shipments/labels', [ConsignmentController::class, 'labels'])->name('shipments.labels');
+    Route::get('/shipments/labels/pdf', [ConsignmentController::class, 'labelsPdf'])->name('shipments.labels-pdf');
     Route::get('/shipments/{consignment}', [ConsignmentController::class, 'show'])->name('shipments.show');
     Route::post('/shipments/{consignment}/cartons', [ConsignmentController::class, 'addCartons'])->name('shipments.cartons.add');
     Route::delete('/shipments/{consignment}/cartons/{masterCarton}', [ConsignmentController::class, 'removeCarton'])->name('shipments.cartons.remove');
