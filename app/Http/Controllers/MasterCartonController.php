@@ -252,7 +252,24 @@ class MasterCartonController extends Controller
     public function packedForm(): View
     {
         $products = Product::orderBy('name')->get(['id', 'name', 'prn']);
-        return view('master-cartons-packed', compact('products'));
+
+        // Last 100 master cartons for the recent-cartons table on the page.
+        $recent = MasterCarton::with(['contents.product', 'contents.batch', 'product', 'batch'])
+            ->orderByDesc('id')->limit(100)->get()
+            ->map(fn ($c) => [
+                'id'            => $c->id,
+                'carton_number' => $c->carton_number,
+                'product'       => $c->products_summary,
+                'batch'         => $c->batches_summary,
+                'qty'           => $c->packed_quantity,
+                'capacity'      => $c->capacity,
+                'status'        => $c->status_label,
+                'status_badge'  => $c->status_badge_class,
+                'packed'        => $c->packed_quantity > 0,
+                'created'       => $c->created_at?->format('M d, Y H:i'),
+            ])->values();
+
+        return view('master-cartons-packed', compact('products', 'recent'));
     }
 
     /**

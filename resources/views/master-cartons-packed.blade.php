@@ -142,6 +142,53 @@
       </button>
     </div></div>
   </form>
+
+  {{-- Recently created master cartons (last 100) --}}
+  <div class="card mt-3">
+    <div class="card-header bg-transparent d-flex flex-wrap align-items-center gap-2">
+      <span class="fw-semibold"><i class="bi bi-clock-history me-1"></i>Recent Master Cartons <span class="text-muted-sm fw-normal">(last 100)</span></span>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <label class="text-muted-sm mb-0">Show</label>
+        <select class="form-select form-select-sm" style="width:auto" x-model.number="pageSize">
+          <option :value="10">10</option><option :value="20">20</option><option :value="30">30</option>
+          <option :value="50">50</option><option :value="100">100</option>
+        </select>
+      </div>
+    </div>
+    <div class="card-body p-0"><div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead><tr>
+          <th style="cursor:pointer" @click="sortBy('carton_number')">MC No <i class="bi" :class="caret('carton_number')"></i></th>
+          <th>Product</th><th>Batch</th>
+          <th class="text-end" style="cursor:pointer" @click="sortBy('qty')">QTY <i class="bi" :class="caret('qty')"></i></th>
+          <th class="text-end" style="cursor:pointer" @click="sortBy('capacity')">Capacity <i class="bi" :class="caret('capacity')"></i></th>
+          <th>Status</th>
+          <th style="cursor:pointer" @click="sortBy('id')">Created <i class="bi" :class="caret('id')"></i></th>
+          <th class="text-end" style="width:100px">Download</th>
+        </tr></thead>
+        <tbody>
+          <template x-for="c in pagedRecent" :key="c.id">
+            <tr>
+              <td class="font-monospace fw-semibold" style="font-size:12px" x-text="c.carton_number"></td>
+              <td style="font-size:13px" x-text="c.product"></td>
+              <td class="font-monospace" style="font-size:12px" x-text="c.batch"></td>
+              <td class="text-end fw-semibold" x-text="c.qty.toLocaleString()"></td>
+              <td class="text-end text-muted" x-text="c.capacity.toLocaleString()"></td>
+              <td><span class="badge-status" :class="c.status_badge" x-text="c.status"></span></td>
+              <td class="text-muted" style="font-size:12px" x-text="c.created"></td>
+              <td class="text-end">
+                <a x-show="c.packed" :href="`{{ url('master-cartons') }}/${c.id}/serials-pdf`" class="btn btn-outline-danger btn-sm btn-icon" title="Serials PDF"><i class="bi bi-file-earmark-pdf"></i></a>
+                <span x-show="!c.packed" class="text-muted-sm">—</span>
+              </td>
+            </tr>
+          </template>
+          <tr x-show="!recent.length"><td colspan="8" class="text-center text-muted py-4">No master cartons yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="text-muted-sm px-3 py-2 border-top" x-show="recent.length">Showing <strong x-text="Math.min(pageSize, recent.length)"></strong> of <strong x-text="recent.length"></strong> recent cartons.</div>
+    </div>
+  </div>
 </div>
 @endsection
 
@@ -151,6 +198,19 @@ function packedForm(){
   return {
     saving:false, errors:{}, result:null,
     lines:[],
+    // recent cartons table
+    recent: @json($recent),
+    pageSize:10, sortKey:'id', sortDir:'desc',
+    sortBy(k){ if(this.sortKey===k){ this.sortDir = this.sortDir==='asc'?'desc':'asc'; } else { this.sortKey=k; this.sortDir = k==='carton_number'?'asc':'desc'; } },
+    caret(k){ if(this.sortKey!==k) return 'bi-chevron-expand text-muted'; return this.sortDir==='asc'?'bi-chevron-up':'bi-chevron-down'; },
+    get sortedRecent(){
+      const k=this.sortKey, dir=this.sortDir==='asc'?1:-1;
+      return [...this.recent].sort((a,b)=>{
+        if(k==='carton_number'){ return a.carton_number.localeCompare(b.carton_number)*dir; }
+        return ((a[k]||0)-(b[k]||0))*dir;
+      });
+    },
+    get pagedRecent(){ return this.sortedRecent.slice(0, this.pageSize); },
     init(){ this.addLine(); },
     blank(){ return {productId:'', batchId:'', batches:[], loadingB:false, mode:'range', start:'', end:'', serials:'', capacity:'', label:'', range:''}; },
     specStr(line){
