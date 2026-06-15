@@ -55,10 +55,23 @@
       <span class="nav-icon"><i class="bi bi-cloud-download"></i></span>
       <span x-show="!sidebarCollapsed">Batch Downloads</span>
     </a>
-    <a href="{{ route('master-cartons') }}" class="nav-item-link {{ request()->routeIs('master-cartons') || request()->routeIs('master-cartons.*') ? 'active' : '' }}">
-      <span class="nav-icon"><i class="bi bi-box-seam"></i></span>
-      <span x-show="!sidebarCollapsed">Master Carton Mgmt</span>
-    </a>
+    <div x-data="{open: {{ request()->routeIs('master-cartons') || request()->routeIs('master-cartons.*') ? 'true' : 'false' }}}">
+      <button class="nav-item-link {{ request()->routeIs('master-cartons') || request()->routeIs('master-cartons.*') ? 'active' : '' }}" @click="open = !open">
+        <span class="nav-icon"><i class="bi bi-box-seam"></i></span>
+        <span x-show="!sidebarCollapsed">Master Carton Mgmt</span>
+        <i class="bi bi-chevron-right nav-caret" x-show="!sidebarCollapsed" :class="{open: open}"></i>
+      </button>
+      <div class="nav-submenu" :class="{open: open}">
+        <a href="{{ route('master-cartons') }}" class="nav-item-link {{ request()->routeIs('master-cartons') && !request()->routeIs('master-cartons.create-packed') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-grid"></i></span>
+          <span x-show="!sidebarCollapsed">All Cartons</span>
+        </a>
+        <a href="{{ route('master-cartons.create-packed') }}" class="nav-item-link {{ request()->routeIs('master-cartons.create-packed') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-box2-heart"></i></span>
+          <span x-show="!sidebarCollapsed">Create Packed Cartons</span>
+        </a>
+      </div>
+    </div>
 
     {{-- Master Data --}}
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Master Data</div>

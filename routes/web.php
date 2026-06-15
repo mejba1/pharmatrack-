@@ -83,6 +83,8 @@ Route::middleware([])->group(function () {
     // ── Master Carton Management (Factory → Depot) ────────────────────────
     Route::get('/master-cartons', [MasterCartonController::class, 'index'])->name('master-cartons');
     Route::post('/master-cartons', [MasterCartonController::class, 'store'])->name('master-cartons.store');
+    Route::get('/master-cartons/create-packed', [MasterCartonController::class, 'packedForm'])->name('master-cartons.create-packed');
+    Route::post('/master-cartons/create-packed', [MasterCartonController::class, 'storePacked'])->name('master-cartons.store-packed');
     Route::get('/master-cartons/packing-cartons', [MasterCartonController::class, 'packingCartons'])->name('master-cartons.packing-cartons');
     Route::get('/master-cartons/batch-summary', [MasterCartonController::class, 'batchSummaryView'])->name('master-cartons.batch-summary');
     Route::get('/master-cartons/batch/{batch}/cartons', [MasterCartonController::class, 'batchCartons'])->name('master-cartons.batch-cartons');
