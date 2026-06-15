@@ -323,11 +323,12 @@ class MasterCartonController extends Controller
         abort_if(count($plan) > 5000, 422, 'That would create over 5,000 cartons in one go — split it into smaller submissions.');
 
         // ── Create + pack everything in one transaction ──
-        DB::transaction(function () use ($plan) {
+        $created = DB::transaction(function () use ($plan) {
             $last     = MasterCarton::withTrashed()->orderByDesc('id')->value('carton_number');
             $startSeq = $last ? ((int) substr($last, 3) + 1) : 1;
             $usedQr   = MasterCarton::withTrashed()->pluck('qr_code')->flip();
             $seq      = $startSeq;
+            $rows     = [];
 
             foreach ($plan as $p) {
                 do {
@@ -365,14 +366,29 @@ class MasterCartonController extends Controller
 
                 $carton->recomputeFromContents();
                 $carton->save();
+
+                $rows[] = [
+                    'id'            => $carton->id,
+                    'carton_number' => $carton->carton_number,
+                    'product'       => $p['batch']->product?->name,
+                    'batch'         => $p['batch']->brn,
+                    'qty'           => $carton->packed_quantity,
+                ];
             }
+            return $rows;
         });
 
         $this->forgetCaches();
-        $message = 'Created ' . count($plan) . ' packed carton(s) across ' . count($data['lines']) . ' line(s).';
+        $message = 'Created ' . count($created) . ' packed carton(s) across ' . count($data['lines']) . ' line(s).';
         if ($request->wantsJson()) {
             session()->flash('success', $message);
-            return response()->json(['success' => true, 'message' => $message, 'redirect' => route('master-cartons')]);
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'cartons' => $created,
+                'ids'     => array_column($created, 'id'),
+                'redirect'=> route('master-cartons'),
+            ]);
         }
         return redirect()->route('master-cartons')->with('success', $message);
     }

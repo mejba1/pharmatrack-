@@ -22,6 +22,40 @@
     <a href="{{ route('master-cartons') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Back to cartons</a>
   </div>
 
+  {{-- Created cartons result --}}
+  <template x-if="result">
+    <div class="card mb-3 border-success">
+      <div class="card-header bg-transparent d-flex flex-wrap align-items-center gap-2">
+        <span class="fw-semibold text-success"><i class="bi bi-check-circle-fill me-1"></i><span x-text="result.message"></span></span>
+        <div class="ms-auto d-flex gap-2">
+          <a :href="labelsUrl('print')" target="_blank" class="btn btn-outline-primary btn-sm"><i class="bi bi-printer me-1"></i>Print Labels</a>
+          <a :href="labelsUrl('pdf')" class="btn btn-danger btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>Download Labels PDF</a>
+          <button class="btn btn-outline-secondary btn-sm" @click="createMore()"><i class="bi bi-plus-lg me-1"></i>Create more</button>
+        </div>
+      </div>
+      <div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th style="width:48px">#</th><th>MC No</th><th>Product</th><th>Batch</th><th class="text-end">QTY</th><th class="text-end" style="width:120px">Download</th></tr></thead>
+          <tbody>
+            <template x-for="(c,i) in result.cartons" :key="c.id">
+              <tr>
+                <td x-text="i+1"></td>
+                <td class="font-monospace fw-semibold" style="font-size:12px" x-text="c.carton_number"></td>
+                <td style="font-size:13px" x-text="c.product"></td>
+                <td class="font-monospace" style="font-size:12px" x-text="c.batch"></td>
+                <td class="text-end fw-semibold" x-text="c.qty"></td>
+                <td class="text-end">
+                  <a :href="`{{ url('master-cartons') }}/${c.id}/serials-pdf`" class="btn btn-outline-danger btn-sm btn-icon" title="Download this carton's serials PDF"><i class="bi bi-file-earmark-pdf"></i></a>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot><tr><th colspan="4" class="text-end">Total</th><th class="text-end" x-text="result.cartons.reduce((s,c)=>s+c.qty,0).toLocaleString()"></th><th></th></tr></tfoot>
+        </table>
+      </div></div>
+    </div>
+  </template>
+
   <div class="alert alert-info d-flex align-items-center gap-2 mb-3" style="font-size:13px">
     <i class="bi bi-info-circle"></i>
     <span>Add a row per product/batch and the serials to pack. Each row creates packed master carton(s) — set a <strong>capacity</strong> to split a big serial set into several cartons of that size.</span>
@@ -115,7 +149,7 @@
 <script>
 function packedForm(){
   return {
-    saving:false, errors:{},
+    saving:false, errors:{}, result:null,
     lines:[],
     init(){ this.addLine(); },
     blank(){ return {productId:'', batchId:'', batches:[], loadingB:false, mode:'range', start:'', end:'', serials:'', capacity:'', label:'', range:''}; },
@@ -164,9 +198,17 @@ function packedForm(){
         fd.append(`lines[${i}][label]`, l.label||'');
       });
       try{ const res=await fetch('{{ route('master-cartons.store-packed') }}',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},body:fd});
-        const d=await res.json(); if(d.success){ window.location.href=d.redirect; } else { this.errors=d.errors??{}; this.saving=false; window.scrollTo({top:0,behavior:'smooth'}); }
-      }catch(e){ alert('Server error.'); this.saving=false; }
+        const d=await res.json();
+        if(d.success){ this.result={cartons:d.cartons||[], ids:d.ids||[], message:d.message}; this.lines=[this.blank()]; this.errors={}; window.scrollTo({top:0,behavior:'smooth'}); }
+        else { this.errors=d.errors??{}; window.scrollTo({top:0,behavior:'smooth'}); }
+      }catch(e){ alert('Server error.'); }
+      this.saving=false;
     },
+    labelsUrl(action){
+      const base = action==='pdf' ? '{{ route('master-cartons.labels-pdf') }}' : '{{ route('master-cartons.labels') }}';
+      return base + '?ids=' + (this.result?.ids||[]).join(',');
+    },
+    createMore(){ this.result=null; },
   };
 }
 </script>
