@@ -499,6 +499,38 @@ class MasterCartonController extends Controller
         ]));
     }
 
+    /**
+     * Downloadable PDF of a single carton's contents — grouped by product (then
+     * batch) with every serial number expanded (not ranges).
+     */
+    public function serialsPdf(MasterCarton $masterCarton)
+    {
+        $masterCarton->load(['contents.product', 'contents.batch']);
+        abort_if($masterCarton->contents->isEmpty(), 404, "Carton {$masterCarton->carton_number} has no packed serials yet.");
+
+        $cap = 50000; // safety guard against an unexpectedly huge carton
+        $groups = $masterCarton->contents
+            ->groupBy(fn ($c) => $c->product?->name ?? '—')
+            ->map(function ($items) use ($cap) {
+                return $items->groupBy(fn ($c) => $c->batch?->brn ?? '—')->map(function ($rows) use ($cap) {
+                    $serials = [];
+                    foreach ($rows as $r) {
+                        for ($s = $r->serial_start; $s <= $r->serial_end && count($serials) < $cap; $s++) {
+                            $serials[] = $s;
+                        }
+                    }
+                    sort($serials);
+                    return $serials;
+                });
+            });
+
+        $pdf = Pdf::loadView('exports.carton-serials', ['carton' => $masterCarton, 'groups' => $groups])
+                    ->setPaper('a4', 'portrait')
+                    ->setOption('isRemoteEnabled', true);
+
+        return $pdf->download($masterCarton->carton_number . '_serials.pdf');
+    }
+
     /** JSON: a carton's current contents + remaining capacity (pack modal). */
     public function cartonContents(MasterCarton $masterCarton): JsonResponse
     {

@@ -674,6 +674,10 @@
       </div>
       <div class="modal-footer">
         <a :href="vCarton ? `{{ url('carton') }}/${vCarton.qr_code}` : '#'" target="_blank" class="btn btn-outline-secondary btn-sm me-auto"><i class="bi bi-qr-code-scan me-1"></i>Open scan page</a>
+        <a :href="vCarton ? `{{ url('master-cartons') }}/${vCarton.id}/serials-pdf` : '#'"
+           class="btn btn-outline-danger btn-sm" :class="{disabled: !vPacked}"
+           :title="vPacked ? 'Download all serials (product-wise) as PDF' : 'Pack the carton first'">
+          <i class="bi bi-file-earmark-pdf me-1"></i>Download Serials PDF</a>
         <button class="btn btn-outline-secondary btn-sm" @click="showView=false">Close</button>
       </div>
     </div></div>
