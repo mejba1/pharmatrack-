@@ -28,11 +28,13 @@
       <div class="card-header bg-transparent d-flex flex-wrap align-items-center gap-2">
         <span class="fw-semibold text-success"><i class="bi bi-check-circle-fill me-1"></i><span x-text="result.message"></span></span>
         <div class="ms-auto d-flex gap-2">
-          <a :href="labelsUrl('print')" target="_blank" class="btn btn-outline-primary btn-sm"><i class="bi bi-printer me-1"></i>Print Labels</a>
-          <a :href="labelsUrl('pdf')" class="btn btn-danger btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>Download Labels PDF</a>
+          <a :href="labelsUrl('print')+'&print=1'" target="_blank" class="btn btn-success btn-sm"><i class="bi bi-printer-fill me-1"></i>Print Now</a>
+          <a :href="labelsUrl('print')" target="_blank" class="btn btn-outline-primary btn-sm"><i class="bi bi-printer me-1"></i>Preview Labels</a>
+          <a :href="labelsUrl('pdf')" class="btn btn-danger btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</a>
           <button class="btn btn-outline-secondary btn-sm" @click="createMore()"><i class="bi bi-plus-lg me-1"></i>Create more</button>
         </div>
       </div>
+      <div class="px-3 pb-2"><span class="text-muted-sm"><i class="bi bi-info-circle me-1"></i><a :href="labelsUrl('print')+'&print=1'" target="_blank">Click here to print directly</a> — the label sheet opens and the print dialog appears automatically.</span></div>
       <div class="card-body p-0"><div class="table-responsive">
         <table class="table table-sm align-middle mb-0">
           <thead><tr><th style="width:48px">#</th><th>MC No</th><th>Product</th><th>Batch</th><th class="text-end">QTY</th><th class="text-end" style="width:120px">Download</th></tr></thead>
@@ -243,8 +245,8 @@ function packedForm(){
     recentLabels(action){
       if(!this.selRecent.length) return;
       const base = action==='pdf' ? '{{ route('master-cartons.labels-pdf') }}' : '{{ route('master-cartons.labels') }}';
-      const url = base + '?ids=' + this.selRecent.join(',');
-      if(action==='print') window.open(url,'_blank'); else window.location.href=url;
+      let url = base + '?ids=' + this.selRecent.join(',');
+      if(action==='print'){ window.open(url+'&print=1','_blank'); } else { window.location.href=url; }
     },
     init(){ this.addLine(); },
     blank(){ return {productId:'', batchId:'', batches:[], loadingB:false, mode:'range', start:'', end:'', serials:'', capacity:'', label:'', range:''}; },

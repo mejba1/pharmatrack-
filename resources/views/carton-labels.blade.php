@@ -95,6 +95,10 @@
     document.querySelectorAll('.qr').forEach(function(el){
       new QRCode(el, { text: el.dataset.qr, width: 140, height: 140, correctLevel: QRCode.CorrectLevel.M });
     });
+    // Auto-open the print dialog when opened with ?print=1 (after QR codes render).
+    if (new URLSearchParams(location.search).has('print')) {
+      window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 700); });
+    }
   </script>
 </body>
 </html>
