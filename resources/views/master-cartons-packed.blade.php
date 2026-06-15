@@ -49,27 +49,44 @@
                 <template x-for="b in line.batches" :key="b.id"><option :value="b.id" x-text="b.label"></option></template>
               </select>
             </div>
-            <div class="col-md-3">
-              <label class="form-label">Serials <span class="text-danger">*</span></label>
-              <input type="text" class="form-control form-control-sm" x-model="line.serials" placeholder="1-50 or 1,3,6,8">
-              <div class="text-muted-sm mt-1" x-show="line.batchId && line.range" x-cloak>Available: <strong x-text="line.range"></strong></div>
-            </div>
             <div class="col-md-2">
               <label class="form-label">Capacity / carton</label>
               <input type="number" min="1" class="form-control form-control-sm" x-model.number="line.capacity" placeholder="all in one">
             </div>
-            <div class="col-md-1">
-              <label class="form-label">&nbsp;</label>
-              <div class="calc-pill w-100 justify-content-center" :title="serialCount(line)+' serials → '+cartonCount(line)+' carton(s)'">
-                <i class="bi bi-box-seam"></i><strong x-text="cartonCount(line)"></strong>
-              </div>
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
               <label class="form-label">Label (optional)</label>
               <input type="text" class="form-control form-control-sm" x-model="line.label" placeholder="e.g. Zone A">
             </div>
-            <div class="col-md-9 text-md-end">
-              <span class="text-muted-sm" x-show="serialCount(line)>0"><span x-text="serialCount(line).toLocaleString()"></span> serial(s) → <strong x-text="cartonCount(line)"></strong> carton(s) of up to <span x-text="(line.capacity||serialCount(line))"></span></span>
+
+            {{-- Serials: Range or Specific --}}
+            <div class="col-12">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <label class="form-label mb-0">Serials <span class="text-danger">*</span></label>
+                <div class="btn-group btn-group-sm" role="group">
+                  <button type="button" class="btn" :class="line.mode==='range' ? 'btn-info text-white' : 'btn-outline-secondary'" @click="line.mode='range'">Range</button>
+                  <button type="button" class="btn" :class="line.mode==='specific' ? 'btn-info text-white' : 'btn-outline-secondary'" @click="line.mode='specific'">Specific</button>
+                </div>
+                <span class="text-muted-sm ms-1" x-show="line.batchId && line.range" x-cloak>· Available <strong x-text="line.range"></strong></span>
+              </div>
+              <div class="row g-2 align-items-center">
+                {{-- range --}}
+                <div class="col-6 col-md-2" x-show="line.mode==='range'">
+                  <input type="number" min="1" class="form-control form-control-sm" x-model.number="line.start" placeholder="Start e.g. 1">
+                </div>
+                <div class="col-6 col-md-2" x-show="line.mode==='range'">
+                  <input type="number" min="1" class="form-control form-control-sm" x-model.number="line.end" placeholder="End e.g. 50">
+                </div>
+                {{-- specific --}}
+                <div class="col-md-4" x-show="line.mode==='specific'">
+                  <input type="text" class="form-control form-control-sm" x-model="line.serials" placeholder="1,3,6,8 or 1-5,10-12">
+                </div>
+                <div class="col-md text-md-end">
+                  <span class="calc-pill" x-show="serialCount(line)>0">
+                    <i class="bi bi-box-seam"></i>
+                    <span><strong x-text="serialCount(line).toLocaleString()"></strong> serial(s) → <strong x-text="cartonCount(line)"></strong> carton(s)</span>
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -101,7 +118,11 @@ function packedForm(){
     saving:false, errors:{},
     lines:[],
     init(){ this.addLine(); },
-    blank(){ return {productId:'', batchId:'', batches:[], loadingB:false, serials:'', capacity:'', label:'', range:''}; },
+    blank(){ return {productId:'', batchId:'', batches:[], loadingB:false, mode:'range', start:'', end:'', serials:'', capacity:'', label:'', range:''}; },
+    specStr(line){
+      if(line.mode==='range'){ return (line.start>0 && line.end>=line.start) ? (line.start+'-'+line.end) : ''; }
+      return (line.serials||'').trim();
+    },
     addLine(){ this.lines.push(this.blank()); },
     removeLine(i){ this.lines.splice(i,1); if(!this.lines.length) this.addLine(); },
     _batches(pid){ return fetch(`{{ url('partial-batches/products') }}/${pid}/batches`,{headers:{'Accept':'application/json'}}).then(r=>r.json()); },
@@ -120,7 +141,7 @@ function packedForm(){
       });
       return [...new Set(out)];
     },
-    serialCount(line){ return this.parse(line.serials).length; },
+    serialCount(line){ return this.parse(this.specStr(line)).length; },
     cartonCount(line){ const n=this.serialCount(line); if(!n) return 0; const cap=line.capacity>0?line.capacity:n; return Math.ceil(n/cap); },
     get totalSerials(){ return this.lines.reduce((s,l)=>s+this.serialCount(l),0); },
     get totalCartons(){ return this.lines.reduce((s,l)=>s+this.cartonCount(l),0); },
@@ -131,7 +152,7 @@ function packedForm(){
       this.lines.forEach((l,i)=>{
         fd.append(`lines[${i}][product_id]`, l.productId);
         fd.append(`lines[${i}][batch_id]`, l.batchId);
-        fd.append(`lines[${i}][serials]`, l.serials);
+        fd.append(`lines[${i}][serials]`, this.specStr(l));
         fd.append(`lines[${i}][capacity]`, l.capacity||'');
         fd.append(`lines[${i}][label]`, l.label||'');
       });
