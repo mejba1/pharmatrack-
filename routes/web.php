@@ -87,6 +87,7 @@ Route::middleware([])->group(function () {
     Route::post('/master-cartons/create-packed', [MasterCartonController::class, 'storePacked'])->name('master-cartons.store-packed');
     Route::get('/master-cartons/packing-cartons', [MasterCartonController::class, 'packingCartons'])->name('master-cartons.packing-cartons');
     Route::get('/master-cartons/batch-summary', [MasterCartonController::class, 'batchSummaryView'])->name('master-cartons.batch-summary');
+    Route::get('/master-cartons/batch-summary-page', [MasterCartonController::class, 'batchSummaryPage'])->name('master-cartons.batch-summary-page');
     Route::get('/master-cartons/batch/{batch}/cartons', [MasterCartonController::class, 'batchCartons'])->name('master-cartons.batch-cartons');
     Route::post('/master-cartons/contents', [MasterCartonController::class, 'addContent'])->name('master-cartons.contents.add');
     Route::post('/master-cartons/contents-serials', [MasterCartonController::class, 'addContentSerials'])->name('master-cartons.contents.add-serials');

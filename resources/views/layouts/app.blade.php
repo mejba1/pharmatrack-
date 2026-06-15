@@ -70,6 +70,10 @@
           <span class="nav-icon"><i class="bi bi-box2-heart"></i></span>
           <span x-show="!sidebarCollapsed">Create Packed Cartons</span>
         </a>
+        <a href="{{ route('master-cartons.batch-summary-page') }}" class="nav-item-link {{ request()->routeIs('master-cartons.batch-summary-page') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-clipboard-data"></i></span>
+          <span x-show="!sidebarCollapsed">Batch-wise Summary</span>
+        </a>
       </div>
     </div>
 

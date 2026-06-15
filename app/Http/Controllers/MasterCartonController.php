@@ -66,6 +66,13 @@ class MasterCartonController extends Controller
         return view('partials.carton-batch-summary', compact('summary'));
     }
 
+    /** Full-page batch-wise summary (sidebar entry). */
+    public function batchSummaryPage(): View
+    {
+        $summary = Cache::remember('mc_batch_summary', 60, fn () => $this->batchSummary());
+        return view('master-cartons-batch-summary', compact('summary'));
+    }
+
     /** JSON: cartons holding a given batch (bounded), for the batch-summary modal. */
     public function batchCartons(Batch $batch): JsonResponse
     {
