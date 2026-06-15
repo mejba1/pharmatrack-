@@ -22,7 +22,7 @@ class DistributionController extends Controller
 
     public function index(): View
     {
-        $stats = [
+        $stats = \Illuminate\Support\Facades\Cache::remember('dist_stats', 60, fn () => [
             'batches'    => Batch::count(),
             'cartons'    => MasterCarton::count(),
             'shipments'  => Consignment::count(),
@@ -36,9 +36,9 @@ class DistributionController extends Controller
             // Genuinely missing/short: a receiver marked it as never arrived.
             'missing'    => MasterCarton::where('carton_condition', 'missing')->count(),
             'damaged'    => MasterCarton::where('carton_condition', 'damaged')->count(),
-        ];
+        ]);
 
-        $recentShipments = Consignment::with('cartons')->orderByDesc('id')->limit(8)->get();
+        $recentShipments = Consignment::orderByDesc('id')->limit(8)->get();
 
         $missingCartons = MasterCarton::with(['consignment', 'product', 'batch'])
             ->where('carton_condition', 'missing')

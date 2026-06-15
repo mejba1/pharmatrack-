@@ -101,14 +101,31 @@
 
     {{-- Logistics --}}
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Logistics</div>
-    <a href="{{ route('shipments') }}" class="nav-item-link {{ request()->routeIs('shipments') || request()->routeIs('shipments.*') ? 'active' : '' }}">
-      <span class="nav-icon"><i class="bi bi-truck"></i></span>
-      <span x-show="!sidebarCollapsed">Shipment Management</span>
-    </a>
-    <a href="{{ route('distribution') }}" class="nav-item-link {{ request()->routeIs('distribution') ? 'active' : '' }}">
-      <span class="nav-icon"><i class="bi bi-diagram-3"></i></span>
-      <span x-show="!sidebarCollapsed">Distribution Hierarchy</span>
-    </a>
+    <div x-data="{open: {{ request()->routeIs('shipments') || request()->routeIs('shipments.*') || request()->routeIs('distribution') ? 'true' : 'false' }}}">
+      <button class="nav-item-link {{ request()->routeIs('shipments') || request()->routeIs('shipments.*') || request()->routeIs('distribution') ? 'active' : '' }}" @click="open = !open">
+        <span class="nav-icon"><i class="bi bi-truck"></i></span>
+        <span x-show="!sidebarCollapsed">Shipment Management</span>
+        <i class="bi bi-chevron-right nav-caret" x-show="!sidebarCollapsed" :class="{open: open}"></i>
+      </button>
+      <div class="nav-submenu" :class="{open: open}">
+        <a href="{{ route('shipments') }}" class="nav-item-link {{ request()->routeIs('shipments') && !request()->routeIs('shipments.receiving') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-box-seam"></i></span>
+          <span x-show="!sidebarCollapsed">All Shipments</span>
+        </a>
+        <a href="{{ route('shipments.receiving') }}" class="nav-item-link {{ request()->routeIs('shipments.receiving') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-box-arrow-in-down"></i></span>
+          <span x-show="!sidebarCollapsed">Receiving / Verification</span>
+        </a>
+        <a href="{{ route('distribution') }}" class="nav-item-link {{ request()->routeIs('distribution') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-diagram-3"></i></span>
+          <span x-show="!sidebarCollapsed">Distribution Dashboard</span>
+        </a>
+        <a href="{{ route('shipments.labels') }}" target="_blank" class="nav-item-link">
+          <span class="nav-icon"><i class="bi bi-qr-code"></i></span>
+          <span x-show="!sidebarCollapsed">Traceability &amp; QR Labels</span>
+        </a>
+      </div>
+    </div>
 
     {{-- Compliance --}}
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Compliance</div>

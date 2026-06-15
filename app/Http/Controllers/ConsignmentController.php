@@ -9,6 +9,7 @@ use App\Models\MasterCartonScan;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -23,23 +24,39 @@ class ConsignmentController extends Controller
 
     public function index(Request $request): View
     {
+        return $this->listing($request, null);
+    }
+
+    /** Receiving / verification view — only shipments still on the way. */
+    public function receiving(Request $request): View
+    {
+        return $this->listing($request, 'receiving');
+    }
+
+    /**
+     * Shared cursor-paginated listing. Reads denormalized rollups (cartons_count
+     * / units_count) so no carton rows are hydrated for the list, and caches the
+     * stat counters to avoid 5 COUNT(*)s per request.
+     */
+    private function listing(Request $request, ?string $mode): View
+    {
         $filters = $request->only(['status', 'destination', 'search', 'date_from', 'date_to']);
 
-        $consignments = Consignment::with(['cartons'])
-                        ->filter($filters)
-                        ->orderByDesc('id')
-                        ->paginate(15)
-                        ->withQueryString();
+        $query = Consignment::filter($filters)->orderByDesc('id');
+        if ($mode === 'receiving') {
+            $query->whereIn('status', ['dispatched', 'in_transit']);
+        }
+        $consignments = $query->cursorPaginate(15)->withQueryString();
 
-        $stats = [
+        $stats = Cache::remember('ship_stats', 60, fn () => [
             'total'      => Consignment::count(),
             'created'    => Consignment::where('status', 'created')->count(),
             'in_transit' => Consignment::whereIn('status', ['dispatched', 'in_transit'])->count(),
             'received'   => Consignment::where('status', 'received')->count(),
             'cartons'    => MasterCarton::whereNotNull('consignment_id')->count(),
-        ];
+        ]);
 
-        return view('shipments', compact('consignments', 'stats', 'filters'));
+        return view('shipments', compact('consignments', 'stats', 'filters', 'mode'));
     }
 
     // ── Create ────────────────────────────────────────────────────────────
@@ -69,6 +86,7 @@ class ConsignmentController extends Controller
             ]);
 
             $this->assignCartons($consignment, $data['carton_ids'] ?? []);
+            $consignment->recomputeSummary();
 
             ConsignmentScan::create([
                 'consignment_id' => $consignment->id,
@@ -81,6 +99,7 @@ class ConsignmentController extends Controller
             return $consignment;
         });
 
+        $this->forgetCaches();
         $message = "Shipment {$consignment->consignment_number} created with {$consignment->carton_count} carton(s).";
         if ($request->wantsJson()) {
             session()->flash('success', $message);
@@ -116,6 +135,8 @@ class ConsignmentController extends Controller
         }
 
         $added = $this->assignCartons($consignment, $data['carton_ids']);
+        $consignment->recomputeSummary();
+        $this->forgetCaches();
 
         return response()->json([
             'success'  => true,
@@ -131,6 +152,8 @@ class ConsignmentController extends Controller
         }
         if ((int) $masterCarton->consignment_id === (int) $consignment->id) {
             $masterCarton->update(['consignment_id' => null]);
+            $consignment->recomputeSummary();
+            $this->forgetCaches();
         }
 
         return response()->json([
@@ -142,13 +165,17 @@ class ConsignmentController extends Controller
 
     // ── JSON: packed cartons available to add (not yet in a consignment) ───
 
-    public function availableCartons(): JsonResponse
+    public function availableCartons(Request $request): JsonResponse
     {
+        $q = trim((string) $request->query('q', ''));
+
         $cartons = MasterCarton::with(['product', 'batch'])
             ->whereNull('consignment_id')
             ->where('packed_quantity', '>', 0)
             ->whereNotIn('status', ['dispatched', 'received'])
+            ->when($q !== '', fn ($w) => $w->where('carton_number', 'like', $q . '%'))
             ->orderBy('carton_number')
+            ->limit(25)            // never return the whole table to the picker
             ->get();
 
         return response()->json($cartons->map(fn ($c) => [
@@ -222,6 +249,7 @@ class ConsignmentController extends Controller
             ]);
         });
 
+        $this->forgetCaches();
         $label   = ['dispatched' => 'dispatched from factory', 'in_transit' => 'marked in transit', 'received' => 'received'][$data['event']];
         $message = "Shipment {$consignment->consignment_number} {$label}.";
         if ($request->wantsJson()) {
@@ -280,6 +308,7 @@ class ConsignmentController extends Controller
         if ($consignment->pending_cartons->isEmpty()) {
             $consignment->update(['status' => 'received', 'received_at' => $consignment->received_at ?? now()]);
         }
+        $this->forgetCaches();
 
         return response()->json([
             'success'  => true,
@@ -304,8 +333,11 @@ class ConsignmentController extends Controller
     public function labelsPdf(Request $request)
     {
         $filters      = $request->only(['status', 'destination', 'search', 'date_from', 'date_to', 'ids']);
+        $count        = $this->labelsQuery($filters)->count();
+        abort_if($count === 0, 404, 'No shipments match the selected filters.');
+        abort_if($count > 500, 422, "Too many shipments ({$count}) for a single PDF. Narrow the filter (status / destination / date range) or select specific rows — max 500 per PDF.");
+
         $consignments = $this->labelsQuery($filters)->get();
-        abort_if($consignments->isEmpty(), 404, 'No shipments match the selected filters.');
 
         $title = $this->labelsTitle($filters);
         $name  = \Illuminate\Support\Str::slug($title ?: 'shipment', '_') . '_qr_labels';
@@ -366,6 +398,7 @@ class ConsignmentController extends Controller
             $consignment->cartons()->update(['consignment_id' => null]); // release cartons
             $consignment->delete();
         });
+        $this->forgetCaches();
 
         return redirect()->route('shipments')->with('success', "Shipment {$num} removed; its cartons were released.");
     }
@@ -430,6 +463,13 @@ class ConsignmentController extends Controller
         ])->values();
 
         return $base;
+    }
+
+    /** Invalidate cached stat counters touched by a mutation. */
+    private function forgetCaches(): void
+    {
+        Cache::forget('ship_stats');
+        Cache::forget('dist_stats');
     }
 
     private function fail(Request $request, string $field, string $message): JsonResponse|RedirectResponse

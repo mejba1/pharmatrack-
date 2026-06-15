@@ -11,6 +11,7 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -35,87 +36,86 @@ class MasterCartonController extends Controller
     {
         $filters = $request->only(['product_id', 'batch_id', 'status', 'search', 'fill', 'date_from', 'date_to']);
 
+        // Cursor (keyset) pagination — no COUNT(*), no deep OFFSET on millions.
         $cartons = MasterCarton::with(['product', 'batch', 'contents.product', 'contents.batch'])
                     ->filter($filters)
                     ->orderByDesc('id')
-                    ->paginate(20)
+                    ->cursorPaginate(20)
                     ->withQueryString();
 
-        $stats = [
+        // Cached so the 5 COUNT(*)s aren't recomputed on every request.
+        $stats = Cache::remember('mc_stats', 60, fn () => [
             'total'      => MasterCarton::count(),
             'packed'     => MasterCarton::where('packed_quantity', '>', 0)->count(),
             'empty'      => MasterCarton::where('packed_quantity', 0)->count(),
             'dispatched' => MasterCarton::where('status', 'dispatched')->count(),
             'received'   => MasterCarton::where('status', 'received')->count(),
-        ];
+        ]);
 
-        $summary  = $this->batchSummary();
+        // Batch-wise summary is heavy; it's loaded lazily via batchSummaryView().
         $products = Product::orderBy('name')->get(['id', 'name', 'prn']);
-        $batches  = Batch::orderByDesc('id')->get(['id', 'brn', 'batch_number', 'product_id']);
+        $batches  = Batch::orderByDesc('id')->limit(500)->get(['id', 'brn', 'batch_number', 'product_id']);
 
-        return view('master-cartons', compact('cartons', 'stats', 'summary', 'filters', 'products', 'batches'));
+        return view('master-cartons', compact('cartons', 'stats', 'filters', 'products', 'batches'));
     }
 
-    /** Batch-wise carton summary built from carton contents (mixed-aware). */
+    /** Lazy-loaded, bounded batch-wise summary (AJAX partial). */
+    public function batchSummaryView(): View
+    {
+        $summary = Cache::remember('mc_batch_summary', 60, fn () => $this->batchSummary());
+        return view('partials.carton-batch-summary', compact('summary'));
+    }
+
+    /** Invalidate cached stat counters + batch summary after a mutation. */
+    private function forgetCaches(): void
+    {
+        Cache::forget('mc_stats');
+        Cache::forget('mc_batch_summary');
+        Cache::forget('dist_stats');
+    }
+
+    /**
+     * Batch-wise carton summary — bounded & aggregate-only (no per-carton
+     * hydration). Shows the 50 most recent batches that have cartons; each row
+     * links to the filtered carton list instead of inline-expanding cartons.
+     */
     private function batchSummary()
     {
-        $batchIds = MasterCarton::whereNotNull('batch_id')->pluck('batch_id')
-                    ->merge(MasterCartonContent::pluck('batch_id'))
-                    ->unique()->values();
+        // Aggregate packed units + distinct cartons per batch, from contents.
+        $packed = MasterCartonContent::selectRaw('batch_id, SUM(quantity) packed, COUNT(DISTINCT master_carton_id) cartons')
+                    ->groupBy('batch_id')->get()->keyBy('batch_id');
+
+        // Empty/unpacked standard cartons assigned to a batch.
+        $emptyByBatch = MasterCarton::selectRaw('batch_id, COUNT(*) c')
+                    ->whereNotNull('batch_id')->where('packed_quantity', 0)
+                    ->groupBy('batch_id')->pluck('c', 'batch_id');
+
+        // Recent batches that appear in cartons (bounded to 50).
+        $batchIds = $packed->keys()
+            ->merge($emptyByBatch->keys())
+            ->unique()->sortDesc()->take(50)->values();
 
         if ($batchIds->isEmpty()) {
             return collect();
         }
 
-        $packedByBatch = MasterCartonContent::selectRaw('batch_id, SUM(quantity) q')
-                            ->groupBy('batch_id')->pluck('q', 'batch_id');
         $batches = Batch::with('product')->whereIn('id', $batchIds)->get()->keyBy('id');
 
-        // Per-batch list of cartons that physically hold units of that batch,
-        // with the quantity of this batch packed in each carton.
-        $cartonRows = MasterCartonContent::selectRaw('batch_id, master_carton_id, SUM(quantity) q')
-                        ->groupBy('batch_id', 'master_carton_id')->get();
-        $cartonNumbers = MasterCarton::whereIn('id', $cartonRows->pluck('master_carton_id')->unique())
-                            ->pluck('carton_number', 'id');
-        $cartonsByBatch = $cartonRows->groupBy('batch_id');
-
-        // Cartons that hold more than one product/batch — flagged in the list so
-        // a carton appearing under a batch with a partial qty reads clearly.
-        $mixedCartonIds = MasterCartonContent::selectRaw('master_carton_id, COUNT(DISTINCT product_id) p, COUNT(DISTINCT batch_id) b')
-                            ->groupBy('master_carton_id')->get()
-                            ->filter(fn ($r) => $r->p > 1 || $r->b > 1)
-                            ->pluck('master_carton_id')->flip();
-
-        return $batchIds->map(function ($bid) use ($packedByBatch, $batches, $cartonsByBatch, $cartonNumbers, $mixedCartonIds) {
-            $cartonQ = MasterCarton::where(fn ($q) => $q
-                ->where('batch_id', $bid)
-                ->orWhereHas('contents', fn ($c) => $c->where('batch_id', $bid)));
-
-            $cartons   = (clone $cartonQ)->count();
-            $remaining = (clone $cartonQ)->where('packed_quantity', 0)->count();
-            $packed    = (int) ($packedByBatch[$bid] ?? 0);
-            $batch     = $batches->get($bid);
-            $total     = $batch?->total_quantity ?? 0;
-
-            $cartonsList = ($cartonsByBatch[$bid] ?? collect())
-                ->map(fn ($r) => [
-                    'id'            => $r->master_carton_id,
-                    'carton_number' => $cartonNumbers[$r->master_carton_id] ?? '—',
-                    'qty'           => (int) $r->q,
-                    'mixed'         => $mixedCartonIds->has($r->master_carton_id),
-                ])
-                ->sortBy('carton_number')->values();
+        return $batchIds->map(function ($bid) use ($packed, $emptyByBatch, $batches) {
+            $row    = $packed->get($bid);
+            $batch  = $batches->get($bid);
+            $units  = (int) ($row->packed ?? 0);
+            $total  = $batch?->total_quantity ?? 0;
 
             return [
                 'batch'             => $batch,
-                'cartons'           => $cartons,
-                'remaining_cartons' => $remaining,
-                'packed'            => $packed,
+                'cartons'           => (int) ($row->cartons ?? 0) + (int) ($emptyByBatch[$bid] ?? 0),
+                'remaining_cartons' => (int) ($emptyByBatch[$bid] ?? 0),
+                'packed'            => $units,
                 'total'             => $total,
-                'unpacked'          => max(0, $total - $packed),
-                'cartons_list'      => $cartonsList,
+                'unpacked'          => max(0, $total - $units),
             ];
-        })->sortByDesc(fn ($r) => $r['batch']?->id)->values();
+        })->values();
     }
 
     // ── Generate cartons (standard for a batch, or generic) ───────────────
@@ -190,6 +190,7 @@ class MasterCartonController extends Controller
             }
         });
 
+        $this->forgetCaches();
         $what    = $type === 'generic' ? 'generic master carton(s)' : "master carton(s) for batch";
         $message = "Generated {$count} {$what} of {$capacity} units each.";
 
@@ -266,6 +267,7 @@ class MasterCartonController extends Controller
             $carton->save();
         });
 
+        $this->forgetCaches();
         return response()->json([
             'success'  => true,
             'message'  => "Added serials {$start}–{$end} ({$qty} units) to {$carton->carton_number}.",
@@ -299,6 +301,7 @@ class MasterCartonController extends Controller
             }
         });
 
+        $this->forgetCaches();
         return response()->json([
             'success'  => true,
             'message'  => 'Segment removed.',
@@ -309,11 +312,26 @@ class MasterCartonController extends Controller
 
     // ── JSON: cartons available for packing (have free capacity) ──────────
 
-    public function packingCartons(): JsonResponse
+    public function packingCartons(Request $request): JsonResponse
     {
-        $cartons = MasterCarton::whereColumn('packed_quantity', '<', 'capacity')
-                    ->whereNotIn('status', ['dispatched', 'received'])
-                    ->orderBy('carton_number')
+        $query = MasterCarton::whereColumn('packed_quantity', '<', 'capacity')
+                    ->whereNotIn('status', ['dispatched', 'received']);
+
+        // Bounded fetch — filter by a single carton, a batch, or generic type,
+        // optionally narrowed by a carton-number prefix; never the whole table.
+        if ($id = $request->query('id')) {
+            $query->where('id', $id);
+        } elseif ($request->query('type') === 'generic') {
+            $query->where('carton_type', 'generic');
+        } elseif ($batchId = $request->query('batch_id')) {
+            $query->where('batch_id', $batchId);
+        }
+        if (($q = trim((string) $request->query('q', ''))) !== '') {
+            $query->where('carton_number', 'like', $q . '%');
+        }
+
+        $cartons = $query->orderBy('carton_number')
+                    ->limit(25)
                     ->get(['id', 'carton_number', 'carton_type', 'capacity', 'packed_quantity', 'batch_id', 'product_id']);
 
         return response()->json($cartons->map(fn ($c) => [
@@ -414,6 +432,7 @@ class MasterCartonController extends Controller
             'note'             => $data['note'] ?? null,
         ]);
 
+        $this->forgetCaches();
         $label   = $data['event'] === 'dispatched' ? 'dispatched from factory' : 'received at depot';
         $message = "Carton {$masterCarton->carton_number} marked as {$label}.";
         if ($request->wantsJson()) {
@@ -439,8 +458,11 @@ class MasterCartonController extends Controller
     public function labelsPdf(Request $request)
     {
         $filters = $request->only(['product_id', 'batch_id', 'status', 'type', 'search', 'fill', 'date_from', 'date_to', 'ids']);
+        $count   = $this->labelsQuery($filters)->count();
+        abort_if($count === 0, 404, 'No cartons match the selected filters.');
+        abort_if($count > 1000, 422, "Too many cartons ({$count}) for a single PDF. Narrow the filter (product / batch / status / date) or select specific rows — max 1000 per PDF.");
+
         $cartons = $this->labelsQuery($filters)->get();
-        abort_if($cartons->isEmpty(), 404, 'No cartons match the selected filters.');
 
         $title = $this->labelsTitle($filters);
         $name  = Str::slug($title ?: 'master_carton', '_') . '_labels';
@@ -520,6 +542,7 @@ class MasterCartonController extends Controller
             $masterCarton->delete();
         });
 
+        $this->forgetCaches();
         return redirect()->route('master-cartons')->with('success', "Carton {$num} removed.");
     }
 

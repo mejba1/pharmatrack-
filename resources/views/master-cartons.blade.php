@@ -88,64 +88,18 @@
     <div class="col-6 col-md"><div class="stat-card stat-info"><div class="stat-icon"><i class="bi bi-box-arrow-in-down"></i></div><div><div class="stat-value">{{ number_format($stats['received']) }}</div><div class="stat-label">Received</div></div></div></div>
   </div>
 
-  {{-- Batch-wise summary --}}
-  @if($summary->count())
-  <div class="card mb-3">
-    <div class="card-header bg-transparent fw-semibold"><i class="bi bi-clipboard-data me-1"></i>Batch-wise Carton Summary</div>
-    <div class="card-body p-0"><div class="table-responsive">
-      <table class="table table-sm mb-0 align-middle">
-        <thead><tr>
-          <th>Batch</th><th>Product</th><th class="text-end">Total Qty</th><th class="text-end">Cartons</th>
-          <th class="text-end">Remaining Cartons</th><th class="text-end">Packed Units</th><th class="text-end">Unpacked</th><th style="width:120px"></th>
-        </tr></thead>
-        <tbody>
-          @foreach($summary as $s)
-          @php $bid = $s['batch']?->id; @endphp
-          <tr>
-            <td class="font-monospace" style="font-size:12px">
-              @if($s['cartons_list']->count())
-              <button class="btn btn-link btn-sm p-0 me-1 text-decoration-none" @click="toggleBatch({{ $bid }})" title="Show packed cartons">
-                <i class="bi" :class="expandedBatch==={{ $bid }} ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
-              </button>
-              @endif
-              {{ $s['batch']?->brn ?? '—' }}
-            </td>
-            <td style="font-size:13px">{{ $s['batch']?->product?->name ?? '—' }}</td>
-            <td class="text-end">{{ number_format($s['total']) }}</td>
-            <td class="text-end">{{ number_format($s['cartons']) }}</td>
-            <td class="text-end {{ $s['remaining_cartons'] > 0 ? 'text-warning fw-semibold' : 'text-muted' }}">{{ number_format($s['remaining_cartons']) }}</td>
-            <td class="text-end text-success fw-semibold">{{ number_format($s['packed']) }}</td>
-            <td class="text-end {{ $s['unpacked'] > 0 ? 'text-warning fw-semibold' : 'text-muted' }}">{{ number_format($s['unpacked']) }}</td>
-            <td class="text-end">
-              @if($s['batch'])
-              <a href="{{ route('master-cartons.labels', ['batch_id'=>$s['batch']->id]) }}" target="_blank" class="btn btn-outline-secondary btn-sm" title="Print labels"><i class="bi bi-printer"></i></a>
-              <a href="{{ route('master-cartons.labels-pdf', ['batch_id'=>$s['batch']->id]) }}" class="btn btn-outline-danger btn-sm" title="Labels PDF"><i class="bi bi-file-earmark-pdf"></i></a>
-              @endif
-            </td>
-          </tr>
-          @if($s['cartons_list']->count())
-          <tr x-show="expandedBatch==={{ $bid }}" x-cloak>
-            <td colspan="8" class="bg-light">
-              <div class="d-flex flex-wrap gap-2 py-1">
-                <span class="text-muted-sm align-self-center me-1"><i class="bi bi-box-seam me-1"></i>Packed cartons:</span>
-                @foreach($s['cartons_list'] as $cl)
-                <span class="badge bg-white border text-dark d-inline-flex align-items-center gap-2 py-1 px-2">
-                  <span class="font-monospace fw-semibold">{{ $cl['carton_number'] }}</span>
-                  <span class="text-muted">· qty {{ number_format($cl['qty']) }}</span>
-                  @if($cl['mixed'])<span class="badge text-bg-warning" style="font-size:9px" title="This carton also holds other products/batches">mixed</span>@endif
-                  <button class="btn btn-link btn-sm p-0 text-primary" title="View packing details" @click="openView({{ $cl['id'] }})"><i class="bi bi-eye"></i></button>
-                </span>
-                @endforeach
-              </div>
-            </td>
-          </tr>
-          @endif
-          @endforeach
-        </tbody>
-      </table>
-    </div></div>
+  {{-- Batch-wise summary (lazy-loaded — heavy aggregate kept off the initial paint) --}}
+  <div class="card mb-3" x-data="{open:false, loaded:false, html:'', loading:false,
+      async toggle(){ this.open=!this.open; if(this.open && !this.loaded){ this.loading=true;
+        try{ const r=await fetch('{{ route('master-cartons.batch-summary') }}',{headers:{'X-Requested-With':'XMLHttpRequest'}}); this.html=await r.text(); this.loaded=true; }catch(e){ this.html='<div class=\'text-danger p-3\'>Could not load summary.</div>'; }
+        this.loading=false; } }">
+    <div class="card-header bg-transparent fw-semibold d-flex align-items-center" style="cursor:pointer" @click="toggle()">
+      <i class="bi bi-clipboard-data me-1"></i>Batch-wise Carton Summary
+      <span class="text-muted-sm fw-normal ms-2">(recent batches)</span>
+      <span class="ms-auto"><span x-show="loading" class="spinner-border spinner-border-sm me-2"></span><i class="bi" :class="open?'bi-chevron-up':'bi-chevron-down'"></i></span>
+    </div>
+    <div class="card-body p-0" x-show="open" x-cloak x-html="html"></div>
   </div>
-  @endif
 
   {{-- Filters --}}
   <div class="card mb-3"><div class="card-body py-2">
@@ -277,8 +231,19 @@
   </div>
   @if($cartons->hasPages())
   <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top flex-wrap gap-2">
-    <div class="text-muted-sm">Showing <strong>{{ $cartons->firstItem() }}–{{ $cartons->lastItem() }}</strong> of <strong>{{ number_format($cartons->total()) }}</strong> cartons</div>
-    {{ $cartons->links('pagination::bootstrap-5') }}
+    <div class="text-muted-sm">Showing <strong>{{ $cartons->count() }}</strong> on this page</div>
+    <div class="d-flex gap-1">
+      @if($cartons->onFirstPage())
+        <span class="btn btn-outline-secondary btn-sm disabled"><i class="bi bi-chevron-left"></i></span>
+      @else
+        <a href="{{ $cartons->previousPageUrl() }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-left"></i> Prev</a>
+      @endif
+      @if($cartons->hasMorePages())
+        <a href="{{ $cartons->nextPageUrl() }}" class="btn btn-outline-primary btn-sm">Load more <i class="bi bi-chevron-right"></i></a>
+      @else
+        <span class="btn btn-outline-secondary btn-sm disabled">End</span>
+      @endif
+    </div>
   </div>
   @endif
   </div></div>
@@ -472,7 +437,11 @@
           {{-- Carton select --}}
           <div class="row g-3 mb-2">
             <div class="col-md-7">
-              <label class="form-label">Select Master Carton <span class="text-danger">*</span></label>
+              <label class="form-label">Select Master Carton <span class="text-danger">*</span>
+                <span class="text-muted-sm" x-show="pkCartonOptions.length>=25">· showing first 25, type to refine</span>
+              </label>
+              <input type="text" class="form-control form-control-sm mb-1" x-model="pkSearch" @input.debounce.300ms="fetchPkCartons()"
+                     placeholder="Filter by carton number (e.g. MC-0001)…" x-show="(pkMode==='generic') || pmBatchId" x-cloak>
               <select class="form-select" x-model="pkCartonId" @change="pkOnCarton()" :disabled="pkLoading || (pkMode==='standard' && !pmBatchId)">
                 <option value="" x-text="cartonPlaceholder()"></option>
                 <template x-for="c in pkCartonOptions" :key="c.id"><option :value="c.id" x-text="c.label"></option></template>
@@ -661,7 +630,7 @@ function cartonPage() {
     showCreate:false, cType:'standard', cProductId:'', cBatchId:'', cBatches:[], cInfo:null,
     cCapacity:null, cCount:null, cManual:false, cLabel:'', cNotes:'', cLoadingB:false, cSaving:false, cErrors:{},
     // pack
-    showPack:false, pkMode:'standard', pkCartons:[], pkCartonId:'', pkContents:[], pkLoading:false, pkBusy:false, pkChanged:false, pErrors:{},
+    showPack:false, pkMode:'standard', pkCartons:[], pkCartonId:'', pkContents:[], pkLoading:false, pkBusy:false, pkChanged:false, pErrors:{}, pkSearch:'',
     pmProductId:'', pmBatchId:'', pmBatches:[], pmLoadingB:false,
     segProductId:'', segBatchId:'', segBatches:[], segStart:null, segEnd:null, segMaxSerial:0, segLoadingB:false,
     // view
@@ -707,11 +676,7 @@ function cartonPage() {
     get cCanSubmit(){ if(!(this.cCapacity>0) || !(this.cEffectiveCount>0)) return false; return this.cType==='generic' ? true : !!this.cBatchId; },
     // computed — pack
     get pkCarton(){ return this.pkCartons.find(c=>String(c.id)===String(this.pkCartonId)) || null; },
-    get pkCartonOptions(){
-      if(this.pkMode==='generic') return this.pkCartons.filter(c=>c.carton_type==='generic');
-      if(!this.pmBatchId) return [];
-      return this.pkCartons.filter(c=>String(c.batch_id)===String(this.pmBatchId));
-    },
+    get pkCartonOptions(){ return this.pkCartons; },  // already bounded server-side
     get segValid(){ return this.pkCartonId && this.segProductId && this.segBatchId && this.segStart>0 && this.segEnd>=this.segStart
         && (!this.segMaxSerial || this.segEnd<=this.segMaxSerial)
         && (!this.pkCarton || (this.segEnd-this.segStart+1) <= this.pkCarton.remaining); },
@@ -738,28 +703,44 @@ function cartonPage() {
 
     // ── PACK ──
     async openPack(cartonId=null){
-      this.showPack=true; this.pkChanged=false; this.pErrors={}; this.pkContents=[]; this.pkCartonId='';
-      this.pkMode='standard'; this.pmProductId=''; this.pmBatchId=''; this.pmBatches=[];
+      this.showPack=true; this.pkChanged=false; this.pErrors={}; this.pkContents=[]; this.pkCartonId=''; this.pkSearch='';
+      this.pkMode='standard'; this.pmProductId=''; this.pmBatchId=''; this.pmBatches=[]; this.pkCartons=[];
       this.segProductId=''; this.segBatchId=''; this.segBatches=[]; this.segStart=null; this.segEnd=null; this.segMaxSerial=0;
-      this.pkLoading=true;
-      const r=await fetch('{{ route('master-cartons.packing-cartons') }}',{headers:{'Accept':'application/json'}}); this.pkCartons=await r.json(); this.pkLoading=false;
       if(cartonId){
-        const c=this.pkCartons.find(x=>String(x.id)===String(cartonId));
-        if(c && c.carton_type==='generic'){ this.pkMode='generic'; }
-        else if(c && c.batch_id){ this.pkMode='standard'; this.pmProductId=String(c.product_id); await this.pmOnProduct(); this.pmBatchId=String(c.batch_id); await this.pmOnBatch(); }
-        this.pkCartonId=String(cartonId); await this.pkOnCarton();
+        this.pkLoading=true;
+        const r=await fetch(`{{ route('master-cartons.packing-cartons') }}?id=${cartonId}`,{headers:{'Accept':'application/json'}});
+        const arr=await r.json(); this.pkLoading=false; const c=arr[0];
+        if(c){
+          if(c.carton_type==='generic'){ this.pkMode='generic'; await this.fetchPkCartons(); }
+          else if(c.batch_id){ this.pkMode='standard'; this.pmProductId=String(c.product_id); await this.pmOnProduct(); this.pmBatchId=String(c.batch_id); await this.pmOnBatch(); }
+          if(!this.pkCartons.some(x=>String(x.id)===String(c.id))) this.pkCartons.unshift(c);
+          this.pkCartonId=String(cartonId); await this.pkOnCarton();
+        }
       }
     },
-    setPkMode(m){ this.pkMode=m; this.pkCartonId=''; this.pkContents=[]; this.pmProductId=''; this.pmBatchId=''; this.pmBatches=[];
-      this.segProductId=''; this.segBatchId=''; this.segBatches=[]; this.segStart=null; this.segEnd=null; this.segMaxSerial=0; this.pErrors={}; },
+    // Bounded fetch — only cartons for the chosen batch / generic, ≤25, refinable by search.
+    async fetchPkCartons(){
+      this.pkLoading=true; this.pkCartons=[];
+      const p=new URLSearchParams();
+      if(this.pkMode==='generic') p.set('type','generic');
+      else if(this.pmBatchId) p.set('batch_id', this.pmBatchId);
+      else { this.pkLoading=false; return; }
+      if(this.pkSearch) p.set('q', this.pkSearch);
+      const r=await fetch('{{ route('master-cartons.packing-cartons') }}?'+p.toString(),{headers:{'Accept':'application/json'}});
+      this.pkCartons=await r.json(); this.pkLoading=false;
+    },
+    async setPkMode(m){ this.pkMode=m; this.pkCartonId=''; this.pkContents=[]; this.pkSearch=''; this.pmProductId=''; this.pmBatchId=''; this.pmBatches=[]; this.pkCartons=[];
+      this.segProductId=''; this.segBatchId=''; this.segBatches=[]; this.segStart=null; this.segEnd=null; this.segMaxSerial=0; this.pErrors={};
+      if(m==='generic') await this.fetchPkCartons(); },
     cartonPlaceholder(){
       if(this.pkMode==='standard' && !this.pmBatchId) return 'Select product & batch first…';
       return this.pkCartonOptions.length ? 'Select carton…' : 'No cartons with free capacity';
     },
-    async pmOnProduct(){ this.pmBatchId=''; this.pmBatches=[]; this.pkCartonId=''; if(!this.pmProductId) return; this.pmLoadingB=true; this.pmBatches=await this._batches(this.pmProductId); this.pmLoadingB=false; },
+    async pmOnProduct(){ this.pmBatchId=''; this.pmBatches=[]; this.pkCartonId=''; this.pkCartons=[]; if(!this.pmProductId) return; this.pmLoadingB=true; this.pmBatches=await this._batches(this.pmProductId); this.pmLoadingB=false; },
     async pmOnBatch(){ this.pkCartonId=''; this.pkContents=[]; if(!this.pmBatchId) return;
       // In product/batch mode the segment product & batch are fixed to the selection.
       this.segProductId=String(this.pmProductId); this.segBatches=this.pmBatches; this.segBatchId=String(this.pmBatchId);
+      await this.fetchPkCartons();
       await this.segOnBatch(); },
     async pkOnCarton(){ this.pkContents=[]; this.pErrors={}; if(!this.pkCartonId) return;
       const r=await fetch(`{{ url('master-cartons') }}/${this.pkCartonId}/contents`,{headers:{'Accept':'application/json'}}); const d=await r.json();

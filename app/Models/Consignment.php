@@ -17,7 +17,8 @@ class Consignment extends Model
 
     protected $fillable = [
         'consignment_number', 'qr_code', 'origin', 'destination', 'carrier',
-        'vehicle_no', 'status', 'dispatched_at', 'received_at', 'notes',
+        'vehicle_no', 'status', 'cartons_count', 'units_count',
+        'dispatched_at', 'received_at', 'notes',
     ];
 
     protected $casts = [
@@ -39,15 +40,30 @@ class Consignment extends Model
 
     // ── Aggregate accessors (scan-the-parent summary) ─────────────────────
 
+    /** Prefer the denormalized rollup; fall back to a live count if needed. */
     public function getCartonCountAttribute(): int
     {
-        return $this->relationLoaded('cartons') ? $this->cartons->count() : $this->cartons()->count();
+        if ($this->relationLoaded('cartons')) {
+            return $this->cartons->count();
+        }
+        return (int) ($this->attributes['cartons_count'] ?? $this->cartons()->count());
     }
 
     public function getTotalUnitsAttribute(): int
     {
-        $cartons = $this->relationLoaded('cartons') ? $this->cartons : $this->cartons()->get();
-        return (int) $cartons->sum('packed_quantity');
+        if ($this->relationLoaded('cartons')) {
+            return (int) $this->cartons->sum('packed_quantity');
+        }
+        return (int) ($this->attributes['units_count'] ?? $this->cartons()->sum('packed_quantity'));
+    }
+
+    /** Recalculate and persist the denormalized rollups. */
+    public function recomputeSummary(): void
+    {
+        $this->forceFill([
+            'cartons_count' => $this->cartons()->count(),
+            'units_count'   => (int) $this->cartons()->sum('packed_quantity'),
+        ])->save();
     }
 
     /** Distinct product names carried by the consignment. */

@@ -39,6 +39,13 @@
     </div>
   </div>
 
+  @if(($mode ?? null) === 'receiving')
+  <div class="alert alert-info d-flex align-items-center gap-2 mb-3" style="font-size:13px">
+    <i class="bi bi-box-arrow-in-down"></i>
+    <span><strong>Receiving / Verification</strong> — showing only shipments in transit. Open one and mark each carton <strong>Received</strong>, <strong>Damaged</strong>, or <strong>Missing</strong> as it arrives.</span>
+  </div>
+  @endif
+
   {{-- Stats --}}
   <div class="row g-2 mb-3">
     <div class="col-6 col-md"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-truck"></i></div><div><div class="stat-value">{{ number_format($stats['total']) }}</div><div class="stat-label">Total Shipments</div></div></div></div>
@@ -87,7 +94,7 @@
       <thead><tr>
         <th style="width:38px" class="text-center"><input type="checkbox" class="form-check-input" title="Select all on this page" :checked="allChecked" @change="toggleAll($event)"></th>
         <th>Shipment No</th><th>Destination</th><th class="text-end">Cartons</th><th class="text-end">Units</th>
-        <th>Products / Batches</th><th>Status</th><th>Created</th><th class="text-end" style="width:130px">Actions</th>
+        <th>Status</th><th>Created</th><th class="text-end" style="width:130px">Actions</th>
       </tr></thead>
       <tbody>
         @forelse($consignments as $s)
@@ -103,10 +110,6 @@
           </td>
           <td class="text-end fw-semibold">{{ number_format($s->carton_count) }}</td>
           <td class="text-end">{{ number_format($s->total_units) }}</td>
-          <td style="font-size:12px">
-            <span class="text-truncate d-inline-block" style="max-width:220px">{{ $s->product_list->join(', ') ?: '—' }}</span>
-            <div class="text-muted-sm font-monospace text-truncate" style="max-width:220px">{{ $s->batch_list->join(', ') ?: '—' }}</div>
-          </td>
           <td><span class="badge-status {{ $s->status_badge_class }}">{{ $s->status_label }}</span></td>
           <td style="font-size:12px" class="text-muted">{{ $s->created_at?->format('M d, Y') }}</td>
           <td class="text-end"><div class="d-flex gap-1 justify-content-end">
@@ -119,9 +122,9 @@
           </div></td>
         </tr>
         @empty
-        <tr><td colspan="9" class="text-center py-5 text-muted">
+        <tr><td colspan="8" class="text-center py-5 text-muted">
           <i class="bi bi-truck" style="font-size:32px;opacity:.2"></i>
-          <div class="mt-2">No shipments yet. Click <strong>Create Shipment</strong> to group packed cartons into a consignment.</div>
+          <div class="mt-2">@if($mode==='receiving')No shipments are currently in transit.@else No shipments yet. Click <strong>Create Shipment</strong> to group packed cartons into a consignment.@endif</div>
         </td></tr>
         @endforelse
       </tbody>
@@ -129,8 +132,19 @@
   </div>
   @if($consignments->hasPages())
   <div class="d-flex align-items-center justify-content-between px-3 py-2 border-top flex-wrap gap-2">
-    <div class="text-muted-sm">Showing <strong>{{ $consignments->firstItem() }}–{{ $consignments->lastItem() }}</strong> of <strong>{{ number_format($consignments->total()) }}</strong></div>
-    {{ $consignments->links('pagination::bootstrap-5') }}
+    <div class="text-muted-sm">Showing <strong>{{ $consignments->count() }}</strong> on this page</div>
+    <div class="d-flex gap-1">
+      @if($consignments->onFirstPage())
+        <span class="btn btn-outline-secondary btn-sm disabled"><i class="bi bi-chevron-left"></i></span>
+      @else
+        <a href="{{ $consignments->previousPageUrl() }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-left"></i> Prev</a>
+      @endif
+      @if($consignments->hasMorePages())
+        <a href="{{ $consignments->nextPageUrl() }}" class="btn btn-outline-primary btn-sm">Load more <i class="bi bi-chevron-right"></i></a>
+      @else
+        <span class="btn btn-outline-secondary btn-sm disabled">End</span>
+      @endif
+    </div>
   </div>
   @endif
   </div></div>
@@ -158,22 +172,21 @@
           </div>
 
           <div class="section-label d-flex justify-content-between align-items-center">
-            <span>Select Packed Cartons <span class="text-muted-sm" x-show="cSelected.length" x-text="'· '+cSelected.length+' selected'"></span></span>
-            <span class="text-muted-sm">
-              <a href="#" @click.prevent="cSelectAll()">All</a> ·
-              <a href="#" @click.prevent="cSelected=[]">None</a>
-            </span>
+            <span>Add Packed Cartons <span class="text-muted-sm" x-show="cChosen.length" x-text="'· '+cChosen.length+' selected'"></span></span>
+            <a href="#" class="text-muted-sm" x-show="cChosen.length" @click.prevent="cChosen=[]">Clear</a>
           </div>
-          <div x-show="cLoadingCartons" class="text-muted-sm py-2"><span class="spinner-border spinner-border-sm me-1"></span>Loading available cartons…</div>
-          <div x-show="!cLoadingCartons && !cCartons.length" class="text-muted-sm py-3 text-center">
-            <i class="bi bi-inbox" style="font-size:24px;opacity:.3"></i>
-            <div>No packed, unassigned cartons available. Pack cartons first in Master Carton Management.</div>
+
+          {{-- Type-ahead search (never loads the whole table) --}}
+          <div class="search-wrapper mb-2"><i class="bi bi-search search-icon"></i>
+            <input type="text" class="form-control form-control-sm" x-model="cSearch" @input.debounce.300ms="searchCartons()"
+                   placeholder="Search carton number (e.g. MC-0001)…">
           </div>
-          <div class="row g-2" x-show="cCartons.length" style="max-height:300px;overflow:auto">
-            <template x-for="c in cCartons" :key="c.id">
+          <div x-show="cSearching" class="text-muted-sm py-1"><span class="spinner-border spinner-border-sm me-1"></span>Searching…</div>
+          <div class="row g-2" x-show="cResults.length" style="max-height:200px;overflow:auto">
+            <template x-for="c in cResults" :key="c.id">
               <div class="col-md-6">
-                <div class="pick d-flex align-items-center gap-2" :class="{on: cSelected.includes(c.id)}" @click="cToggle(c.id)">
-                  <input type="checkbox" class="form-check-input" :checked="cSelected.includes(c.id)" @click.stop="cToggle(c.id)">
+                <div class="pick d-flex align-items-center gap-2" :class="{on: cChosen.some(x=>x.id===c.id)}" @click="cPick(c)">
+                  <i class="bi" :class="cChosen.some(x=>x.id===c.id) ? 'bi-check-square text-primary' : 'bi-plus-square text-muted'"></i>
                   <div class="flex-grow-1" style="min-width:0">
                     <div class="fw-semibold font-monospace" style="font-size:12px" x-text="c.carton_number"></div>
                     <div class="text-muted-sm text-truncate"><span x-text="c.product"></span> · <span class="font-monospace" x-text="c.batch"></span></div>
@@ -183,12 +196,24 @@
               </div>
             </template>
           </div>
+          <div x-show="!cSearching && cSearched && !cResults.length" class="text-muted-sm py-2 text-center">No matching packed, unassigned cartons.</div>
+
+          {{-- Chosen chips --}}
+          <div class="d-flex flex-wrap gap-1 mt-2" x-show="cChosen.length">
+            <template x-for="c in cChosen" :key="c.id">
+              <span class="badge bg-white border text-dark d-inline-flex align-items-center gap-2 py-1 px-2">
+                <span class="font-monospace fw-semibold" x-text="c.carton_number"></span>
+                <span class="text-muted" x-text="c.packed+'u'"></span>
+                <button type="button" class="btn-close" style="font-size:9px" @click="cUnpick(c.id)"></button>
+              </span>
+            </template>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" @click="showCreate=false">Cancel</button>
           <button type="submit" class="btn btn-primary" :disabled="cSaving || !cDestination">
             <span x-show="cSaving" class="spinner-border spinner-border-sm me-1"></span>
-            <span x-text="cSaving ? 'Creating…' : ('Create Shipment ('+cSelected.length+' carton'+(cSelected.length===1?'':'s')+')')"></span>
+            <span x-text="cSaving ? 'Creating…' : ('Create Shipment ('+cChosen.length+' carton'+(cChosen.length===1?'':'s')+')')"></span>
           </button>
         </div>
       </form>
@@ -343,7 +368,7 @@ function shipmentPage(){
   return {
     // create
     showCreate:false, cOrigin:'Factory', cDestination:'', cCarrier:'', cVehicle:'', cNotes:'',
-    cCartons:[], cSelected:[], cLoadingCartons:false, cSaving:false, cErrors:{},
+    cSearch:'', cResults:[], cChosen:[], cSearching:false, cSearched:false, cSaving:false, cErrors:{},
     // view
     showView:false, v:null, vLoading:false, vLocation:'', vMoving:false,
     // receiving verification
@@ -368,20 +393,26 @@ function shipmentPage(){
     fmtDateTime(d){ if(!d) return '—'; const x=new Date(d); return isNaN(x)?'—':x.toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); },
 
     // ── CREATE ──
-    async openCreate(){
+    openCreate(){
       this.showCreate=true; this.cOrigin='Factory'; this.cDestination=''; this.cCarrier=''; this.cVehicle=''; this.cNotes='';
-      this.cSelected=[]; this.cErrors={}; this.cLoadingCartons=true;
-      const r=await fetch('{{ route('shipments.available-cartons') }}',{headers:{'Accept':'application/json'}});
-      this.cCartons=await r.json(); this.cLoadingCartons=false;
+      this.cSearch=''; this.cResults=[]; this.cChosen=[]; this.cSearched=false; this.cErrors={};
     },
-    cToggle(id){ const i=this.cSelected.indexOf(id); if(i<0) this.cSelected.push(id); else this.cSelected.splice(i,1); },
-    cSelectAll(){ this.cSelected=this.cCartons.map(c=>c.id); },
+    async searchCartons(){
+      this.cSearching=true;
+      try{
+        const r=await fetch('{{ route('shipments.available-cartons') }}?q='+encodeURIComponent(this.cSearch.trim()),{headers:{'Accept':'application/json'}});
+        this.cResults=await r.json(); this.cSearched=true;
+      }catch(e){ this.cResults=[]; }
+      this.cSearching=false;
+    },
+    cPick(c){ if(!this.cChosen.some(x=>x.id===c.id)) this.cChosen.push(c); },
+    cUnpick(id){ this.cChosen=this.cChosen.filter(x=>x.id!==id); },
     async submitCreate(){
       this.cSaving=true; this.cErrors={};
       const fd=new FormData(); fd.append('_token','{{ csrf_token() }}');
       fd.append('origin',this.cOrigin); fd.append('destination',this.cDestination); fd.append('carrier',this.cCarrier);
       fd.append('vehicle_no',this.cVehicle); fd.append('notes',this.cNotes);
-      this.cSelected.forEach(id=>fd.append('carton_ids[]',id));
+      this.cChosen.forEach(c=>fd.append('carton_ids[]',c.id));
       try{ const res=await fetch('{{ route('shipments.store') }}',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},body:fd});
         const d=await res.json(); if(d.success){ window.location.href=d.redirect; } else { this.cErrors=d.errors??{}; this.cSaving=false; }
       }catch(e){ alert('Server error.'); this.cSaving=false; }

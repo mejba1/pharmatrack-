@@ -84,6 +84,7 @@ Route::middleware([])->group(function () {
     Route::get('/master-cartons', [MasterCartonController::class, 'index'])->name('master-cartons');
     Route::post('/master-cartons', [MasterCartonController::class, 'store'])->name('master-cartons.store');
     Route::get('/master-cartons/packing-cartons', [MasterCartonController::class, 'packingCartons'])->name('master-cartons.packing-cartons');
+    Route::get('/master-cartons/batch-summary', [MasterCartonController::class, 'batchSummaryView'])->name('master-cartons.batch-summary');
     Route::post('/master-cartons/contents', [MasterCartonController::class, 'addContent'])->name('master-cartons.contents.add');
     Route::delete('/master-cartons/contents/{content}', [MasterCartonController::class, 'removeContent'])->name('master-cartons.contents.remove');
     Route::get('/master-cartons/labels', [MasterCartonController::class, 'labels'])->name('master-cartons.labels');
@@ -128,6 +129,7 @@ Route::middleware([])->group(function () {
 
     // ── Shipments / Consignments (parent aggregation over master cartons) ──
     Route::get('/shipments', [ConsignmentController::class, 'index'])->name('shipments');
+    Route::get('/shipments/receiving', [ConsignmentController::class, 'receiving'])->name('shipments.receiving');
     Route::post('/shipments', [ConsignmentController::class, 'store'])->name('shipments.store');
     Route::get('/shipments/available-cartons', [ConsignmentController::class, 'availableCartons'])->name('shipments.available-cartons');
     Route::get('/shipments/labels', [ConsignmentController::class, 'labels'])->name('shipments.labels');
