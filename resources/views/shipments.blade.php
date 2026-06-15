@@ -215,6 +215,7 @@
               <div class="recon">
                 <div class="box"><div class="n text-primary" x-text="v?.carton_count"></div><div class="text-muted-sm">Expected</div></div>
                 <div class="box"><div class="n text-success" x-text="v?.received_count"></div><div class="text-muted-sm">Received</div></div>
+                <div class="box"><div class="n" :class="(v?.damaged_cartons?.length? 'text-danger':'text-muted')" x-text="v?.damaged_cartons?.length||0"></div><div class="text-muted-sm">Damaged</div></div>
                 <div class="box"><div class="n" :class="(v?.missing_cartons?.length? 'text-danger':'text-muted')" x-text="v?.missing_cartons?.length||0"></div><div class="text-muted-sm">Missing</div></div>
               </div>
               <div class="mt-2" x-show="v?.missing_cartons?.length">
@@ -223,25 +224,51 @@
               </div>
             </div>
 
-            {{-- Cartons --}}
+            {{-- Cartons + receiving verification --}}
             <div class="col-12">
-              <div class="section-label">Cartons (<span x-text="v?.cartons?.length||0"></span>)</div>
+              <div class="section-label">Cartons (<span x-text="v?.cartons?.length||0"></span>)
+                <span class="text-muted-sm fw-normal" x-show="v?.dispatched_at"> · verify each carton on arrival</span>
+              </div>
               <div x-show="!v?.cartons?.length" class="text-muted-sm">No cartons in this shipment.</div>
               <div class="table-responsive" x-show="v?.cartons?.length">
                 <table class="table table-sm align-middle mb-0">
-                  <thead><tr><th>Carton</th><th>Product</th><th>Batch</th><th class="text-end">Units</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Carton</th><th>Product</th><th class="text-end">Units</th><th>Status</th><th>Condition</th><th class="text-end">Receive</th></tr></thead>
                   <tbody>
                     <template x-for="c in v?.cartons" :key="c.id">
                       <tr>
                         <td class="font-monospace" style="font-size:12px" x-text="c.carton_number"></td>
-                        <td style="font-size:12px" x-text="c.product"></td>
-                        <td class="font-monospace" style="font-size:11px" x-text="c.batch"></td>
+                        <td style="font-size:12px"><span x-text="c.product"></span><div class="text-muted-sm font-monospace" x-text="c.batch"></div></td>
                         <td class="text-end" x-text="c.packed"></td>
                         <td><span class="badge-status" :class="c.status_badge" x-text="c.status_label"></span></td>
+                        <td>
+                          <span class="badge-status" :class="c.condition_badge" x-text="c.condition_label"></span>
+                          <a x-show="c.evidence_url" :href="c.evidence_url" target="_blank" class="ms-1" title="View evidence"><i class="bi bi-image"></i></a>
+                        </td>
+                        <td class="text-end">
+                          <div class="btn-group btn-group-sm" role="group" x-show="v?.dispatched_at">
+                            <button class="btn btn-outline-success" title="Received (good)" @click="receive(c,'received')" :disabled="rcBusy"><i class="bi bi-check-lg"></i></button>
+                            <button class="btn btn-outline-warning" title="Damaged" @click="openDamage(c)" :disabled="rcBusy"><i class="bi bi-exclamation-triangle"></i></button>
+                            <button class="btn btn-outline-danger" title="Missing" @click="receive(c,'missing')" :disabled="rcBusy"><i class="bi bi-question-lg"></i></button>
+                          </div>
+                          <span class="text-muted-sm" x-show="!v?.dispatched_at">—</span>
+                        </td>
                       </tr>
                     </template>
                   </tbody>
                 </table>
+              </div>
+
+              {{-- Damage capture (remark + evidence photo) --}}
+              <div class="border rounded p-2 mt-2" x-show="dmgCarton" x-cloak>
+                <div class="fw-semibold mb-2"><i class="bi bi-exclamation-triangle text-warning me-1"></i>Report damage — <span class="font-monospace" x-text="dmgCarton?.carton_number"></span></div>
+                <div class="row g-2 align-items-end">
+                  <div class="col-md-6"><label class="form-label">Remarks</label><input type="text" class="form-control form-control-sm" x-model="dmgNote" placeholder="Describe the damage / shortage"></div>
+                  <div class="col-md-4"><label class="form-label">Evidence photo</label><input type="file" accept="image/*" class="form-control form-control-sm" @change="dmgFile=$event.target.files[0]"></div>
+                  <div class="col-md-2 d-flex gap-1">
+                    <button class="btn btn-warning btn-sm flex-fill" @click="receive(dmgCarton,'damaged')" :disabled="rcBusy">Save</button>
+                    <button class="btn btn-outline-secondary btn-sm" @click="dmgCarton=null">✕</button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -298,6 +325,8 @@ function shipmentPage(){
     cCartons:[], cSelected:[], cLoadingCartons:false, cSaving:false, cErrors:{},
     // view
     showView:false, v:null, vLoading:false, vLocation:'', vMoving:false,
+    // receiving verification
+    rcBusy:false, dmgCarton:null, dmgNote:'', dmgFile:null,
 
     get canDispatch(){ return this.v && this.v.status==='created' && this.v.carton_count>0; },
     get canTransit(){ return this.v && this.v.status==='dispatched'; },
@@ -339,6 +368,22 @@ function shipmentPage(){
       try{ const res=await fetch(`{{ url('shipments') }}/${this.v.id}/move`,{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},body:fd});
         const d=await res.json(); if(d.success){ window.location.href=d.redirect; } else { this.vMoving=false; alert((d.errors?.event?.[0])||'Could not update.'); }
       }catch(e){ this.vMoving=false; alert('Server error.'); }
+    },
+
+    // ── RECEIVING VERIFICATION ──
+    openDamage(c){ this.dmgCarton=c; this.dmgNote=c.condition_note||''; this.dmgFile=null; },
+    async receive(carton, outcome){
+      if(!carton || !this.v) return; this.rcBusy=true;
+      const fd=new FormData(); fd.append('_token','{{ csrf_token() }}'); fd.append('outcome',outcome);
+      fd.append('location', this.vLocation || (this.v.destination||''));
+      if(outcome==='damaged'){ fd.append('note', this.dmgNote||''); if(this.dmgFile) fd.append('evidence', this.dmgFile); }
+      try{
+        const res=await fetch(`{{ url('shipments') }}/${this.v.id}/cartons/${carton.id}/receive`,{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},body:fd});
+        const d=await res.json();
+        if(d.success){ this.v=d.shipment; this.dmgCarton=null; this.dmgNote=''; this.dmgFile=null; }
+        else { alert(Object.values(d.errors||{}).flat().join('\n')||'Could not update.'); }
+      }catch(e){ alert('Server error.'); }
+      this.rcBusy=false;
     },
 
     confirmDelete(ev,num){ if(confirm(`Remove shipment ${num}? Its cartons will be released (not deleted).`)) ev.target.submit(); },

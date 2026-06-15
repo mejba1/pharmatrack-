@@ -120,7 +120,7 @@ class ConsignmentController extends Controller
         return response()->json([
             'success'  => true,
             'message'  => "{$added} carton(s) added to {$consignment->consignment_number}.",
-            'shipment' => $this->payload($consignment->fresh('cartons')),
+            'shipment' => $this->payload($consignment->fresh('cartons'), true),
         ]);
     }
 
@@ -136,7 +136,7 @@ class ConsignmentController extends Controller
         return response()->json([
             'success'  => true,
             'message'  => "Carton {$masterCarton->carton_number} removed from shipment.",
-            'shipment' => $this->payload($consignment->fresh('cartons')),
+            'shipment' => $this->payload($consignment->fresh('cartons'), true),
         ]);
     }
 
@@ -231,6 +231,62 @@ class ConsignmentController extends Controller
         return redirect()->route('shipments')->with('success', $message);
     }
 
+    // ── Receiving verification: per-carton received / damaged / missing ───
+
+    public function receiveCarton(Request $request, Consignment $consignment, MasterCarton $masterCarton): JsonResponse
+    {
+        $data = $request->validate([
+            'outcome'  => 'required|in:received,damaged,missing',
+            'location' => 'nullable|string|max:255',
+            'note'     => 'nullable|string|max:1000',
+            'evidence' => 'nullable|image|max:4096',
+        ]);
+
+        if ((int) $masterCarton->consignment_id !== (int) $consignment->id) {
+            return response()->json(['success' => false, 'errors' => ['carton' => ['Carton is not part of this shipment.']]], 422);
+        }
+        if (!$consignment->dispatched_at) {
+            return response()->json(['success' => false, 'errors' => ['carton' => ['Dispatch the shipment before receiving cartons.']]], 422);
+        }
+
+        $path = $masterCarton->evidence_path;
+        if ($request->hasFile('evidence')) {
+            $path = $request->file('evidence')->store('carton-evidence', 'public');
+        }
+
+        $attrs = match ($data['outcome']) {
+            'received' => ['status' => 'received', 'carton_condition' => 'good',    'received_at' => now()],
+            'damaged'  => ['status' => 'received', 'carton_condition' => 'damaged', 'received_at' => now()],
+            'missing'  => ['carton_condition' => 'missing', 'received_at' => null],
+        };
+
+        $masterCarton->update($attrs + [
+            'condition_note'    => $data['note'] ?? $masterCarton->condition_note,
+            'evidence_path'     => $path,
+            'received_location' => $data['location'] ?? $consignment->destination,
+        ]);
+
+        MasterCartonScan::create([
+            'master_carton_id' => $masterCarton->id,
+            'event'            => $data['outcome'] === 'missing' ? 'missing' : ($data['outcome'] === 'damaged' ? 'damaged' : 'received'),
+            'performed_by'     => optional(auth()->user())->name ?? 'system',
+            'location'         => $data['location'] ?? $consignment->destination,
+            'note'             => $data['note'] ?? null,
+        ]);
+
+        // Auto-close shipment status once every carton has been accounted for.
+        $consignment->refresh()->loadMissing('cartons');
+        if ($consignment->cartons->whereNull('received_at')->where('carton_condition', '!=', 'missing')->isEmpty()) {
+            $consignment->update(['status' => 'received', 'received_at' => $consignment->received_at ?? now()]);
+        }
+
+        return response()->json([
+            'success'  => true,
+            'message'  => "Carton {$masterCarton->carton_number} marked {$data['outcome']}.",
+            'shipment' => $this->payload($consignment->fresh('cartons'), true),
+        ]);
+    }
+
     // ── Public parent-QR scan page ────────────────────────────────────────
 
     public function scan(Request $request, string $qr): View
@@ -293,19 +349,26 @@ class ConsignmentController extends Controller
         ];
 
         if (!$full) {
-            return ['shipment' => $base];
+            return $base;
         }
 
+        $base['damaged_cartons'] = $consignment->damaged_cartons;
         $base['cartons'] = $consignment->cartons->map(fn ($c) => [
-            'id'            => $c->id,
-            'carton_number' => $c->carton_number,
-            'product'       => $c->products_summary,
-            'batch'         => $c->batches_summary,
-            'packed'        => $c->packed_quantity,
-            'capacity'      => $c->capacity,
-            'status'        => $c->status,
-            'status_label'  => $c->status_label,
-            'status_badge'  => $c->status_badge_class,
+            'id'              => $c->id,
+            'carton_number'   => $c->carton_number,
+            'product'         => $c->products_summary,
+            'batch'           => $c->batches_summary,
+            'packed'          => $c->packed_quantity,
+            'capacity'        => $c->capacity,
+            'status'          => $c->status,
+            'status_label'    => $c->status_label,
+            'status_badge'    => $c->status_badge_class,
+            'condition'       => $c->carton_condition,
+            'condition_label' => $c->condition_label,
+            'condition_badge' => $c->condition_badge_class,
+            'received'        => (bool) $c->received_at,
+            'evidence_url'    => $c->evidence_url,
+            'condition_note'  => $c->condition_note,
         ])->values();
 
         $base['scans'] = $consignment->scans->map(fn ($s) => [

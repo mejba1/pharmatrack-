@@ -13,7 +13,8 @@ class MasterCarton extends Model
     protected $fillable = [
         'consignment_id', 'product_id', 'batch_id', 'carton_number', 'qr_code', 'carton_type', 'label',
         'capacity', 'packed_quantity', 'serial_start', 'serial_end',
-        'status', 'dispatched_at', 'received_at', 'notes',
+        'status', 'carton_condition', 'condition_note', 'evidence_path', 'received_location',
+        'dispatched_at', 'received_at', 'notes',
     ];
 
     protected $casts = [
@@ -95,17 +96,47 @@ class MasterCarton extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return ucfirst($this->status);
+        return match ($this->status) {
+            'quality_checked'    => 'Quality Checked',
+            'ready_for_dispatch' => 'Ready for Dispatch',
+            'in_transit'         => 'In Transit',
+            'received_ho'        => 'Received at Head Office',
+            'received_depot'     => 'Received at Depot',
+            default              => ucfirst(str_replace('_', ' ', $this->status)),
+        };
     }
 
     public function getStatusBadgeClassAttribute(): string
     {
         return match ($this->status) {
-            'received'   => 'badge-approved',
-            'dispatched' => 'badge-pending',
-            'packed'     => 'badge-pending',
-            default      => 'badge-cancelled', // created (not yet packed)
+            'received', 'received_ho', 'received_depot', 'closed' => 'badge-delivered',
+            'quality_checked'                                     => 'badge-approved',
+            'ready_for_dispatch', 'dispatched'                    => 'badge-shipped',
+            'in_transit', 'packed'                                => 'badge-pending',
+            'damaged'                                             => 'badge-hold',
+            'returned'                                            => 'badge-cancelled',
+            default                                               => 'badge-draft', // created
         };
+    }
+
+    public function getConditionLabelAttribute(): string
+    {
+        return ucfirst($this->carton_condition ?? 'good');
+    }
+
+    public function getConditionBadgeClassAttribute(): string
+    {
+        return match ($this->carton_condition) {
+            'damaged'  => 'badge-hold',
+            'missing'  => 'badge-cancelled',
+            'returned' => 'badge-pending',
+            default    => 'badge-active', // good
+        };
+    }
+
+    public function getEvidenceUrlAttribute(): ?string
+    {
+        return $this->evidence_path ? asset('storage/' . $this->evidence_path) : null;
     }
 
     public function getSerialRangeAttribute(): string
@@ -159,7 +190,8 @@ class MasterCarton extends Model
         }
 
         // Keep status in step with packing, without overriding movement states.
-        if (!in_array($this->status, ['dispatched', 'received'], true)) {
+        $movementStates = ['dispatched', 'in_transit', 'received', 'received_ho', 'received_depot', 'damaged', 'returned', 'closed'];
+        if (!in_array($this->status, $movementStates, true)) {
             $this->status = $this->packed_quantity > 0 ? 'packed' : 'created';
         }
     }

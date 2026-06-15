@@ -7,6 +7,7 @@ use App\Http\Controllers\PartialBatchController;
 use App\Http\Controllers\BatchDownloadController;
 use App\Http\Controllers\MasterCartonController;
 use App\Http\Controllers\ConsignmentController;
+use App\Http\Controllers\DistributionController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\TherapeuticClassController;
 
@@ -133,12 +134,12 @@ Route::middleware([])->group(function () {
     Route::post('/shipments/{consignment}/cartons', [ConsignmentController::class, 'addCartons'])->name('shipments.cartons.add');
     Route::delete('/shipments/{consignment}/cartons/{masterCarton}', [ConsignmentController::class, 'removeCarton'])->name('shipments.cartons.remove');
     Route::post('/shipments/{consignment}/move', [ConsignmentController::class, 'move'])->name('shipments.move');
+    Route::post('/shipments/{consignment}/cartons/{masterCarton}/receive', [ConsignmentController::class, 'receiveCarton'])->name('shipments.cartons.receive');
     Route::delete('/shipments/{consignment}', [ConsignmentController::class, 'destroy'])->name('shipments.destroy');
 
-    // ── Distribution ─────────────────────────────────────────────────────
-    Route::get('/distribution', function () {
-        return view('distribution');
-    })->name('distribution');
+    // ── Distribution dashboard + universal traceability search ────────────
+    Route::get('/distribution', [DistributionController::class, 'index'])->name('distribution');
+    Route::get('/distribution/lookup', [DistributionController::class, 'lookup'])->name('distribution.lookup');
 
     // ── Countries ─────────────────────────────────────────────────────────
     Route::get('/countries', function () {

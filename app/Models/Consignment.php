@@ -78,14 +78,23 @@ class Consignment extends Model
 
     public function getReceivedCartonCountAttribute(): int
     {
-        $cartons = $this->relationLoaded('cartons') ? $this->cartons : $this->cartons()->get();
-        return $cartons->where('status', 'received')->count();
+        return $this->cartonCollection()->whereNotNull('received_at')->count();
     }
 
+    /** Cartons that have not arrived yet (expected − received). */
     public function getMissingCartonsAttribute()
     {
-        $cartons = $this->relationLoaded('cartons') ? $this->cartons : $this->cartons()->get();
-        return $cartons->where('status', '!=', 'received')->pluck('carton_number')->values();
+        return $this->cartonCollection()->whereNull('received_at')->pluck('carton_number')->values();
+    }
+
+    public function getDamagedCartonsAttribute()
+    {
+        return $this->cartonCollection()->where('carton_condition', 'damaged')->pluck('carton_number')->values();
+    }
+
+    private function cartonCollection()
+    {
+        return $this->relationLoaded('cartons') ? $this->cartons : $this->cartons()->get();
     }
 
     // ── Status presentation ───────────────────────────────────────────────
