@@ -38,7 +38,10 @@ class ProductImage extends Model
      */
     public function getUrlAttribute(): string
     {
-        return Storage::disk('public')->url($this->path);
+        // Build the URL from the current request root (host + base path) rather
+        // than APP_URL, so images load whether the app is served via
+        // `php artisan serve` (127.0.0.1:8000) or XAMPP (/pharmatrack_temp/public).
+        return url('storage/' . ltrim($this->path, '/'));
     }
 
     /**
