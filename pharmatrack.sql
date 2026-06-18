@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 10, 2026 at 11:35 AM
+-- Generation Time: Jun 18, 2026 at 12:44 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -118,6 +118,7 @@ CREATE TABLE `batches` (
   `expiry_date` date NOT NULL,
   `quantity_produced` int(11) NOT NULL,
   `quantity_available` int(11) NOT NULL DEFAULT 0,
+  `quantity_extended` int(11) NOT NULL DEFAULT 0,
   `manufacturing_site` varchar(255) DEFAULT NULL,
   `manufacturing_country` varchar(5) DEFAULT NULL,
   `qc_status` enum('pending','released','quarantine','rejected','recalled') NOT NULL DEFAULT 'pending',
@@ -133,6 +134,212 @@ CREATE TABLE `batches` (
   `updated_at` timestamp NULL DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `batches`
+--
+
+INSERT INTO `batches` (`id`, `product_id`, `brn`, `batch_number`, `lot_number`, `manufacture_date`, `expiry_date`, `quantity_produced`, `quantity_available`, `quantity_extended`, `manufacturing_site`, `manufacturing_country`, `qc_status`, `qc_approved_by`, `qc_approval_date`, `coa_document_path`, `storage_conditions`, `storage_temp_min`, `storage_temp_max`, `status`, `notes`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(1, 2, 'BRN-00002-2606-001', '3030303', '78967', '2026-06-18', '2027-06-18', 100, 100, 0, 'Beacon Pharmaceuticals', 'BD', 'released', NULL, '2026-06-18', 'batches/1/coa/1781774888_6a33ba2837d88_uuc-report-wjxspjalhx-4.pdf', NULL, NULL, NULL, 'active', NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `batch_extensions`
+--
+
+CREATE TABLE `batch_extensions` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `batch_id` bigint(20) UNSIGNED NOT NULL,
+  `product_id` bigint(20) UNSIGNED NOT NULL,
+  `partial_ref` varchar(255) NOT NULL,
+  `additional_quantity` int(11) NOT NULL,
+  `serial_mode` enum('continue','restart') NOT NULL DEFAULT 'continue',
+  `serial_start` int(10) UNSIGNED NOT NULL,
+  `serial_end` int(10) UNSIGNED NOT NULL,
+  `manufacture_date` date DEFAULT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `performed_by` varchar(255) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `batch_units`
+--
+
+CREATE TABLE `batch_units` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `batch_id` bigint(20) UNSIGNED NOT NULL,
+  `partial_batch_ref` varchar(255) DEFAULT NULL,
+  `serial_number` int(10) UNSIGNED NOT NULL,
+  `secret_code` varchar(16) NOT NULL,
+  `unique_number` varchar(255) NOT NULL,
+  `status` enum('generated','printing','packed','scanned','blocked','active','inactive','verified','expired') NOT NULL DEFAULT 'generated',
+  `lock_reason` varchar(500) DEFAULT NULL,
+  `locked_at` timestamp NULL DEFAULT NULL,
+  `blocked_scan_count` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `last_blocked_scan_at` timestamp NULL DEFAULT NULL,
+  `vpn_scan_count` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `last_vpn_scan_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `batch_units`
+--
+
+INSERT INTO `batch_units` (`id`, `batch_id`, `partial_batch_ref`, `serial_number`, `secret_code`, `unique_number`, `status`, `lock_reason`, `locked_at`, `blocked_scan_count`, `last_blocked_scan_at`, `vpn_scan_count`, `last_vpn_scan_at`, `created_at`, `updated_at`) VALUES
+(1, 1, NULL, 1, 'UC75PCV8ZU', '6950291150', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(2, 1, NULL, 2, 'OUTSBC7LOX', '8945722689', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(3, 1, NULL, 3, 'A3BRY5SUEX', '7968990594', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(4, 1, NULL, 4, 'JOQJ1OBVOJ', '2114336622', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(5, 1, NULL, 5, 'GHQXVZKUIG', '6516184863', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(6, 1, NULL, 6, 'LUJV6QTBJF', '5708385958', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(7, 1, NULL, 7, 'YYNUTNIUF7', '5590317035', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(8, 1, NULL, 8, 'SJ6SKHZ91D', '7747598377', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(9, 1, NULL, 9, 'A01FND8W8W', '7728981752', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(10, 1, NULL, 10, 'DZXNIXAUP1', '6683625433', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(11, 1, NULL, 11, 'TPGJHODCAU', '9597471666', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(12, 1, NULL, 12, 'JMWIPKQM2B', '3466436551', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(13, 1, NULL, 13, 'E8CSHQTLBJ', '6795671341', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(14, 1, NULL, 14, 'Z8SZVTULFS', '1894862598', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(15, 1, NULL, 15, 'YZ4NVAXHWQ', '2622000039', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(16, 1, NULL, 16, 'RTK4V6JNEF', '4918768245', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(17, 1, NULL, 17, 'O1QSXYW2MT', '9168787182', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(18, 1, NULL, 18, 'YNDI8AZV5S', '9717347503', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(19, 1, NULL, 19, 'LG8TEMZWOY', '9581899656', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(20, 1, NULL, 20, 'OQ5GGIZ8BF', '8936091768', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(21, 1, NULL, 21, 'D7HQE2AZRF', '7706043944', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(22, 1, NULL, 22, '3RTSR7EDF5', '9556001143', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(23, 1, NULL, 23, 'JHFMLCO9BC', '8482200222', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(24, 1, NULL, 24, 'OF6EIN7LEZ', '5226055043', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(25, 1, NULL, 25, '9MUJPENTMQ', '1165319240', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(26, 1, NULL, 26, 'SEPQTE9U2P', '5257115150', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(27, 1, NULL, 27, 'O4AJZWLLQV', '9323193136', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(28, 1, NULL, 28, '0THPKMRK5P', '8366852557', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(29, 1, NULL, 29, 'SFWFGNAFCP', '8445840844', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(30, 1, NULL, 30, 'BSLG5JNOWM', '8644607689', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(31, 1, NULL, 31, 'HSDWSDLP62', '8932402792', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(32, 1, NULL, 32, 'GU0IZAXP27', '1246475940', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(33, 1, NULL, 33, 'TVKX90LMOV', '6807022064', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(34, 1, NULL, 34, 'HNOB2DFYNU', '3718627289', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(35, 1, NULL, 35, 'MVQXWTR2E8', '9628066965', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(36, 1, NULL, 36, 'TI7KDVTOPR', '5626225318', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(37, 1, NULL, 37, 'O8L6PVQHUO', '1254567106', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(38, 1, NULL, 38, 'RA00AQVIRO', '8226220513', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(39, 1, NULL, 39, '8JKHVYYJAU', '2375616169', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(40, 1, NULL, 40, 'KTMG2BW8UJ', '2080859208', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(41, 1, NULL, 41, 'NXYPVCQJPW', '8515196753', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(42, 1, NULL, 42, 'H0SGXKCRTS', '9995336705', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(43, 1, NULL, 43, '1WCIOGWEA1', '6020260046', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(44, 1, NULL, 44, 'LXUFOQXMUW', '2596365079', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(45, 1, NULL, 45, 'WJBDJ9HLVD', '6804983116', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(46, 1, NULL, 46, 'D37UPFSDDD', '8899793487', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(47, 1, NULL, 47, 'MR49WLO1NN', '9856771688', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(48, 1, NULL, 48, 'ONHR3UPAYG', '9530867839', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(49, 1, NULL, 49, '67CQBHLY6L', '9334516609', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(50, 1, NULL, 50, '8AI3SB4P7M', '1376187589', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(51, 1, NULL, 51, 'PPGXX0HYEM', '6224680658', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(52, 1, NULL, 52, '0HL7LC8RPF', '8489055505', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(53, 1, NULL, 53, 'WDYVGV30IX', '1456742932', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(54, 1, NULL, 54, 'E5YIGUDKBR', '5931185298', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(55, 1, NULL, 55, 'HM5LKLEW9G', '1942736687', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(56, 1, NULL, 56, 'STNRBPSBXG', '8156831277', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(57, 1, NULL, 57, '7AE1MTKLEM', '7776648290', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(58, 1, NULL, 58, '2LG35ZRZDW', '7616211404', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(59, 1, NULL, 59, 'D40V7WEQFX', '1528248691', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(60, 1, NULL, 60, 'MWVRHMHNIX', '6381815768', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(61, 1, NULL, 61, 'GKDZASTGZ4', '4235008833', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(62, 1, NULL, 62, 'WAFSX0VNVH', '9165523681', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(63, 1, NULL, 63, 'VQWAXFE8ZX', '6976182303', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(64, 1, NULL, 64, 'CTRBWF0LG2', '4518740732', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(65, 1, NULL, 65, 'NQAK3LNBOX', '7412332566', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(66, 1, NULL, 66, 'K230XWMHV6', '7436978756', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(67, 1, NULL, 67, 'NRZJCJ92TI', '9336180442', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(68, 1, NULL, 68, '0RWLHNG72X', '6342505750', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(69, 1, NULL, 69, 'UPVGKZCD1G', '4947000247', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(70, 1, NULL, 70, '7EJCPQKV44', '1319010187', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(71, 1, NULL, 71, 'PUPWPD6U8F', '1791175203', 'generated', NULL, NULL, 1, '2026-06-18 04:38:39', 0, NULL, '2026-06-18 03:28:08', '2026-06-18 04:38:39'),
+(72, 1, NULL, 72, 'SJYH4KK2W8', '6043804777', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(73, 1, NULL, 73, 'UXB2GUHRCM', '2731926796', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(74, 1, NULL, 74, 'Z6DMBG2EOI', '1182471314', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(75, 1, NULL, 75, 'NXSN5KV3DO', '4595124929', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(76, 1, NULL, 76, 'MLCFFTWZLC', '7648410552', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(77, 1, NULL, 77, 'RRQG9SJECR', '7259015093', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(78, 1, NULL, 78, 'MUYFEQJ5FG', '6954768405', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(79, 1, NULL, 79, 'CXNDFQZGO2', '2536974120', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(80, 1, NULL, 80, 'FFUMFEVREB', '2734736910', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(81, 1, NULL, 81, 'ESPXYHQFZN', '9217625745', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(82, 1, NULL, 82, 'IOQBFY2KD8', '9978614419', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(83, 1, NULL, 83, 'D9LGHYYZVN', '7570075442', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(84, 1, NULL, 84, 'VRCL1SYKNK', '4968172204', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(85, 1, NULL, 85, '0OS4ZZXP7G', '2136878836', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(86, 1, NULL, 86, 'ROASEXIHMO', '2667050499', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(87, 1, NULL, 87, 'CO26NZMUJ3', '7344561070', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(88, 1, NULL, 88, 'IUM05X6DA3', '6244131374', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(89, 1, NULL, 89, 'VEI0U7ZUS5', '9726349197', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(90, 1, NULL, 90, 'CGHLLFTL6G', '9620625196', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(91, 1, NULL, 91, 'GLR6GMWNRU', '4929883842', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(92, 1, NULL, 92, 'QSLPKK4HOB', '5296957603', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(93, 1, NULL, 93, 'R5ZYO72MH3', '4989224681', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(94, 1, NULL, 94, 'LCEOSUETAY', '7410191802', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(95, 1, NULL, 95, 'NUYIUJHYPM', '3608719034', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(96, 1, NULL, 96, 'KGLOJMZJRN', '8373711869', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(97, 1, NULL, 97, 'GOCFB1VNS7', '1842323585', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(98, 1, NULL, 98, 'OPJNGFW470', '8441841894', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(99, 1, NULL, 99, 'O3TAO3YXKF', '1356566511', 'generated', NULL, NULL, 0, NULL, 0, NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(100, 1, NULL, 100, 'XGFDTPHGQ3', '5663488012', 'generated', 'Auto-locked: 8 repeated scans from 127.0.0.1.', '2026-06-18 04:39:38', 6, '2026-06-18 04:40:45', 0, NULL, '2026-06-18 03:28:08', '2026-06-18 04:40:45');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `batch_unit_logs`
+--
+
+CREATE TABLE `batch_unit_logs` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `batch_id` bigint(20) UNSIGNED NOT NULL,
+  `batch_unit_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `event` varchar(255) NOT NULL,
+  `from_status` varchar(255) DEFAULT NULL,
+  `to_status` varchar(255) DEFAULT NULL,
+  `quantity` int(11) DEFAULT NULL,
+  `note` varchar(255) DEFAULT NULL,
+  `performed_by` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `batch_unit_logs`
+--
+
+INSERT INTO `batch_unit_logs` (`id`, `batch_id`, `batch_unit_id`, `event`, `from_status`, `to_status`, `quantity`, `note`, `performed_by`, `created_at`, `updated_at`) VALUES
+(1, 1, NULL, 'units_generated', NULL, 'generated', 100, 'Generated 100 units on batch creation.', NULL, '2026-06-18 03:28:08', '2026-06-18 03:28:08'),
+(2, 1, 100, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 03:28:47', '2026-06-18 03:28:47'),
+(3, 1, 100, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 03:59:36', '2026-06-18 03:59:36'),
+(4, 1, 100, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:17:51', '2026-06-18 04:17:51'),
+(5, 1, 100, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:36:55', '2026-06-18 04:36:55'),
+(6, 1, 100, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:36:58', '2026-06-18 04:36:58'),
+(7, 1, 100, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:37:03', '2026-06-18 04:37:03'),
+(8, 1, 100, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:37:48', '2026-06-18 04:37:48'),
+(9, 1, 71, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:37:56', '2026-06-18 04:37:56'),
+(10, 1, 71, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:37:59', '2026-06-18 04:37:59'),
+(11, 1, 71, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:38:17', '2026-06-18 04:38:17'),
+(12, 1, 71, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:38:18', '2026-06-18 04:38:18'),
+(13, 1, 71, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:38:39', '2026-06-18 04:38:39'),
+(14, 1, 73, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:38:46', '2026-06-18 04:38:46'),
+(15, 1, 100, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:39:38', '2026-06-18 04:39:38'),
+(16, 1, 100, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:40:05', '2026-06-18 04:40:05'),
+(17, 1, 100, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:40:45', '2026-06-18 04:40:45'),
+(18, 1, 73, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:42:35', '2026-06-18 04:42:35'),
+(19, 1, 73, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:43:07', '2026-06-18 04:43:07'),
+(20, 1, 73, 'scanned', NULL, NULL, NULL, 'Verification scan via QR code.', 'public', '2026-06-18 04:43:24', '2026-06-18 04:43:24');
 
 -- --------------------------------------------------------
 
@@ -220,12 +427,82 @@ CREATE TABLE `commercial_invoice_lines` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `consignments`
+--
+
+CREATE TABLE `consignments` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `consignment_number` varchar(255) NOT NULL,
+  `qr_code` varchar(255) NOT NULL,
+  `origin` varchar(255) NOT NULL DEFAULT 'Factory',
+  `destination` varchar(255) DEFAULT NULL,
+  `carrier` varchar(255) DEFAULT NULL,
+  `vehicle_no` varchar(255) DEFAULT NULL,
+  `status` enum('created','dispatched','in_transit','received','closed') NOT NULL DEFAULT 'created',
+  `cartons_count` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `units_count` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `dispatched_at` timestamp NULL DEFAULT NULL,
+  `received_at` timestamp NULL DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `consignment_scans`
+--
+
+CREATE TABLE `consignment_scans` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `consignment_id` bigint(20) UNSIGNED NOT NULL,
+  `event` varchar(255) NOT NULL,
+  `performed_by` varchar(255) DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL,
+  `ip_address` varchar(255) DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `counterfeit_reports`
+--
+
+CREATE TABLE `counterfeit_reports` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `uuc_code` varchar(255) NOT NULL,
+  `verification_log_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `product_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `batch_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `reason` varchar(255) DEFAULT NULL,
+  `reporter_name` varchar(255) NOT NULL,
+  `reporter_phone` varchar(255) NOT NULL,
+  `reporter_email` varchar(255) DEFAULT NULL,
+  `message` text DEFAULT NULL,
+  `city` varchar(255) DEFAULT NULL,
+  `country` varchar(255) DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `status` varchar(255) NOT NULL DEFAULT 'new',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `countries`
 --
 
 CREATE TABLE `countries` (
   `id` bigint(20) UNSIGNED NOT NULL,
   `code` varchar(3) NOT NULL,
+  `flag` varchar(16) DEFAULT NULL,
+  `dial_code` varchar(10) DEFAULT NULL,
   `name` varchar(255) NOT NULL,
   `region` varchar(255) DEFAULT NULL,
   `currency_code` varchar(3) DEFAULT NULL,
@@ -240,6 +517,83 @@ CREATE TABLE `countries` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `countries`
+--
+
+INSERT INTO `countries` (`id`, `code`, `flag`, `dial_code`, `name`, `region`, `currency_code`, `import_permitted`, `import_license_required`, `gmp_certificate_required`, `product_registration_required`, `regulatory_authority`, `regulatory_status`, `notes`, `is_active`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(7, 'BD', '🇧🇩', '+880', 'Bangladesh', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(8, 'IN', '🇮🇳', '+91', 'India', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(9, 'US', '🇺🇸', '+1', 'United States', 'North America', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(10, 'CA', '🇨🇦', '+1', 'Canada', 'North America', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(11, 'MX', '🇲🇽', '+52', 'Mexico', 'North America', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(12, 'BR', '🇧🇷', '+55', 'Brazil', 'South America', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(13, 'AR', '🇦🇷', '+54', 'Argentina', 'South America', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-15 04:08:59', NULL),
+(14, 'CL', '🇨🇱', '+56', 'Chile', 'South America', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(15, 'CO', '🇨🇴', '+57', 'Colombia', 'South America', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(16, 'GB', '🇬🇧', '+44', 'United Kingdom', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(17, 'IE', '🇮🇪', '+353', 'Ireland', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(18, 'FR', '🇫🇷', '+33', 'France', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(19, 'DE', '🇩🇪', '+49', 'Germany', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(20, 'ES', '🇪🇸', '+34', 'Spain', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(21, 'PT', '🇵🇹', '+351', 'Portugal', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(22, 'IT', '🇮🇹', '+39', 'Italy', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(23, 'NL', '🇳🇱', '+31', 'Netherlands', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(24, 'BE', '🇧🇪', '+32', 'Belgium', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(25, 'CH', '🇨🇭', '+41', 'Switzerland', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(26, 'AT', '🇦🇹', '+43', 'Austria', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(27, 'SE', '🇸🇪', '+46', 'Sweden', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(28, 'NO', '🇳🇴', '+47', 'Norway', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(29, 'DK', '🇩🇰', '+45', 'Denmark', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(30, 'FI', '🇫🇮', '+358', 'Finland', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:52', '2026-06-10 23:12:52', NULL),
+(31, 'PL', '🇵🇱', '+48', 'Poland', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(32, 'CZ', '🇨🇿', '+420', 'Czechia', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(33, 'GR', '🇬🇷', '+30', 'Greece', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(34, 'RU', '🇷🇺', '+7', 'Russia', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(35, 'TR', '🇹🇷', '+90', 'Turkey', 'Europe', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(36, 'ZA', '🇿🇦', '+27', 'South Africa', 'Africa', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(37, 'NG', '🇳🇬', '+234', 'Nigeria', 'Africa', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(38, 'KE', '🇰🇪', '+254', 'Kenya', 'Africa', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(39, 'EG', '🇪🇬', '+20', 'Egypt', 'Africa', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(40, 'GH', '🇬🇭', '+233', 'Ghana', 'Africa', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(41, 'ET', '🇪🇹', '+251', 'Ethiopia', 'Africa', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(42, 'TZ', '🇹🇿', '+255', 'Tanzania', 'Africa', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(43, 'MA', '🇲🇦', '+212', 'Morocco', 'Africa', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(44, 'SA', '🇸🇦', '+966', 'Saudi Arabia', 'Middle East', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(45, 'AE', '🇦🇪', '+971', 'United Arab Emirates', 'Middle East', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(46, 'IL', '🇮🇱', '+972', 'Israel', 'Middle East', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(47, 'JO', '🇯🇴', '+962', 'Jordan', 'Middle East', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(48, 'PK', '🇵🇰', '+92', 'Pakistan', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(49, 'LK', '🇱🇰', '+94', 'Sri Lanka', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(50, 'CN', '🇨🇳', '+86', 'China', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(51, 'JP', '🇯🇵', '+81', 'Japan', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(52, 'KR', '🇰🇷', '+82', 'South Korea', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(53, 'ID', '🇮🇩', '+62', 'Indonesia', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(54, 'MY', '🇲🇾', '+60', 'Malaysia', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(55, 'SG', '🇸🇬', '+65', 'Singapore', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(56, 'TH', '🇹🇭', '+66', 'Thailand', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(57, 'VN', '🇻🇳', '+84', 'Vietnam', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(58, 'PH', '🇵🇭', '+63', 'Philippines', 'Asia', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(59, 'AU', '🇦🇺', '+61', 'Australia', 'Oceania', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(60, 'NZ', '🇳🇿', '+64', 'New Zealand', 'Oceania', NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:12:53', '2026-06-10 23:12:53', NULL),
+(61, 'CAD', NULL, NULL, 'Cade Ramos', NULL, NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:06:07', '2026-06-10 23:06:07', NULL),
+(62, 'QUO', NULL, NULL, 'Quo quisquam soluta', NULL, NULL, 1, 0, 0, 1, NULL, 'approved', NULL, 1, '2026-06-10 23:06:07', '2026-06-10 23:06:07', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `country_authorizations`
+--
+
+CREATE TABLE `country_authorizations` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `product_id` bigint(20) UNSIGNED NOT NULL,
+  `country_code` varchar(2) NOT NULL,
+  `country_name` varchar(255) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -348,6 +702,74 @@ CREATE TABLE `job_batches` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `master_cartons`
+--
+
+CREATE TABLE `master_cartons` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `consignment_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `product_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `batch_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `carton_number` varchar(255) NOT NULL,
+  `qr_code` varchar(255) NOT NULL,
+  `carton_type` enum('standard','generic') NOT NULL DEFAULT 'standard',
+  `label` varchar(255) DEFAULT NULL,
+  `capacity` int(10) UNSIGNED NOT NULL,
+  `packed_quantity` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `serial_start` int(10) UNSIGNED DEFAULT NULL,
+  `serial_end` int(10) UNSIGNED DEFAULT NULL,
+  `status` varchar(40) NOT NULL DEFAULT 'created',
+  `carton_condition` varchar(20) NOT NULL DEFAULT 'good',
+  `condition_note` text DEFAULT NULL,
+  `evidence_path` varchar(255) DEFAULT NULL,
+  `received_location` varchar(255) DEFAULT NULL,
+  `dispatched_at` timestamp NULL DEFAULT NULL,
+  `received_at` timestamp NULL DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `master_carton_contents`
+--
+
+CREATE TABLE `master_carton_contents` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `master_carton_id` bigint(20) UNSIGNED NOT NULL,
+  `product_id` bigint(20) UNSIGNED NOT NULL,
+  `batch_id` bigint(20) UNSIGNED NOT NULL,
+  `partial_batch_ref` varchar(255) DEFAULT NULL,
+  `serial_start` int(10) UNSIGNED NOT NULL,
+  `serial_end` int(10) UNSIGNED NOT NULL,
+  `quantity` int(10) UNSIGNED NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `master_carton_scans`
+--
+
+CREATE TABLE `master_carton_scans` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `master_carton_id` bigint(20) UNSIGNED NOT NULL,
+  `event` enum('scanned','dispatched','received') NOT NULL DEFAULT 'scanned',
+  `performed_by` varchar(255) DEFAULT NULL,
+  `location` varchar(255) DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `migrations`
 --
 
@@ -379,7 +801,33 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (15, '2026_01_01_000013_create_document_vault_table', 1),
 (16, '2026_01_01_000014_create_patient_records_table', 1),
 (17, '2026_01_01_000015_create_notifications_table', 1),
-(18, '2026_01_01_000016_create_reports_table', 1);
+(18, '2026_01_01_000016_create_reports_table', 1),
+(19, '2026_06_10_000001_add_therapeutic_class_to_products', 2),
+(20, '2026_06_10_000002_create_product_images_table', 2),
+(21, '2026_06_11_000001_add_website_and_pdf_to_products', 3),
+(22, '2026_06_11_000002_create_therapeutic_classes_table', 4),
+(23, '2026_06_11_000003_add_flag_and_dial_code_to_countries', 5),
+(24, '2026_06_11_000004_create_batch_units_table', 6),
+(25, '2026_06_11_000005_create_batch_unit_logs_table', 7),
+(26, '2026_06_14_000001_add_partial_batch_support', 8),
+(27, '2026_06_14_000002_create_batch_extensions_table', 8),
+(28, '2026_06_14_000003_add_dates_to_batch_extensions', 9),
+(29, '2026_06_14_000004_create_master_cartons_table', 10),
+(30, '2026_06_14_000005_create_master_carton_scans_table', 10),
+(31, '2026_06_14_000006_add_contents_support_to_master_cartons', 11),
+(32, '2026_06_15_000001_create_consignments_table', 12),
+(33, '2026_06_15_000002_expand_carton_status_and_condition', 13),
+(34, '2026_06_15_000003_add_scale_indexes', 14),
+(35, '2026_06_15_000004_add_consignment_summary_columns', 14),
+(36, '2026_06_16_000001_create_anti_counterfeit_tables', 15),
+(37, '2026_06_16_000002_create_verification_policies_table', 16),
+(38, '2026_06_16_000003_create_verification_daily_stats_table', 17),
+(39, '2026_06_16_000004_create_counterfeit_reports_table', 18),
+(40, '2026_06_16_000005_create_product_info_requests_table', 19),
+(41, '2026_06_16_000006_create_settings_table', 20),
+(42, '2026_06_17_000001_add_verify_open_to_products', 21),
+(43, '2026_06_18_000001_add_lock_tracking_to_batch_units', 22),
+(44, '2026_06_18_000002_add_ip_vpn_controls_to_policies', 23);
 
 -- --------------------------------------------------------
 
@@ -524,6 +972,7 @@ CREATE TABLE `products` (
   `strength` varchar(255) DEFAULT NULL,
   `pack_size` varchar(255) DEFAULT NULL,
   `atc_code` varchar(20) DEFAULT NULL,
+  `therapeutic_class` varchar(255) DEFAULT NULL,
   `hs_code` varchar(20) DEFAULT NULL,
   `controlled_substance` enum('no','schedule_1','schedule_2','schedule_3') NOT NULL DEFAULT 'no',
   `manufacturer_name` varchar(255) DEFAULT NULL,
@@ -535,11 +984,25 @@ CREATE TABLE `products` (
   `unit_cost` decimal(12,4) DEFAULT NULL,
   `unit_of_measure` varchar(20) NOT NULL DEFAULT 'unit',
   `status` enum('active','discontinued','pending_approval') NOT NULL DEFAULT 'active',
+  `verify_open` tinyint(1) NOT NULL DEFAULT 0,
   `notes` text DEFAULT NULL,
+  `website_url` varchar(255) DEFAULT NULL,
+  `pdf_path` varchar(255) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `products`
+--
+
+INSERT INTO `products` (`id`, `prn`, `name`, `generic_name`, `brand_name`, `dosage_form`, `strength`, `pack_size`, `atc_code`, `therapeutic_class`, `hs_code`, `controlled_substance`, `manufacturer_name`, `manufacturing_site`, `country_of_origin`, `shelf_life`, `storage_conditions`, `temperature_sensitivity`, `unit_cost`, `unit_of_measure`, `status`, `verify_open`, `notes`, `website_url`, `pdf_path`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(1, 'PRN-VELIT-INJ-00001', 'Salvador Vinson1', 'Nissim Vasquez', NULL, 'injection', 'Tempore sed quo inv', 'Eos Nam eligendi vo', 'Dolorem ad provident', NULL, 'Do omnis ex mollitia', 'schedule_1', 'Allegra Daniels', 'Dolores aliquid rem', 'Velit', 'Et quia nobis odio a', 'Distinctio Non et e', 'cool_chain', 50.0000, 'unit', 'active', 0, 'Aut est autem in com', NULL, NULL, '2026-06-10 04:34:44', '2026-06-10 21:45:40', '2026-06-10 21:45:40'),
+(2, 'PRN-OMNIS-CRM-00001', 'Baricinix 2', 'Baricitinib', NULL, 'tablet', '2 mg', 'Tablet', 'N/A', 'Oncology / Antineoplastics', 'N/A', 'no', 'Beacon Pharmaceuticals PLC', NULL, 'BD', 'Deserunt et qui pers', 'Corrupti nemo et en', 'frozen', 90.0000, 'unit', 'active', 0, 'Omnis soluta iste qu', 'https://baricinix.com', NULL, '2026-06-10 21:05:22', '2026-06-17 03:07:36', NULL),
+(5, 'PRN-APERI-CRM-00001', 'Tagrix 80 mg', 'Osimartinib', NULL, 'tablet', '80 mg', '3x10\'s Alu-Alu', 'Delectus qui cupida', 'Oncology / Antineoplastics', 'TG2', 'schedule_3', 'Beacon Pharmaceuticals PLC', 'Non accusamus vitae', 'BD', 'Sit incididunt id ad', 'Dolores rerum dicta', 'frozen', 200.0000, 'unit', 'active', 0, 'Nisi rerum qui volup', 'https://tagrix.net', 'products/5/docs/1781151397_6a2a36a5a9d03_general-product-list-english.pdf', '2026-06-10 22:16:37', '2026-06-14 04:16:09', NULL),
+(7, 'PRN-CAD-INJ-00001', 'Lenvanix 10', 'Lenvatinib', NULL, 'capsule', '4 mg', '30\'s Pot', 'N/A', 'Oncology / Antineoplastics', 'N/A', 'schedule_1', 'Beacon Pharmaceuticals PLC', NULL, 'BD', '36', 'Doloremque quis fugi', 'frozen', 12.0000, 'unit', 'active', 0, 'Porro anim reiciendi', 'https://www.lenvanix.com', 'products/7/docs/1781411253_6a2e2db540ae8_special-product-china.pdf', '2026-06-10 23:06:07', '2026-06-14 04:18:09', NULL),
+(9, 'PRN-CH-SYR-00001', 'Maite Howell', 'Dillon Potts', NULL, 'syrup', 'Sit sed dolores in', 'Ipsam voluptates qui', 'Aspernatur irure eum', 'Antibiotics / Antimicrobials', 'Sint veritatis non a', 'schedule_3', 'Irene Morris', 'Laborum Et mollitia', 'CH', 'Modi aut elit possi', 'Non est veritatis d', 'ambient', 10.0000, 'unit', 'active', 1, 'Omnis consequat Min', 'https://www.sado.ws', NULL, '2026-06-17 21:54:02', '2026-06-17 21:54:44', NULL);
 
 -- --------------------------------------------------------
 
@@ -555,6 +1018,84 @@ CREATE TABLE `product_country_registrations` (
   `registration_date` date DEFAULT NULL,
   `expiry_date` date DEFAULT NULL,
   `status` enum('approved','pending','rejected','expired') NOT NULL DEFAULT 'approved',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `product_images`
+--
+
+CREATE TABLE `product_images` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `product_id` bigint(20) UNSIGNED NOT NULL,
+  `filename` varchar(255) NOT NULL,
+  `original_name` varchar(255) NOT NULL,
+  `path` varchar(255) NOT NULL,
+  `mime_type` varchar(50) DEFAULT NULL,
+  `size` bigint(20) UNSIGNED DEFAULT NULL,
+  `is_primary` tinyint(1) NOT NULL DEFAULT 0,
+  `sort_order` smallint(5) UNSIGNED NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `product_images`
+--
+
+INSERT INTO `product_images` (`id`, `product_id`, `filename`, `original_name`, `path`, `mime_type`, `size`, `is_primary`, `sort_order`, `created_at`, `updated_at`) VALUES
+(4, 5, '1781151397_6a2a36a5a6e9d_tagrix-osimertinib-tablets.png', 'Tagrix-Osimertinib-Tablets.png', 'products/5/1781151397_6a2a36a5a6e9d_tagrix-osimertinib-tablets.png', 'image/png', 71053, 1, 0, '2026-06-10 22:16:37', '2026-06-17 21:53:28'),
+(6, 2, '1781431647_6a2e7d5f00ade_baricinix-2-baricitinib.jpg', 'baricinix-2-baricitinib.jpg', 'products/2/1781431647_6a2e7d5f00ade_baricinix-2-baricitinib.jpg', 'image/jpeg', 91465, 1, 0, '2026-06-14 04:07:27', '2026-06-14 04:16:21'),
+(7, 7, '1781754741_6a336b75eaafc_lenvanix-10-lenvatinib.jpg', 'lenvanix-10-lenvatinib.jpg', 'products/7/1781754741_6a336b75eaafc_lenvanix-10-lenvatinib.jpg', 'image/jpeg', 28273, 1, 0, '2026-06-17 21:52:21', '2026-06-17 21:52:21'),
+(8, 5, '1781754808_6a336bb8d92c5_tagrix-osimertinib-80.jpg', 'tagrix-osimertinib-80.jpg', 'products/5/1781754808_6a336bb8d92c5_tagrix-osimertinib-80.jpg', 'image/jpeg', 49366, 0, 1, '2026-06-17 21:53:28', '2026-06-17 21:53:28');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `product_info_requests`
+--
+
+CREATE TABLE `product_info_requests` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `uuc_code` varchar(255) NOT NULL,
+  `product_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `batch_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `name` varchar(255) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `phone` varchar(255) DEFAULT NULL,
+  `country` varchar(255) DEFAULT NULL,
+  `city` varchar(255) DEFAULT NULL,
+  `address` varchar(255) DEFAULT NULL,
+  `partner_name` varchar(255) DEFAULT NULL,
+  `partner_phone` varchar(255) DEFAULT NULL,
+  `whatsapp` varchar(255) DEFAULT NULL,
+  `emailed` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `product_recalls`
+--
+
+CREATE TABLE `product_recalls` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `recall_number` varchar(255) NOT NULL,
+  `product_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `batch_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `scope` varchar(255) NOT NULL DEFAULT 'batch',
+  `country_code` varchar(2) DEFAULT NULL,
+  `severity` varchar(255) NOT NULL DEFAULT 'normal',
+  `reason` text DEFAULT NULL,
+  `active` tinyint(1) NOT NULL DEFAULT 1,
+  `recalled_by` varchar(255) DEFAULT NULL,
+  `recalled_at` timestamp NULL DEFAULT NULL,
+  `notes` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -741,6 +1282,47 @@ CREATE TABLE `report_schedules` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `risk_alerts`
+--
+
+CREATE TABLE `risk_alerts` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `alert_number` varchar(255) NOT NULL,
+  `verification_log_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `batch_unit_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `batch_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `product_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `uuc_code` varchar(255) DEFAULT NULL,
+  `category` varchar(255) NOT NULL,
+  `risk_level` varchar(255) NOT NULL,
+  `risk_score` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `country` varchar(255) DEFAULT NULL,
+  `latitude` decimal(10,7) DEFAULT NULL,
+  `longitude` decimal(10,7) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `status` varchar(255) NOT NULL DEFAULT 'open',
+  `is_case` tinyint(1) NOT NULL DEFAULT 0,
+  `assigned_to` varchar(255) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `resolved_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `risk_alerts`
+--
+
+INSERT INTO `risk_alerts` (`id`, `alert_number`, `verification_log_id`, `batch_unit_id`, `batch_id`, `product_id`, `uuc_code`, `category`, `risk_level`, `risk_score`, `country`, `latitude`, `longitude`, `description`, `status`, `is_case`, `assigned_to`, `notes`, `resolved_at`, `created_at`, `updated_at`) VALUES
+(1, 'ALT-20260618-000001', 6, 100, 1, 2, 'XGFDTPHGQ3', 'scan_limit_exceeded', 'high', 25, NULL, NULL, NULL, '6 scans exceed the limit of 5 for this All UUC codes (global).', 'open', 0, NULL, NULL, NULL, '2026-06-18 04:37:03', '2026-06-18 04:37:03'),
+(2, 'ALT-20260618-000002', 7, 100, 1, 2, 'XGFDTPHGQ3', 'scan_limit_exceeded', 'high', 25, NULL, NULL, NULL, '7 scans exceed the limit of 5 for this All UUC codes (global).', 'open', 0, NULL, NULL, NULL, '2026-06-18 04:37:48', '2026-06-18 04:37:48'),
+(3, 'ALT-20260618-000003', 14, 100, 1, 2, 'XGFDTPHGQ3', 'scan_limit_exceeded', 'high', 25, NULL, NULL, NULL, '8 scans exceed the limit of 5 for this All UUC codes (global).', 'open', 0, NULL, NULL, NULL, '2026-06-18 04:39:38', '2026-06-18 04:39:38'),
+(4, 'ALT-20260618-000004', 15, 100, 1, 2, 'XGFDTPHGQ3', 'locked_scope', 'critical', 40, NULL, NULL, NULL, 'Verification is locked for this Specific code(s) by policy \'Auto lock — XGFDTPHGQ3\'.', 'open', 0, NULL, NULL, NULL, '2026-06-18 04:40:05', '2026-06-18 04:40:05'),
+(5, 'ALT-20260618-000005', 16, 100, 1, 2, 'XGFDTPHGQ3', 'locked_scope', 'critical', 40, NULL, NULL, NULL, 'Verification is locked for this Specific code(s) by policy \'Auto lock — XGFDTPHGQ3\'.', 'open', 0, NULL, NULL, NULL, '2026-06-18 04:40:45', '2026-06-18 04:40:45');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `sales_orders`
 --
 
@@ -788,6 +1370,61 @@ CREATE TABLE `sales_order_lines` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `settings`
+--
+
+CREATE TABLE `settings` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `key` varchar(255) NOT NULL,
+  `value` longtext DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `settings`
+--
+
+INSERT INTO `settings` (`id`, `key`, `value`, `created_at`, `updated_at`) VALUES
+(61, 'verify_style', 'style5', '2026-06-17 02:13:14', '2026-06-17 02:42:49'),
+(62, 'brand_name', 'PharmaTrack', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(63, 'primary', '#059669', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(64, 'button_color', '#059669', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(65, 'footer_color', '#94a3b8', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(66, 'genuine_title', 'Verified Authentic', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(67, 'genuine_subtitle', '', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(68, 'footer', 'Protected by PharmaTrack Anti-Counterfeit', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(69, 'report_form', '1', '2026-06-17 02:13:14', '2026-06-17 02:42:49'),
+(70, 'info_form', '1', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(71, 'verify_button', '0', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(72, 'verify_button_text', 'Verify authenticity', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(73, 'verify_button_pos', 'hero', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(74, 'show_product_photo', '1', '2026-06-17 02:13:14', '2026-06-17 02:44:30'),
+(75, 'verify_code_panel', '0', '2026-06-17 02:13:14', '2026-06-18 02:53:57'),
+(76, 'show_journey', '0', '2026-06-17 02:13:14', '2026-06-17 02:44:10'),
+(77, 'history_limit', '10', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(78, 'show_country', '1', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(79, 'show_city', '1', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(80, 'show_ip', '1', '2026-06-17 02:13:14', '2026-06-17 02:31:00'),
+(81, 'show_device', '1', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(82, 'show_verification', '0', '2026-06-17 02:13:14', '2026-06-17 02:14:01'),
+(83, 'show_leaflet', '1', '2026-06-17 02:13:14', '2026-06-17 02:14:01'),
+(84, 'leaflet_label', 'Download insert / leaflet', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(85, 'card_left_label', 'Batch', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(86, 'card_left_field', 'batch', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(87, 'card_right_label', 'Expires in', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(88, 'card_right_field', 'expires_in', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(89, 'fields', '[\"product\",\"generic\",\"strength\",\"batch\",\"manufactured\",\"expires\",\"serial\",\"country\"]', '2026-06-17 02:13:14', '2026-06-17 21:58:43'),
+(90, 'messages', '{\"fake\":{\"title\":\"This is NOT a Genuine Product\",\"text\":\"This code doesn\'t match any product in our records. It may be counterfeit \\u2014 do not use it.\"},\"recalled\":{\"title\":\"Product Recalled\",\"text\":\"This product has been recalled. Do not use it and contact the manufacturer immediately.\"},\"locked\":{\"title\":\"Locked by Administrator\",\"text\":\"This product can only be shown by the administrator. No further information is available.\"},\"expired\":{\"title\":\"Product Expired\",\"text\":\"This product has passed its expiry date and should not be used.\"},\"invalid\":{\"title\":\"Not Valid for Sale\",\"text\":\"This unit is marked not valid for sale.\"},\"country\":{\"title\":\"May Be Counterfeit\",\"text\":\"This product is authorized for sale only in other countries. If you bought it in your country, it may be counterfeit \\u2014 please report it.\"},\"city\":{\"title\":\"Not Sold in Your City\",\"text\":\"This product is not authorized for sale in your city. If you bought it here, it may be counterfeit \\u2014 please report it.\"},\"device\":{\"title\":\"Device Limit Reached\",\"text\":\"This product has reached its allowed number of verification devices.\"},\"hit\":{\"title\":\"Verification Limit Reached\",\"text\":\"This code has reached its maximum number of verifications.\"}}', '2026-06-17 02:13:14', '2026-06-17 02:13:14'),
+(92, 'scan_intelligence', '{\"multi_country\":{\"enabled\":true,\"threshold\":2,\"records\":3,\"report\":true,\"title\":\"Scanned from Multiple Countries\",\"text\":\"This product has been scanned from multiple countries. Please verify that you are purchasing from an authorized seller.\"},\"repeat_ip_block\":{\"enabled\":true,\"threshold\":5,\"records\":5,\"report\":true,\"title\":\"Multiple Scans From Your Device\",\"text\":\"This product has been scanned multiple times from your device. The system has automatically blocked further attempts. Please contact the administrator at info@beaconpharma.com.bd for assistance.\"},\"multi_ip_diff_country\":{\"enabled\":true,\"threshold\":3,\"records\":3,\"report\":false,\"title\":\"Scanned From Different Networks\",\"text\":\"This product has been scanned from different devices or networks across various regions. Please ensure authenticity before purchase.\"},\"multi_ip_same_country\":{\"enabled\":true,\"threshold\":3,\"records\":3,\"report\":false,\"title\":\"Scanned From Multiple Devices\",\"text\":\"This product has been scanned from multiple devices within the same country. Please confirm you are purchasing from an authorized seller.\"},\"same_ip_autolock\":{\"enabled\":true,\"threshold\":8,\"records\":5,\"report\":true,\"title\":\"Locked For Security\",\"text\":\"This product has been scanned repeatedly from your device and is now locked for security reasons (possible counterfeit activity detected).\"},\"recent_3day\":{\"enabled\":true,\"days\":5,\"records\":5,\"report\":true,\"title\":\"Already Scanned Recently\",\"text\":\"You have already scanned this product within the last few days. Why do you need to check again?\"},\"high_freq\":{\"enabled\":true,\"window_min\":10,\"max\":5,\"records\":0,\"report\":false,\"title\":\"Suspicious Activity Detected\",\"text\":\"Too many scans detected in a short period of time. Suspicious activity logged.\"},\"region_mismatch\":{\"enabled\":true,\"records\":3,\"report\":true,\"title\":\"Not Intended For Your Region\",\"text\":\"This product is not intended for use in your region. Please check with the official distributor.\"},\"returning_scan\":{\"enabled\":true,\"days\":10,\"records\":3,\"report\":true,\"title\":\"Welcome Back\",\"text\":\"You scanned this product some days ago. If you need a confirmation document, fill in your details to download a genuine-product certificate.\"}}', '2026-06-18 03:33:56', '2026-06-18 03:33:56'),
+(93, 'loader_enabled', '1', '2026-06-18 04:37:46', '2026-06-18 04:37:46'),
+(94, 'loader_style', 'spinner', '2026-06-18 04:37:46', '2026-06-18 04:38:15'),
+(95, 'loader_text', 'Wait Information is loading...', '2026-06-18 04:37:46', '2026-06-18 04:43:23'),
+(96, 'loader_min_ms', '5000', '2026-06-18 04:37:46', '2026-06-18 04:38:36');
 
 -- --------------------------------------------------------
 
@@ -847,6 +1484,50 @@ CREATE TABLE `shipment_events` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `therapeutic_classes`
+--
+
+CREATE TABLE `therapeutic_classes` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `therapeutic_classes`
+--
+
+INSERT INTO `therapeutic_classes` (`id`, `name`, `description`, `is_active`, `created_at`, `updated_at`) VALUES
+(2, 'Nadine Mcneil', NULL, 1, '2026-06-10 22:52:32', '2026-06-10 22:52:32'),
+(3, 'Antibiotics / Antimicrobials', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(4, 'Analgesics / Pain Relief', 'vvv', 1, '2026-06-10 23:03:14', '2026-06-15 04:08:30'),
+(5, 'Anti-inflammatory / NSAIDs', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(6, 'Antidiabetics / Insulin', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(7, 'Cardiovascular', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(8, 'Antihypertensives', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(9, 'Antifungals', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(10, 'Antivirals', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(11, 'Antiparasitics', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(12, 'Respiratory / Bronchodilators', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(13, 'CNS / Neurological', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(14, 'Gastrointestinal', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(15, 'Endocrinology / Hormones', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(16, 'Vaccines / Immunologicals', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(17, 'Vitamins / Supplements', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(18, 'Dermatology', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(19, 'Ophthalmology', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(20, 'Oncology / Antineoplastics', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(21, 'Haematology', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(22, 'Musculoskeletal', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14'),
+(23, 'Urological', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:07:48'),
+(24, 'Other', NULL, 1, '2026-06-10 23:03:14', '2026-06-10 23:03:14');
 
 -- --------------------------------------------------------
 
@@ -945,6 +1626,121 @@ CREATE TABLE `vault_folders` (
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `verification_daily_stats`
+--
+
+CREATE TABLE `verification_daily_stats` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `day` date NOT NULL,
+  `total` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+  `genuine` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+  `suspicious` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+  `invalid` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+  `alerts` bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `verification_logs`
+--
+
+CREATE TABLE `verification_logs` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `verification_number` varchar(255) NOT NULL,
+  `uuc_code` varchar(255) NOT NULL,
+  `batch_unit_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `batch_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `product_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `result` varchar(255) NOT NULL DEFAULT 'genuine',
+  `risk_score` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `country` varchar(255) DEFAULT NULL,
+  `country_code` varchar(2) DEFAULT NULL,
+  `city` varchar(255) DEFAULT NULL,
+  `region` varchar(255) DEFAULT NULL,
+  `isp` varchar(255) DEFAULT NULL,
+  `latitude` decimal(10,7) DEFAULT NULL,
+  `longitude` decimal(10,7) DEFAULT NULL,
+  `gps_accuracy` int(10) UNSIGNED DEFAULT NULL,
+  `is_proxy` tinyint(1) NOT NULL DEFAULT 0,
+  `browser` varchar(255) DEFAULT NULL,
+  `os` varchar(255) DEFAULT NULL,
+  `device_type` varchar(255) DEFAULT NULL,
+  `language` varchar(255) DEFAULT NULL,
+  `timezone` varchar(255) DEFAULT NULL,
+  `user_agent` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `verification_logs`
+--
+
+INSERT INTO `verification_logs` (`id`, `verification_number`, `uuc_code`, `batch_unit_id`, `batch_id`, `product_id`, `result`, `risk_score`, `ip_address`, `country`, `country_code`, `city`, `region`, `isp`, `latitude`, `longitude`, `gps_accuracy`, `is_proxy`, `browser`, `os`, `device_type`, `language`, `timezone`, `user_agent`, `created_at`, `updated_at`) VALUES
+(1, 'VER-20260618-000001', 'XGFDTPHGQ3', 100, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 03:28:47', '2026-06-18 03:28:47'),
+(2, 'VER-20260618-000002', 'XGFDTPHGQ3', 100, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 03:59:36', '2026-06-18 03:59:36'),
+(3, 'VER-20260618-000003', 'XGFDTPHGQ3', 100, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:17:51', '2026-06-18 04:17:51'),
+(4, 'VER-20260618-000004', 'XGFDTPHGQ3', 100, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:36:55', '2026-06-18 04:36:55'),
+(5, 'VER-20260618-000005', 'XGFDTPHGQ3', 100, 1, 2, 'blocked', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:36:58', '2026-06-18 04:36:58'),
+(6, 'VER-20260618-000006', 'XGFDTPHGQ3', 100, 1, 2, 'blocked', 25, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:37:03', '2026-06-18 04:37:03'),
+(7, 'VER-20260618-000007', 'XGFDTPHGQ3', 100, 1, 2, 'blocked', 25, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:37:48', '2026-06-18 04:37:48'),
+(8, 'VER-20260618-000008', 'PUPWPD6U8F', 71, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:37:56', '2026-06-18 04:37:56'),
+(9, 'VER-20260618-000009', 'PUPWPD6U8F', 71, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:37:59', '2026-06-18 04:37:59'),
+(10, 'VER-20260618-000010', 'PUPWPD6U8F', 71, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:38:17', '2026-06-18 04:38:17'),
+(11, 'VER-20260618-000011', 'PUPWPD6U8F', 71, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:38:18', '2026-06-18 04:38:18'),
+(12, 'VER-20260618-000012', 'PUPWPD6U8F', 71, 1, 2, 'blocked', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:38:39', '2026-06-18 04:38:39'),
+(13, 'VER-20260618-000013', 'UXB2GUHRCM', 73, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:38:46', '2026-06-18 04:38:46'),
+(14, 'VER-20260618-000014', 'XGFDTPHGQ3', 100, 1, 2, 'blocked', 25, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Unknown', 'Unknown', 'desktop', NULL, NULL, 'curl/8.19.0', '2026-06-18 04:39:38', '2026-06-18 04:39:38'),
+(15, 'VER-20260618-000015', 'XGFDTPHGQ3', 100, 1, 2, 'locked', 40, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Unknown', 'Unknown', 'desktop', NULL, NULL, 'curl/8.19.0', '2026-06-18 04:40:05', '2026-06-18 04:40:05'),
+(16, 'VER-20260618-000016', 'XGFDTPHGQ3', 100, 1, 2, 'locked', 40, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:40:45', '2026-06-18 04:40:45'),
+(17, 'VER-20260618-000017', 'UXB2GUHRCM', 73, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:42:35', '2026-06-18 04:42:35'),
+(18, 'VER-20260618-000018', 'UXB2GUHRCM', 73, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:43:07', '2026-06-18 04:43:07'),
+(19, 'VER-20260618-000019', 'UXB2GUHRCM', 73, 1, 2, 'genuine', 0, '127.0.0.1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 'Chrome', 'Windows 10/11', 'desktop', 'en_US', NULL, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36', '2026-06-18 04:43:24', '2026-06-18 04:43:24');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `verification_policies`
+--
+
+CREATE TABLE `verification_policies` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `scope_type` varchar(255) NOT NULL,
+  `product_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `batch_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `uuc_codes` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`uuc_codes`)),
+  `locked` tinyint(1) NOT NULL DEFAULT 0,
+  `allow_all` tinyint(1) NOT NULL DEFAULT 0,
+  `allowed_countries` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`allowed_countries`)),
+  `allowed_cities` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`allowed_cities`)),
+  `ip_whitelist` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`ip_whitelist`)),
+  `ip_blacklist` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`ip_blacklist`)),
+  `block_vpn` tinyint(1) NOT NULL DEFAULT 0,
+  `vpn_allowed_countries` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`vpn_allowed_countries`)),
+  `scan_limit` int(10) UNSIGNED DEFAULT NULL,
+  `device_limit` int(10) UNSIGNED DEFAULT NULL,
+  `active` tinyint(1) NOT NULL DEFAULT 1,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `verification_policies`
+--
+
+INSERT INTO `verification_policies` (`id`, `name`, `scope_type`, `product_id`, `batch_id`, `uuc_codes`, `locked`, `allow_all`, `allowed_countries`, `allowed_cities`, `ip_whitelist`, `ip_blacklist`, `block_vpn`, `vpn_allowed_countries`, `scan_limit`, `device_limit`, `active`, `notes`, `created_at`, `updated_at`) VALUES
+(1, 'Global verification policy (all UUC codes)', 'global', NULL, NULL, NULL, 0, 0, NULL, NULL, NULL, NULL, 0, NULL, 5, 3, 1, NULL, '2026-06-18 03:30:30', '2026-06-18 03:30:30'),
+(3, 'Auto lock — XGFDTPHGQ3', 'codes', NULL, NULL, '[\"XGFDTPHGQ3\"]', 1, 0, NULL, NULL, NULL, NULL, 0, NULL, NULL, NULL, 1, 'Auto-locked: 8 repeated scans from 127.0.0.1.', '2026-06-18 04:39:38', '2026-06-18 04:39:38');
+
 --
 -- Indexes for dumped tables
 --
@@ -1000,6 +1796,34 @@ ALTER TABLE `batches`
   ADD KEY `batches_expiry_date_index` (`expiry_date`);
 
 --
+-- Indexes for table `batch_extensions`
+--
+ALTER TABLE `batch_extensions`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `batch_extensions_partial_ref_unique` (`partial_ref`),
+  ADD KEY `batch_extensions_batch_id_index` (`batch_id`),
+  ADD KEY `batch_extensions_product_id_index` (`product_id`);
+
+--
+-- Indexes for table `batch_units`
+--
+ALTER TABLE `batch_units`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `batch_units_unique_number_unique` (`unique_number`),
+  ADD UNIQUE KEY `batch_units_batch_partial_serial_unique` (`batch_id`,`partial_batch_ref`,`serial_number`),
+  ADD KEY `batch_units_secret_code_index` (`secret_code`),
+  ADD KEY `batch_units_status_index` (`status`),
+  ADD KEY `batch_units_partial_batch_ref_index` (`partial_batch_ref`);
+
+--
+-- Indexes for table `batch_unit_logs`
+--
+ALTER TABLE `batch_unit_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `batch_unit_logs_batch_unit_id_foreign` (`batch_unit_id`),
+  ADD KEY `batch_unit_logs_batch_id_event_index` (`batch_id`,`event`);
+
+--
 -- Indexes for table `cache`
 --
 ALTER TABLE `cache`
@@ -1036,6 +1860,36 @@ ALTER TABLE `commercial_invoice_lines`
   ADD KEY `commercial_invoice_lines_commercial_invoice_id_index` (`commercial_invoice_id`);
 
 --
+-- Indexes for table `consignments`
+--
+ALTER TABLE `consignments`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `consignments_consignment_number_unique` (`consignment_number`),
+  ADD UNIQUE KEY `consignments_qr_code_unique` (`qr_code`),
+  ADD KEY `consignments_status_index` (`status`),
+  ADD KEY `consignments_qr_code_index` (`qr_code`),
+  ADD KEY `cons_status_id_idx` (`status`,`id`),
+  ADD KEY `cons_created_id_idx` (`created_at`,`id`);
+
+--
+-- Indexes for table `consignment_scans`
+--
+ALTER TABLE `consignment_scans`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `consignment_scans_consignment_id_index` (`consignment_id`);
+
+--
+-- Indexes for table `counterfeit_reports`
+--
+ALTER TABLE `counterfeit_reports`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `counterfeit_reports_verification_log_id_foreign` (`verification_log_id`),
+  ADD KEY `counterfeit_reports_product_id_foreign` (`product_id`),
+  ADD KEY `counterfeit_reports_batch_id_foreign` (`batch_id`),
+  ADD KEY `counterfeit_reports_uuc_code_index` (`uuc_code`),
+  ADD KEY `counterfeit_reports_status_index` (`status`);
+
+--
 -- Indexes for table `countries`
 --
 ALTER TABLE `countries`
@@ -1043,6 +1897,13 @@ ALTER TABLE `countries`
   ADD UNIQUE KEY `countries_code_unique` (`code`),
   ADD KEY `countries_region_index` (`region`),
   ADD KEY `countries_regulatory_status_index` (`regulatory_status`);
+
+--
+-- Indexes for table `country_authorizations`
+--
+ALTER TABLE `country_authorizations`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `country_authorizations_product_id_country_code_unique` (`product_id`,`country_code`);
 
 --
 -- Indexes for table `dispensing_records`
@@ -1087,6 +1948,41 @@ ALTER TABLE `jobs`
 --
 ALTER TABLE `job_batches`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `master_cartons`
+--
+ALTER TABLE `master_cartons`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `master_cartons_carton_number_unique` (`carton_number`),
+  ADD UNIQUE KEY `master_cartons_qr_code_unique` (`qr_code`),
+  ADD KEY `master_cartons_batch_id_index` (`batch_id`),
+  ADD KEY `master_cartons_product_id_index` (`product_id`),
+  ADD KEY `master_cartons_status_index` (`status`),
+  ADD KEY `master_cartons_qr_code_index` (`qr_code`),
+  ADD KEY `master_cartons_consignment_id_index` (`consignment_id`),
+  ADD KEY `master_cartons_carton_condition_index` (`carton_condition`),
+  ADD KEY `mc_status_id_idx` (`status`,`id`),
+  ADD KEY `mc_recon_idx` (`consignment_id`,`carton_condition`,`received_at`),
+  ADD KEY `mc_created_id_idx` (`created_at`,`id`);
+
+--
+-- Indexes for table `master_carton_contents`
+--
+ALTER TABLE `master_carton_contents`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `master_carton_contents_product_id_foreign` (`product_id`),
+  ADD KEY `master_carton_contents_master_carton_id_index` (`master_carton_id`),
+  ADD KEY `master_carton_contents_batch_id_index` (`batch_id`),
+  ADD KEY `mcc_serial_idx` (`batch_id`,`serial_start`,`serial_end`);
+
+--
+-- Indexes for table `master_carton_scans`
+--
+ALTER TABLE `master_carton_scans`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `master_carton_scans_master_carton_id_index` (`master_carton_id`),
+  ADD KEY `master_carton_scans_event_index` (`event`);
 
 --
 -- Indexes for table `migrations`
@@ -1166,6 +2062,33 @@ ALTER TABLE `product_country_registrations`
   ADD KEY `product_country_registrations_expiry_date_index` (`expiry_date`);
 
 --
+-- Indexes for table `product_images`
+--
+ALTER TABLE `product_images`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `product_images_product_id_is_primary_index` (`product_id`,`is_primary`),
+  ADD KEY `product_images_product_id_sort_order_index` (`product_id`,`sort_order`);
+
+--
+-- Indexes for table `product_info_requests`
+--
+ALTER TABLE `product_info_requests`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `product_info_requests_product_id_foreign` (`product_id`),
+  ADD KEY `product_info_requests_batch_id_foreign` (`batch_id`),
+  ADD KEY `product_info_requests_uuc_code_index` (`uuc_code`);
+
+--
+-- Indexes for table `product_recalls`
+--
+ALTER TABLE `product_recalls`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `product_recalls_recall_number_unique` (`recall_number`),
+  ADD KEY `product_recalls_product_id_foreign` (`product_id`),
+  ADD KEY `product_recalls_batch_id_active_index` (`batch_id`,`active`),
+  ADD KEY `product_recalls_active_index` (`active`);
+
+--
 -- Indexes for table `proforma_invoices`
 --
 ALTER TABLE `proforma_invoices`
@@ -1235,6 +2158,23 @@ ALTER TABLE `report_schedules`
   ADD KEY `report_schedules_is_active_next_run_at_index` (`is_active`,`next_run_at`);
 
 --
+-- Indexes for table `risk_alerts`
+--
+ALTER TABLE `risk_alerts`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `risk_alerts_alert_number_unique` (`alert_number`),
+  ADD KEY `risk_alerts_verification_log_id_foreign` (`verification_log_id`),
+  ADD KEY `risk_alerts_batch_unit_id_foreign` (`batch_unit_id`),
+  ADD KEY `risk_alerts_batch_id_foreign` (`batch_id`),
+  ADD KEY `risk_alerts_product_id_foreign` (`product_id`),
+  ADD KEY `risk_alerts_risk_level_status_index` (`risk_level`,`status`),
+  ADD KEY `risk_alerts_category_created_at_index` (`category`,`created_at`),
+  ADD KEY `risk_alerts_uuc_code_index` (`uuc_code`),
+  ADD KEY `risk_alerts_risk_level_index` (`risk_level`),
+  ADD KEY `risk_alerts_status_index` (`status`),
+  ADD KEY `risk_alerts_is_case_index` (`is_case`);
+
+--
 -- Indexes for table `sales_orders`
 --
 ALTER TABLE `sales_orders`
@@ -1257,6 +2197,13 @@ ALTER TABLE `sales_order_lines`
   ADD KEY `sales_order_lines_sales_order_id_index` (`sales_order_id`);
 
 --
+-- Indexes for table `settings`
+--
+ALTER TABLE `settings`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `settings_key_unique` (`key`);
+
+--
 -- Indexes for table `shipments`
 --
 ALTER TABLE `shipments`
@@ -1276,6 +2223,13 @@ ALTER TABLE `shipment_events`
   ADD KEY `shipment_events_recorded_by_foreign` (`recorded_by`),
   ADD KEY `shipment_events_shipment_id_index` (`shipment_id`),
   ADD KEY `shipment_events_event_at_index` (`event_at`);
+
+--
+-- Indexes for table `therapeutic_classes`
+--
+ALTER TABLE `therapeutic_classes`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `therapeutic_classes_name_unique` (`name`);
 
 --
 -- Indexes for table `users`
@@ -1316,6 +2270,37 @@ ALTER TABLE `vault_folders`
   ADD KEY `vault_folders_parent_id_foreign` (`parent_id`);
 
 --
+-- Indexes for table `verification_daily_stats`
+--
+ALTER TABLE `verification_daily_stats`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `verification_daily_stats_day_unique` (`day`);
+
+--
+-- Indexes for table `verification_logs`
+--
+ALTER TABLE `verification_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `verification_logs_verification_number_unique` (`verification_number`),
+  ADD KEY `verification_logs_batch_unit_id_foreign` (`batch_unit_id`),
+  ADD KEY `verification_logs_product_id_foreign` (`product_id`),
+  ADD KEY `verification_logs_batch_id_created_at_index` (`batch_id`,`created_at`),
+  ADD KEY `verification_logs_country_code_created_at_index` (`country_code`,`created_at`),
+  ADD KEY `verification_logs_uuc_code_index` (`uuc_code`),
+  ADD KEY `verification_logs_result_index` (`result`),
+  ADD KEY `verification_logs_country_index` (`country`);
+
+--
+-- Indexes for table `verification_policies`
+--
+ALTER TABLE `verification_policies`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `verification_policies_scope_type_active_index` (`scope_type`,`active`),
+  ADD KEY `verification_policies_batch_id_active_index` (`batch_id`,`active`),
+  ADD KEY `verification_policies_product_id_active_index` (`product_id`,`active`),
+  ADD KEY `verification_policies_active_index` (`active`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
 
@@ -1347,7 +2332,25 @@ ALTER TABLE `anti_counterfeit_scans`
 -- AUTO_INCREMENT for table `batches`
 --
 ALTER TABLE `batches`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `batch_extensions`
+--
+ALTER TABLE `batch_extensions`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `batch_units`
+--
+ALTER TABLE `batch_units`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=101;
+
+--
+-- AUTO_INCREMENT for table `batch_unit_logs`
+--
+ALTER TABLE `batch_unit_logs`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `commercial_invoices`
@@ -1362,9 +2365,33 @@ ALTER TABLE `commercial_invoice_lines`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `consignments`
+--
+ALTER TABLE `consignments`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `consignment_scans`
+--
+ALTER TABLE `consignment_scans`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `counterfeit_reports`
+--
+ALTER TABLE `counterfeit_reports`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `countries`
 --
 ALTER TABLE `countries`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=65;
+
+--
+-- AUTO_INCREMENT for table `country_authorizations`
+--
+ALTER TABLE `country_authorizations`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
@@ -1392,10 +2419,28 @@ ALTER TABLE `jobs`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `master_cartons`
+--
+ALTER TABLE `master_cartons`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `master_carton_contents`
+--
+ALTER TABLE `master_carton_contents`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `master_carton_scans`
+--
+ALTER TABLE `master_carton_scans`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
 
 --
 -- AUTO_INCREMENT for table `notifications`
@@ -1431,12 +2476,30 @@ ALTER TABLE `prescription_lines`
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `product_country_registrations`
 --
 ALTER TABLE `product_country_registrations`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `product_images`
+--
+ALTER TABLE `product_images`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+
+--
+-- AUTO_INCREMENT for table `product_info_requests`
+--
+ALTER TABLE `product_info_requests`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `product_recalls`
+--
+ALTER TABLE `product_recalls`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
@@ -1482,6 +2545,12 @@ ALTER TABLE `report_schedules`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `risk_alerts`
+--
+ALTER TABLE `risk_alerts`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
 -- AUTO_INCREMENT for table `sales_orders`
 --
 ALTER TABLE `sales_orders`
@@ -1494,6 +2563,12 @@ ALTER TABLE `sales_order_lines`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `settings`
+--
+ALTER TABLE `settings`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=97;
+
+--
 -- AUTO_INCREMENT for table `shipments`
 --
 ALTER TABLE `shipments`
@@ -1504,6 +2579,12 @@ ALTER TABLE `shipments`
 --
 ALTER TABLE `shipment_events`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `therapeutic_classes`
+--
+ALTER TABLE `therapeutic_classes`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -1528,6 +2609,24 @@ ALTER TABLE `vault_document_versions`
 --
 ALTER TABLE `vault_folders`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `verification_daily_stats`
+--
+ALTER TABLE `verification_daily_stats`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `verification_logs`
+--
+ALTER TABLE `verification_logs`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+
+--
+-- AUTO_INCREMENT for table `verification_policies`
+--
+ALTER TABLE `verification_policies`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- Constraints for dumped tables
@@ -1568,6 +2667,26 @@ ALTER TABLE `batches`
   ADD CONSTRAINT `batches_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`);
 
 --
+-- Constraints for table `batch_extensions`
+--
+ALTER TABLE `batch_extensions`
+  ADD CONSTRAINT `batch_extensions_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `batch_extensions_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`);
+
+--
+-- Constraints for table `batch_units`
+--
+ALTER TABLE `batch_units`
+  ADD CONSTRAINT `batch_units_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `batch_unit_logs`
+--
+ALTER TABLE `batch_unit_logs`
+  ADD CONSTRAINT `batch_unit_logs_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `batch_unit_logs_batch_unit_id_foreign` FOREIGN KEY (`batch_unit_id`) REFERENCES `batch_units` (`id`) ON DELETE SET NULL;
+
+--
 -- Constraints for table `commercial_invoices`
 --
 ALTER TABLE `commercial_invoices`
@@ -1582,6 +2701,26 @@ ALTER TABLE `commercial_invoice_lines`
   ADD CONSTRAINT `commercial_invoice_lines_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `commercial_invoice_lines_commercial_invoice_id_foreign` FOREIGN KEY (`commercial_invoice_id`) REFERENCES `commercial_invoices` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `commercial_invoice_lines_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`);
+
+--
+-- Constraints for table `consignment_scans`
+--
+ALTER TABLE `consignment_scans`
+  ADD CONSTRAINT `consignment_scans_consignment_id_foreign` FOREIGN KEY (`consignment_id`) REFERENCES `consignments` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `counterfeit_reports`
+--
+ALTER TABLE `counterfeit_reports`
+  ADD CONSTRAINT `counterfeit_reports_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `counterfeit_reports_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `counterfeit_reports_verification_log_id_foreign` FOREIGN KEY (`verification_log_id`) REFERENCES `verification_logs` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `country_authorizations`
+--
+ALTER TABLE `country_authorizations`
+  ADD CONSTRAINT `country_authorizations_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `dispensing_records`
@@ -1600,6 +2739,28 @@ ALTER TABLE `dispensing_records`
 ALTER TABLE `distributors`
   ADD CONSTRAINT `distributors_country_id_foreign` FOREIGN KEY (`country_id`) REFERENCES `countries` (`id`),
   ADD CONSTRAINT `distributors_parent_id_foreign` FOREIGN KEY (`parent_id`) REFERENCES `distributors` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `master_cartons`
+--
+ALTER TABLE `master_cartons`
+  ADD CONSTRAINT `master_cartons_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `master_cartons_consignment_id_foreign` FOREIGN KEY (`consignment_id`) REFERENCES `consignments` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `master_cartons_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`);
+
+--
+-- Constraints for table `master_carton_contents`
+--
+ALTER TABLE `master_carton_contents`
+  ADD CONSTRAINT `master_carton_contents_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`),
+  ADD CONSTRAINT `master_carton_contents_master_carton_id_foreign` FOREIGN KEY (`master_carton_id`) REFERENCES `master_cartons` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `master_carton_contents_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`);
+
+--
+-- Constraints for table `master_carton_scans`
+--
+ALTER TABLE `master_carton_scans`
+  ADD CONSTRAINT `master_carton_scans_master_carton_id_foreign` FOREIGN KEY (`master_carton_id`) REFERENCES `master_cartons` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `notifications`
@@ -1642,6 +2803,26 @@ ALTER TABLE `prescription_lines`
 ALTER TABLE `product_country_registrations`
   ADD CONSTRAINT `product_country_registrations_country_id_foreign` FOREIGN KEY (`country_id`) REFERENCES `countries` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `product_country_registrations_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `product_images`
+--
+ALTER TABLE `product_images`
+  ADD CONSTRAINT `product_images_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `product_info_requests`
+--
+ALTER TABLE `product_info_requests`
+  ADD CONSTRAINT `product_info_requests_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `product_info_requests_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `product_recalls`
+--
+ALTER TABLE `product_recalls`
+  ADD CONSTRAINT `product_recalls_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `product_recalls_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `proforma_invoices`
@@ -1693,6 +2874,15 @@ ALTER TABLE `report_runs`
 ALTER TABLE `report_schedules`
   ADD CONSTRAINT `report_schedules_created_by_foreign` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `report_schedules_report_definition_id_foreign` FOREIGN KEY (`report_definition_id`) REFERENCES `report_definitions` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `risk_alerts`
+--
+ALTER TABLE `risk_alerts`
+  ADD CONSTRAINT `risk_alerts_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `risk_alerts_batch_unit_id_foreign` FOREIGN KEY (`batch_unit_id`) REFERENCES `batch_units` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `risk_alerts_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `risk_alerts_verification_log_id_foreign` FOREIGN KEY (`verification_log_id`) REFERENCES `verification_logs` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `sales_orders`
@@ -1747,6 +2937,21 @@ ALTER TABLE `vault_document_versions`
 --
 ALTER TABLE `vault_folders`
   ADD CONSTRAINT `vault_folders_parent_id_foreign` FOREIGN KEY (`parent_id`) REFERENCES `vault_folders` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `verification_logs`
+--
+ALTER TABLE `verification_logs`
+  ADD CONSTRAINT `verification_logs_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `verification_logs_batch_unit_id_foreign` FOREIGN KEY (`batch_unit_id`) REFERENCES `batch_units` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `verification_logs_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `verification_policies`
+--
+ALTER TABLE `verification_policies`
+  ADD CONSTRAINT `verification_policies_batch_id_foreign` FOREIGN KEY (`batch_id`) REFERENCES `batches` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `verification_policies_product_id_foreign` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

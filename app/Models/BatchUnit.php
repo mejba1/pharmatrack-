@@ -13,10 +13,21 @@ class BatchUnit extends Model
         'secret_code',
         'unique_number',
         'status',
+        'lock_reason',
+        'locked_at',
+        'blocked_scan_count',
+        'last_blocked_scan_at',
+        'vpn_scan_count',
+        'last_vpn_scan_at',
     ];
 
     protected $casts = [
-        'serial_number' => 'integer',
+        'serial_number'        => 'integer',
+        'blocked_scan_count'   => 'integer',
+        'vpn_scan_count'       => 'integer',
+        'locked_at'            => 'datetime',
+        'last_blocked_scan_at' => 'datetime',
+        'last_vpn_scan_at'     => 'datetime',
     ];
 
     public function batch()

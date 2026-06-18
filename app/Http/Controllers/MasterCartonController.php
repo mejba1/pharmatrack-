@@ -314,21 +314,23 @@ class MasterCartonController extends Controller
                 $seenByBatch[$batch->id][$s] = true;
             }
 
-            // Every serial must exist in the batch.
-            $exists = BatchUnit::where('batch_id', $batch->id)->whereIn('serial_number', $serials)->distinct()->count('serial_number');
-            if ($exists < count($serials)) {
-                return $this->fail($request, "lines.$i.serials", "Row {$n}: some serials don't exist in batch '{$batch->brn}'.");
+            // Stop the whole batch when nothing is left to pack.
+            $availableInBatch = BatchUnit::where('batch_id', $batch->id)->where('status', 'generated')->count();
+            if ($availableInBatch === 0) {
+                return $this->fail($request, "lines.$i.serials", "Row {$n}: batch '{$batch->brn}' is already fully packed — no units available. No carton created.");
             }
 
-            // None already packed elsewhere.
-            $overlap = MasterCartonContent::with('carton')->where('batch_id', $batch->id)
-                ->where(function ($w) use ($serials) {
-                    foreach ($serials as $s) {
-                        $w->orWhere(fn ($x) => $x->where('serial_start', '<=', $s)->where('serial_end', '>=', $s));
-                    }
-                })->first();
-            if ($overlap) {
-                return $this->fail($request, "lines.$i.serials", "Row {$n}: serials already packed in carton {$overlap->carton?->carton_number}.");
+            // The requested serials must be available (status = generated).
+            $available = BatchUnit::where('batch_id', $batch->id)
+                            ->whereIn('serial_number', $serials)
+                            ->where('status', 'generated')
+                            ->distinct()->count('serial_number');
+            if ($available < count($serials)) {
+                $exists = BatchUnit::where('batch_id', $batch->id)->whereIn('serial_number', $serials)->distinct()->count('serial_number');
+                $msg = $exists < count($serials)
+                    ? "Row {$n}: some serials don't exist in batch '{$batch->brn}'."
+                    : "Row {$n}: those serials are already packed in batch '{$batch->brn}' ({$availableInBatch} unit(s) still available). No carton created.";
+                return $this->fail($request, "lines.$i.serials", $msg);
             }
 
             $capacity = (int) ($line['capacity'] ?: count($serials));
@@ -727,12 +729,14 @@ class MasterCartonController extends Controller
         $packedMax = MasterCartonContent::where('batch_id', $batch->id)->max('serial_end');
         $minSerial = BatchUnit::where('batch_id', $batch->id)->min('serial_number');
         $maxSerial = BatchUnit::where('batch_id', $batch->id)->max('serial_number');
+        $available = BatchUnit::where('batch_id', $batch->id)->where('status', 'generated')->count();
 
         return response()->json([
             'brn'         => $batch->brn,
             'next_serial' => $packedMax ? $packedMax + 1 : ($minSerial ?? 1),
             'min_serial'  => $minSerial ?? 1,
             'max_serial'  => $maxSerial ?? 0,
+            'available'   => $available,   // unpacked units still available
         ]);
     }
 

@@ -896,6 +896,20 @@
                 </div>
               </div>
 
+              {{-- ── Verification access ───────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Verification Access</div></div>
+              <div class="col-12">
+                <div class="form-check form-switch">
+                  <input type="hidden" name="verify_open" value="0">
+                  <input class="form-check-input" type="checkbox" name="verify_open" value="1" id="editVerifyOpen"
+                         x-effect="$el.checked = !!editProduct?.verify_open">
+                  <label class="form-check-label" for="editVerifyOpen">
+                    <strong>Verify anywhere</strong> — ignore country locks
+                    <div class="text-muted" style="font-size:11px">Overrides Access-Control locks, allowed-countries &amp; Country Authorization for this product. Recall &amp; expiry checks still apply.</div>
+                  </label>
+                </div>
+              </div>
+
               {{-- Notes --}}
               <div class="col-12">
                 <label class="form-label">Notes</label>
@@ -1181,6 +1195,18 @@
                        class="form-control @error('pdf') is-invalid @enderror" accept="application/pdf">
                 <div class="form-text" style="font-size:10px">PDF only · max 10 MB</div>
                 @error('pdf')<div class="invalid-feedback">{{ $message }}</div>@enderror
+              </div>
+
+              {{-- Verification access --}}
+              <div class="col-12">
+                <div class="form-check form-switch">
+                  <input type="hidden" name="verify_open" value="0">
+                  <input class="form-check-input" type="checkbox" name="verify_open" value="1" id="createVerifyOpen" {{ old('verify_open') ? 'checked' : '' }}>
+                  <label class="form-check-label" for="createVerifyOpen">
+                    <strong>Verify anywhere</strong> — ignore country locks
+                    <div class="text-muted" style="font-size:11px">Overrides Access-Control locks, allowed-countries &amp; Country Authorization for this product. Recall &amp; expiry checks still apply.</div>
+                  </label>
+                </div>
               </div>
 
               {{-- PRN hint --}}

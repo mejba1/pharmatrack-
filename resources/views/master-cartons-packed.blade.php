@@ -8,11 +8,21 @@
   .pl-row{border:1px solid #e9ecef;border-radius:12px;padding:12px;margin-bottom:10px;position:relative}
   .pl-row .rownum{position:absolute;top:-9px;left:10px;background:#0d6efd;color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:1px 8px}
   .calc-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(13,110,253,.07);border:1px solid #cfe2ff;border-radius:20px;padding:3px 10px;font-size:12px}
+  .pf-toast{position:fixed;top:20px;right:20px;z-index:1080;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;font-size:14px;font-weight:500;box-shadow:0 6px 24px rgba(0,0,0,.15);background:#fff;border-left:4px solid #0d6efd;color:#0d6efd}
+  .pf-toast-warning{border-left-color:#fd7e14;color:#a65a00}
+  .pf-toast-danger{border-left-color:#dc3545;color:#b02a37}
+  .pf-toast-success{border-left-color:#198754;color:#0f5132}
 </style>
 @endpush
 
 @section('content')
 <div x-data="packedForm()">
+
+  {{-- Toast / inline notifier --}}
+  <div x-cloak x-show="toast.show" x-transition class="pf-toast" :class="'pf-toast-'+toast.type">
+    <i class="bi" :class="toast.type==='warning'?'bi-exclamation-triangle-fill':(toast.type==='danger'?'bi-x-circle-fill':'bi-check-circle-fill')"></i>
+    <span x-text="toast.msg"></span>
+  </div>
 
   <div class="page-header">
     <div>
@@ -102,7 +112,8 @@
                   <button type="button" class="btn" :class="line.mode==='range' ? 'btn-info text-white' : 'btn-outline-secondary'" @click="line.mode='range'">Range</button>
                   <button type="button" class="btn" :class="line.mode==='specific' ? 'btn-info text-white' : 'btn-outline-secondary'" @click="line.mode='specific'">Specific</button>
                 </div>
-                <span class="text-muted-sm ms-1" x-show="line.batchId && line.range" x-cloak>· Available <strong x-text="line.range"></strong></span>
+                <span class="text-muted-sm ms-1" x-show="line.batchId && line.range && !line.fullyPacked" x-cloak>· Available <strong x-text="line.range"></strong></span>
+                <span class="badge bg-danger-subtle text-danger ms-1" x-show="line.batchId && line.fullyPacked" x-cloak><i class="bi bi-exclamation-triangle me-1"></i>Fully packed — no units available</span>
               </div>
               <div class="row g-2 align-items-center">
                 {{-- range --}}
@@ -165,11 +176,11 @@
     </div>
 
     {{-- Bulk download bar --}}
-    <div class="px-3 py-2 border-bottom d-flex flex-wrap align-items-center gap-2" style="background:linear-gradient(180deg,rgba(13,110,253,.07),rgba(13,110,253,.02))" x-show="selRecent.length" x-cloak>
-      <span class="fw-semibold"><i class="bi bi-check2-square me-1 text-primary"></i><span x-text="selRecent.length"></span> selected</span>
+    <div class="px-3 py-2 border-bottom d-flex flex-wrap align-items-center gap-2" style="background:linear-gradient(180deg,rgba(13,110,253,.07),rgba(13,110,253,.02))">
+      <span class="fw-semibold" :class="selRecent.length ? '' : 'text-muted'"><i class="bi bi-check2-square me-1 text-primary"></i><span x-text="selRecent.length"></span> selected</span>
       <button class="btn btn-outline-primary btn-sm" @click="recentLabels('print')"><i class="bi bi-printer me-1"></i>Print QR Labels</button>
       <button class="btn btn-danger btn-sm" @click="recentLabels('pdf')"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
-      <button class="btn btn-link btn-sm text-muted ms-auto text-decoration-none" @click="selectRecent('none')">Clear</button>
+      <button class="btn btn-link btn-sm text-muted ms-auto text-decoration-none" @click="selectRecent('none')" x-show="selRecent.length" x-cloak>Clear</button>
     </div>
 
     <div class="card-body p-0"><div class="table-responsive">
@@ -217,6 +228,9 @@ function packedForm(){
   return {
     saving:false, errors:{}, result:null,
     lines:[],
+    // lightweight toast notifier
+    toast:{show:false,msg:'',type:'info',_t:null},
+    notify(msg,type='info'){ this.toast.msg=msg; this.toast.type=type; this.toast.show=true; clearTimeout(this.toast._t); this.toast._t=setTimeout(()=>this.toast.show=false,3200); },
     // recent cartons table
     recent: @json($recent),
     pageSize:10, sortKey:'id', sortDir:'desc',
@@ -243,14 +257,14 @@ function packedForm(){
       else this.selRecent=[];
     },
     recentLabels(action){
-      if(!this.selRecent.length) return;
+      if(!this.selRecent.length){ this.notify('Select at least one carton first.','warning'); return; }
       const base = action==='pdf' ? '{{ route('master-cartons.labels-pdf') }}' : '{{ route('master-cartons.labels') }}';
       const url = base + '?ids=' + this.selRecent.join(',');
       // Recent table = browse/reprint previous cartons → open the sheet (no auto-print).
       if(action==='print'){ window.open(url,'_blank'); } else { window.location.href=url; }
     },
     init(){ this.addLine(); },
-    blank(){ return {productId:'', batchId:'', batches:[], loadingB:false, mode:'range', start:'', end:'', serials:'', capacity:'', label:'', range:''}; },
+    blank(){ return {productId:'', batchId:'', batches:[], loadingB:false, mode:'range', start:'', end:'', serials:'', capacity:'', label:'', range:'', available:0, fullyPacked:false}; },
     specStr(line){
       if(line.mode==='range'){ return (line.start>0 && line.end>=line.start) ? (line.start+'-'+line.end) : ''; }
       return (line.serials||'').trim();
@@ -259,15 +273,22 @@ function packedForm(){
     removeLine(i){ this.lines.splice(i,1); if(!this.lines.length) this.addLine(); },
     _batches(pid){ return fetch(`{{ url('partial-batches/products') }}/${pid}/batches`,{headers:{'Accept':'application/json'}}).then(r=>r.json()); },
     async onProduct(i){ const l=this.lines[i]; l.batchId=''; l.batches=[]; l.range=''; if(!l.productId) return; l.loadingB=true; l.batches=await this._batches(l.productId); l.loadingB=false; },
-    async onBatch(i){ const l=this.lines[i]; l.range=''; l.start=''; l.end=''; if(!l.batchId) return;
+    async onBatch(i){ const l=this.lines[i]; l.range=''; l.start=''; l.end=''; l.available=0; l.fullyPacked=false; if(!l.batchId) return;
       try{ const d=await fetch(`{{ url('master-cartons/batches') }}/${l.batchId}/pack-info`,{headers:{'Accept':'application/json'}}).then(r=>r.json());
-        if(d.max_serial){
-          l.range = d.min_serial+'–'+d.max_serial+' (next free '+d.next_serial+')';
-          // Auto-fill Start/End like the pack modal: from the next free serial to
-          // the end of the batch. Capacity then splits it into multiple cartons.
-          l.start = d.next_serial;
-          l.end   = d.max_serial;
+        l.available = d.available||0;
+        // No generated units left, or every serial already packed → nothing to pack.
+        if(!d.max_serial || l.available===0 || d.next_serial>d.max_serial){
+          l.fullyPacked = true;
+          this.notify('This batch is fully packed — no units available to pack.','warning');
+          return;
         }
+        // Show only the *available* range (from the next free serial onward),
+        // not the full serial span which would include already-packed units.
+        l.range = d.next_serial+'–'+d.max_serial+' · '+l.available.toLocaleString()+' unit(s) free';
+        // Auto-fill Start/End like the pack modal: from the next free serial to
+        // the end of the batch. Capacity then splits it into multiple cartons.
+        l.start = d.next_serial;
+        l.end   = d.max_serial;
       }catch(e){}
     },
     parse(serials){
@@ -284,8 +305,10 @@ function packedForm(){
     cartonCount(line){ const n=this.serialCount(line); if(!n) return 0; const cap=line.capacity>0?line.capacity:n; return Math.ceil(n/cap); },
     get totalSerials(){ return this.lines.reduce((s,l)=>s+this.serialCount(l),0); },
     get totalCartons(){ return this.lines.reduce((s,l)=>s+this.cartonCount(l),0); },
-    get canSubmit(){ return this.lines.every(l=>l.productId && l.batchId && this.serialCount(l)>0); },
+    get canSubmit(){ return this.lines.length>0 && this.lines.every(l=>l.productId && l.batchId && !l.fullyPacked && this.serialCount(l)>0); },
     async submit(){
+      if(this.lines.some(l=>l.fullyPacked)){ this.notify('Remove or change the fully-packed batch row before creating cartons.','warning'); return; }
+      if(!this.canSubmit){ this.notify('Complete every row (product, batch, serials) first.','warning'); return; }
       this.saving=true; this.errors={};
       const fd=new FormData(); fd.append('_token','{{ csrf_token() }}');
       this.lines.forEach((l,i)=>{
@@ -299,7 +322,7 @@ function packedForm(){
         const d=await res.json();
         if(d.success){ this.result={cartons:d.cartons||[], ids:d.ids||[], message:d.message}; this.lines=[this.blank()]; this.errors={}; window.scrollTo({top:0,behavior:'smooth'}); }
         else { this.errors=d.errors??{}; window.scrollTo({top:0,behavior:'smooth'}); }
-      }catch(e){ alert('Server error.'); }
+      }catch(e){ this.notify('Server error — please try again.','danger'); }
       this.saving=false;
     },
     labelsUrl(action){

@@ -32,13 +32,15 @@ class Product extends Model
         'unit_cost',
         'unit_of_measure',
         'status',
+        'verify_open',
         'notes',
         'website_url',
         'pdf_path',
     ];
 
     protected $casts = [
-        'unit_cost' => 'decimal:4',
+        'unit_cost'   => 'decimal:4',
+        'verify_open' => 'boolean',
     ];
 
     /**

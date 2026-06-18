@@ -10,6 +10,7 @@ use App\Http\Controllers\ConsignmentController;
 use App\Http\Controllers\DistributionController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\TherapeuticClassController;
+use App\Http\Controllers\AntiCounterfeitController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +38,9 @@ Route::post('/logout', function () {
 
 // ── Public product verification (reached from a unit's QR code) ────────────
 Route::get('/verify/{code}', [BatchController::class, 'verify'])->name('verify');
+Route::post('/verify/{code}/report', [BatchController::class, 'report'])->name('verify.report');
+Route::post('/verify/{code}/request-info', [BatchController::class, 'requestInfo'])->name('verify.request-info');
+Route::post('/verify/{code}/certificate', [BatchController::class, 'certificate'])->name('verify.certificate');
 
 // ── Public master-carton scan (reached from a carton's QR code) ────────────
 Route::get('/carton/{qr}', [MasterCartonController::class, 'scan'])->name('carton.scan');
@@ -157,10 +161,45 @@ Route::middleware([])->group(function () {
         return view('countries');
     })->name('countries');
 
-    // ── Anti-Counterfeit ──────────────────────────────────────────────────
-    Route::get('/anti-counterfeit', function () {
-        return view('anticounterfeit');
-    })->name('anticounterfeit');
+    // ── Anti-Counterfeit Verification & Intelligence System ───────────────
+    Route::prefix('anti-counterfeit')->name('anticounterfeit.')->group(function () {
+        Route::get('/', [AntiCounterfeitController::class, 'dashboard'])->name('dashboard');
+        Route::get('/verification-logs', [AntiCounterfeitController::class, 'verificationLogs'])->name('logs');
+        Route::get('/risk-alerts', [AntiCounterfeitController::class, 'riskAlerts'])->name('alerts');
+        Route::get('/investigations', [AntiCounterfeitController::class, 'investigationCenter'])->name('investigations');
+        Route::put('/alerts/{alert}', [AntiCounterfeitController::class, 'updateAlert'])->name('alerts.update');
+        Route::get('/counterfeit-cases', [AntiCounterfeitController::class, 'counterfeitCases'])->name('cases');
+        Route::get('/live-map', [AntiCounterfeitController::class, 'liveMap'])->name('map');
+        Route::get('/country-authorization', [AntiCounterfeitController::class, 'countryAuthorization'])->name('countries');
+        Route::post('/country-authorization', [AntiCounterfeitController::class, 'storeCountryAuth'])->name('countries.store');
+        Route::delete('/country-authorization/{authorization}', [AntiCounterfeitController::class, 'destroyCountryAuth'])->name('countries.destroy');
+        Route::get('/access-control', [AntiCounterfeitController::class, 'accessControl'])->name('policies');
+        Route::get('/access-control/export', [AntiCounterfeitController::class, 'exportPolicies'])->name('policies.export');
+        Route::post('/access-control', [AntiCounterfeitController::class, 'storePolicy'])->name('policies.store');
+        Route::post('/access-control/global', [AntiCounterfeitController::class, 'saveGlobalSetting'])->name('policies.global');
+        Route::post('/access-control/scan-intelligence', [AntiCounterfeitController::class, 'saveScanIntelligence'])->name('policies.intel');
+        Route::post('/access-control/scope-permission', [AntiCounterfeitController::class, 'saveScopePermission'])->name('policies.scope');
+        Route::post('/access-control/unit-permission', [AntiCounterfeitController::class, 'saveUnitPermission'])->name('policies.unit');
+        Route::put('/access-control/{policy}', [AntiCounterfeitController::class, 'updatePolicy'])->name('policies.update');
+        Route::post('/access-control/{policy}/toggle', [AntiCounterfeitController::class, 'togglePolicy'])->name('policies.toggle');
+        Route::delete('/access-control/{policy}', [AntiCounterfeitController::class, 'destroyPolicy'])->name('policies.destroy');
+        Route::get('/recalled-batches', [AntiCounterfeitController::class, 'recalledBatches'])->name('recalls');
+        Route::post('/recalled-batches', [AntiCounterfeitController::class, 'storeRecall'])->name('recalls.store');
+        Route::post('/recalled-batches/{recall}/toggle', [AntiCounterfeitController::class, 'toggleRecall'])->name('recalls.toggle');
+        Route::get('/customer-reports', [AntiCounterfeitController::class, 'customerReports'])->name('reports-list');
+        Route::put('/customer-reports/{report}', [AntiCounterfeitController::class, 'updateReport'])->name('reports-list.update');
+        Route::get('/uuc-management', [AntiCounterfeitController::class, 'uucManagement'])->name('uuc');
+        Route::get('/uuc-management/{unit}/report', [AntiCounterfeitController::class, 'uucReport'])->name('uuc.report');
+        Route::post('/quick-lock/unit/{unit}', [AntiCounterfeitController::class, 'quickLockUnit'])->name('quicklock.unit');
+        Route::post('/uuc-management/bulk-lock', [AntiCounterfeitController::class, 'bulkLockUnits'])->name('uuc.bulk');
+        Route::get('/device-intelligence', [AntiCounterfeitController::class, 'deviceIntelligence'])->name('devices');
+        Route::get('/geo-intelligence', [AntiCounterfeitController::class, 'geoIntelligence'])->name('geo');
+        Route::get('/reports', [AntiCounterfeitController::class, 'reports'])->name('reports');
+        Route::get('/verification-page', [AntiCounterfeitController::class, 'settings'])->name('verification-page');
+        Route::post('/verification-page', [AntiCounterfeitController::class, 'updateSettings'])->name('verification-page.update');
+        Route::post('/verification-page/reset', [AntiCounterfeitController::class, 'resetSettings'])->name('verification-page.reset');
+        Route::post('/verification-page/template', [AntiCounterfeitController::class, 'applyTemplate'])->name('verification-page.template');
+    });
 
     // ── Document Vault ────────────────────────────────────────────────────
     Route::get('/vault', function () {

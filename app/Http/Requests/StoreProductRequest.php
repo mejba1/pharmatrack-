@@ -29,6 +29,7 @@ class StoreProductRequest extends FormRequest
             'remove_images'           => 'nullable|array',
             'remove_images.*'         => 'integer',
             'controlled_substance'    => 'nullable|in:no,schedule_1,schedule_2,schedule_3',
+            'verify_open'             => 'nullable|boolean',
             'manufacturer_name'       => 'nullable|string|max:255',
             'manufacturing_site'      => 'nullable|string|max:255',
             'country_of_origin'       => 'nullable|string|max:5',

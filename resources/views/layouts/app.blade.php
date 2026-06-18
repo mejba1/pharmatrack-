@@ -154,11 +154,68 @@
       <span class="nav-icon"><i class="bi bi-globe2"></i></span>
       <span x-show="!sidebarCollapsed">Country Permissions</span>
     </a>
-    <a href="{{ route('anticounterfeit') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit') ? 'active' : '' }}">
-      <span class="nav-icon"><i class="bi bi-shield-check"></i></span>
-      <span x-show="!sidebarCollapsed">Anti-Counterfeit</span>
-      <span class="nav-badge nav-badge-danger" x-show="!sidebarCollapsed">!</span>
-    </a>
+    <div x-data="{open: {{ request()->routeIs('anticounterfeit.*') ? 'true' : 'false' }}}">
+      <button class="nav-item-link {{ request()->routeIs('anticounterfeit.*') ? 'active' : '' }}" @click="open = !open">
+        <span class="nav-icon"><i class="bi bi-shield-check"></i></span>
+        <span x-show="!sidebarCollapsed">Anti-Counterfeit</span>
+        <span class="nav-badge nav-badge-danger" x-show="!sidebarCollapsed">!</span>
+        <i class="bi bi-chevron-right nav-caret" x-show="!sidebarCollapsed" :class="{open: open}"></i>
+      </button>
+      <div class="nav-submenu" :class="{open: open}">
+        <a href="{{ route('anticounterfeit.dashboard') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.dashboard') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-speedometer2"></i></span><span x-show="!sidebarCollapsed">Dashboard</span>
+        </a>
+        <a href="{{ route('products.index') }}" class="nav-item-link">
+          <span class="nav-icon"><i class="bi bi-capsule"></i></span><span x-show="!sidebarCollapsed">Products</span>
+        </a>
+        <a href="{{ route('batches') }}" class="nav-item-link">
+          <span class="nav-icon"><i class="bi bi-layers"></i></span><span x-show="!sidebarCollapsed">Batches</span>
+        </a>
+        <a href="{{ route('anticounterfeit.uuc') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.uuc') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-upc-scan"></i></span><span x-show="!sidebarCollapsed">UUC Management</span>
+        </a>
+        <a href="{{ route('anticounterfeit.logs') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.logs') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-list-check"></i></span><span x-show="!sidebarCollapsed">Verification Logs</span>
+        </a>
+        <a href="{{ route('anticounterfeit.map') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.map') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-geo-alt"></i></span><span x-show="!sidebarCollapsed">Live Scan Map</span>
+        </a>
+        <a href="{{ route('anticounterfeit.alerts') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.alerts') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-exclamation-triangle"></i></span><span x-show="!sidebarCollapsed">Risk Alerts</span>
+        </a>
+        <a href="{{ route('anticounterfeit.cases') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.cases') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-folder2-open"></i></span><span x-show="!sidebarCollapsed">Counterfeit Cases</span>
+        </a>
+        <a href="{{ route('anticounterfeit.reports-list') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.reports-list') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-flag"></i></span><span x-show="!sidebarCollapsed">Customer Reports</span>
+        </a>
+        <a href="{{ route('anticounterfeit.recalls') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.recalls') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-arrow-counterclockwise"></i></span><span x-show="!sidebarCollapsed">Recalled Batches</span>
+        </a>
+        <a href="{{ route('anticounterfeit.countries') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.countries') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-globe-americas"></i></span><span x-show="!sidebarCollapsed">Country Authorization</span>
+        </a>
+		 <a href="{{ route('anticounterfeit.verification-page') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.verification-page') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-window-desktop"></i></span><span x-show="!sidebarCollapsed">Verification Page Design</span>
+        </a>
+        <a href="{{ route('anticounterfeit.policies') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.policies') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-lock"></i></span><span x-show="!sidebarCollapsed">Access Control</span>
+        </a>
+       
+        <a href="{{ route('anticounterfeit.devices') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.devices') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-phone"></i></span><span x-show="!sidebarCollapsed">Device Intelligence</span>
+        </a>
+        <a href="{{ route('anticounterfeit.geo') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.geo') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-pin-map"></i></span><span x-show="!sidebarCollapsed">Geo Intelligence</span>
+        </a>
+        <a href="{{ route('anticounterfeit.investigations') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.investigations') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-search"></i></span><span x-show="!sidebarCollapsed">Investigation Center</span>
+        </a>
+        <a href="{{ route('anticounterfeit.reports') }}" class="nav-item-link {{ request()->routeIs('anticounterfeit.reports') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-bar-chart"></i></span><span x-show="!sidebarCollapsed">Reports &amp; Analytics</span>
+        </a>
+      </div>
+    </div>
     <a href="{{ route('vault') }}" class="nav-item-link {{ request()->routeIs('vault') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-safe2"></i></span>
       <span x-show="!sidebarCollapsed">Document Vault</span>
@@ -289,6 +346,17 @@
 
 {{-- Mobile sidebar overlay --}}
 <div class="sidebar-overlay" x-show="mobileSidebarOpen" @click="mobileSidebarOpen=false"></div>
+
+{{-- Global toast notifications — call from any page: $store.toast.show('msg','warning') --}}
+<div class="app-toast-wrap" x-data>
+  <template x-for="t in $store.toast.items" :key="t.id">
+    <div class="app-toast" :class="'app-toast-'+t.type" x-transition>
+      <i class="bi" :class="t.type==='warning'?'bi-exclamation-triangle-fill':(t.type==='danger'?'bi-x-circle-fill':(t.type==='success'?'bi-check-circle-fill':'bi-info-circle-fill'))"></i>
+      <span x-text="t.msg"></span>
+      <button type="button" class="app-toast-close" @click="$store.toast.dismiss(t.id)" aria-label="Dismiss">&times;</button>
+    </div>
+  </template>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>

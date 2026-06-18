@@ -94,6 +94,7 @@ class ProductController extends Controller
         $data['controlled_substance']    ??= 'no';
         $data['temperature_sensitivity'] ??= 'ambient';
         $data['unit_of_measure']         ??= 'unit';
+        $data['verify_open']             = $request->boolean('verify_open');
 
         // Strip non-column keys before insert
         unset($data['images'], $data['primary_image_index'], $data['remove_images'],
@@ -194,6 +195,8 @@ class ProductController extends Controller
         } elseif ($request->has('country_of_origin_name')) {
             $data['country_of_origin'] = null;
         }
+
+        $data['verify_open'] = $request->boolean('verify_open');
 
         // Strip non-column keys
         unset($data['images'], $data['primary_image_index'], $data['primary_image_id'],

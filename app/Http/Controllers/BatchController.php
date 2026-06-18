@@ -7,6 +7,18 @@ use App\Models\BatchUnit;
 use App\Models\BatchUnitLog;
 use App\Models\Product;
 use App\Models\Country;
+use App\Models\CounterfeitReport;
+use App\Models\ProductInfoRequest;
+use App\Models\ProductRecall;
+use App\Models\Setting;
+use App\Models\VerificationLog;
+use App\Models\VerificationPolicy;
+use App\Mail\ProductInfoMail;
+use Illuminate\Support\Facades\Mail;
+use App\Services\DeviceParser;
+use App\Services\GeoIpService;
+use App\Services\RiskEngine;
+use App\Services\ScanIntelligence;
 use App\Http\Requests\StoreBatchRequest;
 use App\Http\Requests\UpdateBatchRequest;
 use Illuminate\Http\Request;
@@ -399,11 +411,31 @@ class BatchController extends Controller
     }
 
     /** Public product-verification page reached from a unit's QR code. */
-    public function verify(string $code): View
-    {
-        $unit = BatchUnit::with('batch.product')->where('secret_code', $code)->first();
+    public function verify(
+        string $code,
+        Request $request,
+        GeoIpService $geo,
+        DeviceParser $device,
+        RiskEngine $engine
+    ): View {
+        $unit = BatchUnit::with('batch.product.images')->where('secret_code', $code)->first();
+
+        $verification = null;
+        $recall       = null;
+        $scanStats    = ['count' => 0, 'first' => null, 'last' => null, 'countries' => 0];
+
+        $policy = null;
+        $block  = $unit ? null : 'fake';   // unknown code → not genuine
+
+        $cfg            = Setting::config();
+        $alerts         = [];      // scan-intelligence customer alerts
+        $certificate    = false;   // returning-scan certificate prompt
+        $intendedRegion = null;    // region mismatch target
 
         if ($unit) {
+            $policy = VerificationPolicy::resolveForUnit($unit);
+
+            // Lightweight unit trace (unchanged) for the journey timeline.
             BatchUnitLog::create([
                 'batch_id'      => $unit->batch_id,
                 'batch_unit_id' => $unit->id,
@@ -411,9 +443,315 @@ class BatchController extends Controller
                 'note'          => 'Verification scan via QR code.',
                 'performed_by'  => 'public',
             ]);
+
+            // ── Capture verification intelligence (geo + device + risk) ──
+            $ip   = $request->ip();
+            $g    = $geo->lookup($ip);
+            $d    = $device->parse($request->userAgent());
+
+            // Recall resolution is country-aware (country-scoped recalls only
+            // fire for the matching scan country).
+            $recall = ProductRecall::activeForUnit($unit, $g['country_code']);
+
+            $expired  = $unit->batch?->expiry_date && $unit->batch->expiry_date->isPast();
+            $blocked  = in_array($unit->status, ['blocked', 'inactive', 'expired'], true);
+
+            $verification = VerificationLog::create([
+                'verification_number' => VerificationLog::nextNumber(),
+                'uuc_code'            => $code,
+                'batch_unit_id'       => $unit->id,
+                'batch_id'            => $unit->batch_id,
+                'product_id'          => $unit->batch?->product_id,
+                'result'              => 'genuine', // refined below
+                'ip_address'          => $ip,
+                'country'             => $g['country'],
+                'country_code'        => $g['country_code'],
+                'city'                => $g['city'],
+                'region'              => $g['region'],
+                'isp'                 => $g['isp'],
+                'latitude'            => $g['lat'],
+                'longitude'           => $g['lon'],
+                'is_proxy'            => $g['is_proxy'],
+                'browser'             => $d['browser'],
+                'os'                  => $d['os'],
+                'device_type'         => $d['device_type'],
+                'language'            => substr((string) $request->getPreferredLanguage(), 0, 12) ?: null,
+                'user_agent'          => $request->userAgent(),
+            ]);
+
+            // Run the rule engine (creates risk alerts), then settle score+result.
+            $score = $engine->evaluate($verification, $unit, $policy);
+
+            // Categories the engine flagged for THIS scan — drives the public
+            // block reason + message (locked / country / city / device / hit …).
+            $cats = \App\Models\RiskAlert::where('verification_log_id', $verification->id)->pluck('category')->all();
+
+            $block = match (true) {
+                (bool) $recall                         => 'recalled',
+                in_array('ip_blocked', $cats, true)    => 'ip',
+                in_array('locked_scope', $cats, true)  => 'locked',
+                in_array('vpn_blocked', $cats, true)   => 'vpn',
+                $expired                               => 'expired',
+                $blocked                               => 'invalid',
+                in_array('unauthorized_market', $cats, true) => 'country',
+                in_array('unauthorized_city', $cats, true)   => 'city',
+                in_array('device_limit_exceeded', $cats, true) => 'device',
+                in_array('scan_limit_exceeded', $cats, true)   => 'hit',
+                default                                => null,
+            };
+
+            $result = match ($block) {
+                'recalled' => 'recalled',
+                'locked'   => 'locked',
+                'expired'  => 'expired',
+                'invalid'  => 'invalid',
+                'ip', 'vpn', 'rate', 'country', 'city', 'device', 'hit' => 'blocked',
+                default    => ($score >= 41 ? 'suspicious' : 'genuine'),
+            };
+            $verification->update(['risk_score' => $score, 'result' => $result]);
+
+            // ── Scan-intelligence rules (8 configurable scenarios) ──
+            $intel          = app(ScanIntelligence::class)->evaluate($verification, $unit, $cfg);
+            $alerts         = $intel['alerts'];
+            $certificate    = $intel['certificate'];
+            $intendedRegion = $intel['intendedRegion'];
+
+            // Apply a hard block from the rules, but never downgrade a stronger
+            // integrity block (recall / locked / expired …) already in place.
+            if (!$block && $intel['block']) {
+                $block  = $intel['block'];
+                $result = $block === 'locked' ? 'locked' : 'blocked';
+                $verification->update(['result' => $result]);
+            }
+
+            // Permanently lock the UUC when a rule demands it (rule 4).
+            if ($intel['lock']) {
+                $this->autoLockUnit($unit, $intel['lock']['reason']);
+            }
+
+            // ── Post-lock / over-limit forensics ──
+            // Count scans that were blocked by access-control enforcement AFTER a
+            // unit was locked or its scan/device/geo/IP/VPN/rate limit was crossed,
+            // so abuse on a flagged UUC can be identified later.
+            if (in_array($block, ['locked', 'hit', 'device', 'country', 'city', 'ip', 'vpn', 'rate'], true)) {
+                $unit->increment('blocked_scan_count');
+                $unit->forceFill(['last_blocked_scan_at' => now()])->save();
+            }
+
+            // ── VPN / proxy usage tracking ──
+            // Record every scan that came over a VPN/proxy network (whether or not
+            // it was blocked), so VPN abuse on a UUC is visible historically.
+            if (!empty($g['is_proxy'])) {
+                $unit->increment('vpn_scan_count');
+                $unit->forceFill(['last_vpn_scan_at' => now()])->save();
+            }
+
+            // Aggregate scan stats for the "Verification Information" panel.
+            $agg = VerificationLog::where('uuc_code', $code);
+            $scanStats = [
+                'count'     => (clone $agg)->count(),
+                'first'     => (clone $agg)->min('created_at'),
+                'last'      => (clone $agg)->max('created_at'),
+                'countries' => (clone $agg)->whereNotNull('country_code')->distinct()->count('country_code'),
+            ];
         }
 
-        return view('verify', compact('unit', 'code'));
+        // Unit lifecycle trace (most recent first) — drives the Tracking timeline.
+        // History count is admin-configurable (0 = all, capped for safety).
+        $historyLimit = (int) ($cfg['history_limit'] ?? 10);
+        $logs = $unit
+            ? BatchUnitLog::where('batch_unit_id', $unit->id)->latest()
+                ->limit($historyLimit > 0 ? $historyLimit : 500)->get()
+            : collect();
+
+        // Per-scan verification history (carries geo + device per scan).
+        $verifications = $unit
+            ? VerificationLog::where('uuc_code', $code)->latest()
+                ->limit($historyLimit > 0 ? $historyLimit : 500)->get()
+            : collect();
+
+        $view = match ($cfg['verify_style'] ?? 'style1') {
+            'style2' => 'verify.style2',
+            'style3' => 'verify.style3',
+            'style4' => 'verify.style4',
+            'style5' => 'verify.style5',
+            default  => 'verify.verify',
+        };
+
+        return view($view, compact('unit', 'code', 'logs', 'verifications', 'verification', 'recall', 'scanStats', 'policy', 'block', 'cfg', 'alerts', 'certificate', 'intendedRegion'));
+    }
+
+    /**
+     * Permanently lock a UUC from the verification flow (scan-intelligence rule 4):
+     * create/keep a code-scope locked policy and record the lock reason on the unit.
+     * Mirrors AntiCounterfeitController::quickLockUnit so Access Control shows it.
+     */
+    private function autoLockUnit(BatchUnit $unit, string $reason): void
+    {
+        $existing = VerificationPolicy::where('scope_type', 'codes')->get()
+            ->first(fn ($p) => (array) $p->uuc_codes === [$unit->secret_code]);
+
+        if ($existing) {
+            if (!$existing->locked) {
+                $existing->update(['locked' => true, 'active' => true, 'notes' => $reason]);
+            }
+        } else {
+            VerificationPolicy::create([
+                'name'       => 'Auto lock — ' . $unit->secret_code,
+                'scope_type' => 'codes',
+                'uuc_codes'  => [$unit->secret_code],
+                'locked'     => true,
+                'active'     => true,
+                'notes'      => $reason,
+            ]);
+        }
+
+        if (!$unit->locked_at) {
+            $unit->forceFill(['lock_reason' => $reason, 'locked_at' => now()])->save();
+        }
+    }
+
+    /** Public: submit a counterfeit / problem report from the verification page. */
+    public function report(string $code, Request $request): JsonResponse|RedirectResponse
+    {
+        $data = $request->validate([
+            'reporter_name'  => 'required|string|max:120',
+            'reporter_phone' => 'required|string|max:40',
+            'reporter_email' => 'nullable|email|max:160',
+            'message'        => 'nullable|string|max:2000',
+            'reason'         => 'nullable|string|max:40',
+        ]);
+
+        $unit = BatchUnit::with('batch')->where('secret_code', $code)->first();
+        $log  = VerificationLog::where('uuc_code', $code)->latest()->first();
+
+        CounterfeitReport::create([
+            'uuc_code'            => $code,
+            'verification_log_id' => $log?->id,
+            'product_id'          => $unit?->batch?->product_id,
+            'batch_id'            => $unit?->batch_id,
+            'reason'              => $data['reason'] ?? null,
+            'reporter_name'       => $data['reporter_name'],
+            'reporter_phone'      => $data['reporter_phone'],
+            'reporter_email'      => $data['reporter_email'] ?? null,
+            'message'             => $data['message'] ?? null,
+            'city'                => $log?->city,
+            'country'             => $log?->country,
+            'ip_address'          => $request->ip(),
+        ]);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Report submitted. Thank you.']);
+        }
+        return back()->with('success', 'Report submitted. Thank you.');
+    }
+
+    /**
+     * Public: a patient/partner requests the product's details by email.
+     * The email is only sent when the product is confirmed GENUINE.
+     */
+    public function requestInfo(string $code, Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name'          => 'required|string|max:120',
+            'email'         => 'required|email|max:160',
+            'phone'         => 'nullable|string|max:40',
+            'country'       => 'nullable|string|max:80',
+            'city'          => 'nullable|string|max:80',
+            'address'       => 'nullable|string|max:255',
+            'partner_name'  => 'nullable|string|max:120',
+            'partner_phone' => 'nullable|string|max:40',
+            'whatsapp'      => 'nullable|string|max:40',
+        ]);
+
+        $unit = BatchUnit::with('batch.product')->where('secret_code', $code)->first();
+
+        // Gate: only genuine / original products qualify for an info email.
+        $genuine = $unit
+            && !ProductRecall::activeForUnit($unit)
+            && !(VerificationPolicy::resolveForUnit($unit)?->locked)
+            && !($unit->batch?->expiry_date && $unit->batch->expiry_date->isPast())
+            && !in_array($unit->status, ['blocked', 'inactive', 'expired'], true);
+
+        if (!$genuine) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product information can only be emailed for genuine products.',
+            ], 422);
+        }
+
+        $req = ProductInfoRequest::create([
+            'uuc_code'      => $code,
+            'product_id'    => $unit->batch?->product_id,
+            'batch_id'      => $unit->batch_id,
+            'name'          => $data['name'],
+            'email'         => $data['email'],
+            'phone'         => $data['phone'] ?? null,
+            'country'       => $data['country'] ?? null,
+            'city'          => $data['city'] ?? null,
+            'address'       => $data['address'] ?? null,
+            'partner_name'  => $data['partner_name'] ?? null,
+            'partner_phone' => $data['partner_phone'] ?? null,
+            'whatsapp'      => $data['whatsapp'] ?? null,
+        ]);
+
+        try {
+            Mail::to($data['email'])->send(new ProductInfoMail($unit, $data['name']));
+            $req->update(['emailed' => true]);
+        } catch (\Throwable $e) {
+            // Don't fail the request if the mailer is unavailable — record stays.
+            report($e);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Thank you! Product details have been sent to your email.',
+        ]);
+    }
+
+    /**
+     * Public: returning-scan genuine certificate (scan-intelligence rule 8).
+     * The visitor fills a short info form and downloads a PDF confirming the
+     * product is genuine, with product / batch / origin details.
+     */
+    public function certificate(string $code, Request $request)
+    {
+        $data = $request->validate([
+            'name'    => 'required|string|max:120',
+            'phone'   => 'nullable|string|max:40',
+            'email'   => 'nullable|email|max:160',
+            'country' => 'nullable|string|max:80',
+            'city'    => 'nullable|string|max:80',
+        ]);
+
+        $unit = BatchUnit::with('batch.product')->where('secret_code', $code)->first();
+
+        // Only issue a certificate for a genuine, non-blocked product.
+        $genuine = $unit
+            && !ProductRecall::activeForUnit($unit)
+            && !(VerificationPolicy::resolveForUnit($unit)?->locked)
+            && !($unit->batch?->expiry_date && $unit->batch->expiry_date->isPast())
+            && !in_array($unit->status, ['blocked', 'inactive', 'expired'], true);
+
+        if (!$genuine) {
+            return back()->with('error', 'A certificate can only be issued for a genuine product.');
+        }
+
+        $cfg = Setting::config();
+        $log = VerificationLog::where('uuc_code', $code)->latest()->first();
+
+        $pdf = Pdf::loadView('verify.certificate', [
+            'unit'    => $unit,
+            'product' => $unit->batch?->product,
+            'batch'   => $unit->batch,
+            'code'    => $code,
+            'cfg'     => $cfg,
+            'log'     => $log,
+            'visitor' => $data,
+            'issued'  => now(),
+        ])->setPaper('a4');
+
+        return $pdf->download('genuine-certificate-' . $code . '.pdf');
     }
 
     // ── Update ────────────────────────────────────────────────────────────

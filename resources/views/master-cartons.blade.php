@@ -159,11 +159,11 @@
   <div class="card table-card"><div class="card-body p-0">
 
     {{-- Bulk action toolbar --}}
-    <div class="bulk-bar px-3 py-2 d-flex flex-wrap align-items-center gap-2 border-bottom" x-show="selected.length" x-cloak>
-      <span class="fw-semibold"><i class="bi bi-check2-square me-1 text-primary"></i><span x-text="selected.length"></span> selected</span>
+    <div class="bulk-bar px-3 py-2 d-flex flex-wrap align-items-center gap-2 border-bottom">
+      <span class="fw-semibold" :class="selected.length ? '' : 'text-muted'"><i class="bi bi-check2-square me-1 text-primary"></i><span x-text="selected.length"></span> selected</span>
       <button class="btn btn-outline-primary btn-sm" @click="downloadSelected('print')"><i class="bi bi-printer me-1"></i>Print labels</button>
       <button class="btn btn-danger btn-sm" @click="downloadSelected('pdf')"><i class="bi bi-file-earmark-pdf me-1"></i>Download PDF</button>
-      <button class="btn btn-link btn-sm text-muted ms-auto text-decoration-none" @click="clearSel()">Clear selection</button>
+      <button class="btn btn-link btn-sm text-muted ms-auto text-decoration-none" @click="clearSel()" x-show="selected.length" x-cloak>Clear selection</button>
     </div>
 
     <div class="table-responsive">
@@ -736,7 +736,7 @@ function cartonPage() {
     toggleAll(e){ this.selected = e.target.checked ? [...this.pageIds] : []; },
     clearSel(){ this.selected=[]; },
     downloadSelected(action){
-      if(!this.selected.length) return;
+      if(!this.selected.length){ this.$store.toast.show('Select at least one carton first.','warning'); return; }
       const base = action==='pdf' ? '{{ route('master-cartons.labels-pdf') }}' : '{{ route('master-cartons.labels') }}';
       const url = base + '?ids=' + this.selected.join(',');
       if(action==='print') window.open(url,'_blank'); else window.location.href=url;
