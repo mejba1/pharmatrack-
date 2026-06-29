@@ -13,15 +13,18 @@
     </div>
 
     <!-- Alert -->
-    <div x-show="error" class="alert alert-danger py-2 px-3 mb-3" style="font-size:13px" x-text="error"></div>
+    @if($errors->any())
+      <div class="alert alert-danger py-2 px-3 mb-3" style="font-size:13px">{{ $errors->first() }}</div>
+    @endif
 
-    <form @submit.prevent="submit">
+    <form method="POST" action="{{ route('login.post') }}">
+      @csrf
       <div class="mb-3">
         <label class="form-label">Email / Username</label>
         <div class="input-group">
           <span class="input-group-text bg-white border-end-0"><i class="bi bi-person text-muted"></i></span>
-          <input type="text" class="form-control border-start-0 ps-0"
-                 placeholder="Enter your email" x-model="form.email" autocomplete="username">
+          <input type="text" name="email" class="form-control border-start-0 ps-0"
+                 placeholder="Enter your email" x-model="form.email" value="{{ old('email') }}" autocomplete="username" required>
         </div>
       </div>
 
@@ -29,8 +32,8 @@
         <label class="form-label">Password</label>
         <div class="input-group">
           <span class="input-group-text bg-white border-end-0"><i class="bi bi-lock text-muted"></i></span>
-          <input :type="showPass ? 'text' : 'password'" class="form-control border-start-0 ps-0 border-end-0"
-                 placeholder="Enter your password" x-model="form.password" autocomplete="current-password">
+          <input :type="showPass ? 'text' : 'password'" name="password" class="form-control border-start-0 ps-0 border-end-0"
+                 placeholder="Enter your password" x-model="form.password" autocomplete="current-password" required>
           <span class="input-group-text bg-white cursor-pointer" @click="showPass = !showPass">
             <i :class="showPass ? 'bi-eye-slash' : 'bi-eye'" class="bi text-muted"></i>
           </span>
@@ -39,16 +42,13 @@
 
       <div class="d-flex align-items-center justify-content-between mb-3">
         <div class="form-check mb-0">
-          <input class="form-check-input" type="checkbox" id="remember" x-model="form.remember">
+          <input class="form-check-input" type="checkbox" id="remember" name="remember" x-model="form.remember">
           <label class="form-check-label" for="remember" style="font-size:13px">Remember me</label>
         </div>
         <a href="#" style="font-size:13px" class="text-primary text-decoration-none">Forgot password?</a>
       </div>
 
-      <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold" :disabled="loading">
-        <span x-show="loading" class="spinner-border spinner-border-sm me-2"></span>
-        <span x-text="loading ? 'Signing in...' : 'Sign In'"></span>
-      </button>
+      <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Sign In</button>
     </form>
 
     <hr class="my-3">
@@ -77,32 +77,18 @@
 <script>
 function loginPage() {
   return {
-    form: { email: '', password: '', remember: false },
-    loading: false, error: '', showPass: false,
+    form: { email: '{{ old('email') }}', password: '', remember: false },
+    showPass: false,
     demoRoles: [
-      { label: 'Super Admin',  email: 'admin@pharmatrack.com',    role: 'super_admin' },
-      { label: 'Manufacturer', email: 'mfg@pharmatrack.com',      role: 'manufacturer' },
-      { label: 'Distributor',  email: 'dist@pharmatrack.com',     role: 'distributor' },
-      { label: 'Finance',      email: 'finance@pharmatrack.com',  role: 'finance' },
-      { label: 'Logistics',    email: 'logistics@pharmatrack.com',role: 'logistics' },
-      { label: 'QC Officer',   email: 'qc@pharmatrack.com',       role: 'qc' },
+      { label: 'Super Admin',  email: 'admin@pharmatrack.local' },
+      { label: 'Manufacturer', email: 'imran@pharmatrack.local' },
+      { label: 'Logistics',    email: 'farah@pharmatrack.local' },
+      { label: 'Finance',      email: 'rahim@pharmatrack.local' },
     ],
     fillDemo(role) {
       this.form.email    = role.email;
-      this.form.password = 'demo1234';
+      this.form.password = 'password';
     },
-    submit() {
-      this.error = '';
-      if (!this.form.email || !this.form.password) {
-        this.error = 'Please enter your email and password.';
-        return;
-      }
-      this.loading = true;
-      setTimeout(() => {
-        this.loading = false;
-        window.location.href = '{{ route('dashboard') }}';
-      }, 900);
-    }
   };
 }
 </script>

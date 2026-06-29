@@ -10,6 +10,14 @@ use App\Http\Controllers\ConsignmentController;
 use App\Http\Controllers\DistributionController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\TherapeuticClassController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\SalesOrderController;
+use App\Http\Controllers\ProformaInvoiceController;
+use App\Http\Controllers\CommercialInvoiceController;
+use App\Http\Controllers\CountryManagerController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\AntiCounterfeitController;
 
 /*
@@ -20,21 +28,12 @@ use App\Http\Controllers\AntiCounterfeitController;
 
 // ── Auth ─────────────────────────────────────────────────────────────────
 Route::get('/', function () {
-    return redirect()->route('login');
+    return redirect()->route(\Illuminate\Support\Facades\Auth::check() ? 'dashboard' : 'login');
 });
 
-Route::get('/login', function () {
-    return view('auth.login');
-})->name('login');
-
-Route::post('/login', function () {
-    // TODO: real auth logic
-    return redirect()->route('dashboard');
-})->name('login.post');
-
-Route::post('/logout', function () {
-    return redirect()->route('login');
-})->name('logout');
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1')->name('login.post');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // ── Public product verification (reached from a unit's QR code) ────────────
 Route::get('/verify/{code}', [BatchController::class, 'verify'])->name('verify');
@@ -48,12 +47,10 @@ Route::get('/carton/{qr}', [MasterCartonController::class, 'scan'])->name('carto
 // ── Public shipment scan (reached from a parent shipment QR code) ──────────
 Route::get('/shipment/{qr}', [ConsignmentController::class, 'scan'])->name('shipment.scan');
 
-// ── Main Application ──────────────────────────────────────────────────────
-Route::middleware([])->group(function () {
+// ── Main Application (auth required + per-module permission gate) ──────────
+Route::middleware(['auth', 'module'])->group(function () {
 
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
     // ── Products & Batches ────────────────────────────────────────────────
     // Full resource: index, store, show (JSON), update, destroy
@@ -121,21 +118,46 @@ Route::middleware([])->group(function () {
 
     // ── Orders ────────────────────────────────────────────────────────────
     Route::prefix('orders')->name('orders.')->group(function () {
-        Route::get('/purchase-orders', function () {
-            return view('orders.po');
-        })->name('po');
+        // Purchase Orders (Phase 1 — wired to real data)
+        Route::get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('po');
+        Route::post('/purchase-orders', [PurchaseOrderController::class, 'store'])->name('po.store');
+        Route::get('/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('po.show');
+        Route::post('/purchase-orders/{purchaseOrder}/status', [PurchaseOrderController::class, 'updateStatus'])->name('po.status');
+        Route::delete('/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'destroy'])->name('po.destroy');
+        Route::get('/purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'pdf'])->name('po.pdf');
+        Route::post('/purchase-orders/{purchaseOrder}/documents', [PurchaseOrderController::class, 'storeDoc'])->name('po.documents.store');
+        Route::get('/order-documents/{document}/download', [PurchaseOrderController::class, 'downloadDoc'])->name('po.documents.download');
+        Route::delete('/order-documents/{document}', [PurchaseOrderController::class, 'destroyDoc'])->name('po.documents.destroy');
 
-        Route::get('/sales-orders', function () {
-            return view('orders.so');
-        })->name('so');
+        // Sales Orders (Phase 2 — wired, with serial allocation)
+        Route::get('/sales-orders', [SalesOrderController::class, 'index'])->name('so');
+        Route::post('/sales-orders', [SalesOrderController::class, 'store'])->name('so.store');
+        Route::get('/sales-orders/{salesOrder}', [SalesOrderController::class, 'show'])->name('so.show');
+        Route::post('/sales-orders/{salesOrder}/status', [SalesOrderController::class, 'updateStatus'])->name('so.status');
+        Route::get('/sales-orders/{salesOrder}/pdf', [SalesOrderController::class, 'pdf'])->name('so.pdf');
+        Route::post('/sales-orders/{salesOrder}/documents', [SalesOrderController::class, 'storeDoc'])->name('so.documents.store');
+        Route::get('/so-documents/{document}/download', [SalesOrderController::class, 'downloadDoc'])->name('so.documents.download');
+        Route::delete('/so-documents/{document}', [SalesOrderController::class, 'destroyDoc'])->name('so.documents.destroy');
 
-        Route::get('/proforma-invoices', function () {
-            return view('orders.pi');
-        })->name('pi');
+        // Proforma Invoices (Phase 3 — wired, finance approval workflow)
+        Route::get('/proforma-invoices', [ProformaInvoiceController::class, 'index'])->name('pi');
+        Route::post('/proforma-invoices', [ProformaInvoiceController::class, 'store'])->name('pi.store');
+        Route::get('/proforma-invoices/{proformaInvoice}', [ProformaInvoiceController::class, 'show'])->name('pi.show');
+        Route::post('/proforma-invoices/{proformaInvoice}/status', [ProformaInvoiceController::class, 'updateStatus'])->name('pi.status');
+        Route::get('/proforma-invoices/{proformaInvoice}/pdf', [ProformaInvoiceController::class, 'pdf'])->name('pi.pdf');
+        Route::post('/proforma-invoices/{proformaInvoice}/documents', [ProformaInvoiceController::class, 'storeDoc'])->name('pi.documents.store');
+        Route::get('/pi-documents/{document}/download', [ProformaInvoiceController::class, 'downloadDoc'])->name('pi.documents.download');
+        Route::delete('/pi-documents/{document}', [ProformaInvoiceController::class, 'destroyDoc'])->name('pi.documents.destroy');
 
-        Route::get('/commercial-invoices', function () {
-            return view('orders.ci');
-        })->name('ci');
+        // Commercial Invoices (Phase 4 — partial CIs)
+        Route::get('/commercial-invoices', [CommercialInvoiceController::class, 'index'])->name('ci');
+        Route::post('/commercial-invoices', [CommercialInvoiceController::class, 'store'])->name('ci.store');
+        Route::get('/commercial-invoices/{commercialInvoice}', [CommercialInvoiceController::class, 'show'])->name('ci.show');
+        Route::post('/commercial-invoices/{commercialInvoice}/status', [CommercialInvoiceController::class, 'updateStatus'])->name('ci.status');
+        Route::get('/commercial-invoices/{commercialInvoice}/pdf', [CommercialInvoiceController::class, 'pdf'])->name('ci.pdf');
+        Route::post('/commercial-invoices/{commercialInvoice}/documents', [CommercialInvoiceController::class, 'storeDoc'])->name('ci.documents.store');
+        Route::get('/ci-documents/{document}/download', [CommercialInvoiceController::class, 'downloadDoc'])->name('ci.documents.download');
+        Route::delete('/ci-documents/{document}', [CommercialInvoiceController::class, 'destroyDoc'])->name('ci.documents.destroy');
     });
 
     // ── Shipments / Consignments (parent aggregation over master cartons) ──
@@ -206,24 +228,45 @@ Route::middleware([])->group(function () {
         return view('vault');
     })->name('vault');
 
+    // ── Country Managers (team) ───────────────────────────────────────────
+    Route::prefix('country-managers')->name('country-managers.')->group(function () {
+        Route::get('/', [CountryManagerController::class, 'index'])->name('index');
+        Route::post('/', [CountryManagerController::class, 'store'])->name('store');
+        Route::put('/{manager}', [CountryManagerController::class, 'update'])->name('update');
+        Route::delete('/{manager}', [CountryManagerController::class, 'destroy'])->name('destroy');
+    });
+
+    // ── Customers & customer-wise sales ───────────────────────────────────
+    Route::prefix('customers')->name('customers.')->group(function () {
+        Route::get('/', [CustomerController::class, 'index'])->name('index');
+        Route::post('/', [CustomerController::class, 'store'])->name('store');
+        Route::get('/trace', [CustomerController::class, 'trace'])->name('trace');
+        Route::post('/sales', [CustomerController::class, 'storeSale'])->name('sales.store');
+        Route::get('/sales/{sale}', [CustomerController::class, 'showSale'])->name('sales.show');
+        Route::get('/{customer}', [CustomerController::class, 'show'])->name('show');
+        Route::put('/{customer}', [CustomerController::class, 'update'])->name('update');
+        Route::delete('/{customer}', [CustomerController::class, 'destroy'])->name('destroy');
+    });
+
     // ── Patient Portal ────────────────────────────────────────────────────
     Route::get('/patients', function () {
         return view('patients');
     })->name('patients');
 
     // ── Reports ───────────────────────────────────────────────────────────
-    Route::get('/reports', function () {
-        return view('reports');
-    })->name('reports');
+    Route::get('/reports', [\App\Http\Controllers\ReportController::class, 'index'])->name('reports');
+    Route::get('/reports/export/csv', [\App\Http\Controllers\ReportController::class, 'csv'])->name('reports.csv');
+    Route::get('/reports/export/pdf', [\App\Http\Controllers\ReportController::class, 'pdf'])->name('reports.pdf');
 
     // ── Notifications ─────────────────────────────────────────────────────
     Route::get('/notifications', function () {
         return view('notifications');
     })->name('notifications');
 
-    // ── Users & Roles ─────────────────────────────────────────────────────
-    Route::get('/users', function () {
-        return view('users');
-    })->name('users');
+    // ── Users & Roles (per-user module permissions) ───────────────────────
+    Route::get('/users', [UserController::class, 'index'])->name('users');
+    Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
 });

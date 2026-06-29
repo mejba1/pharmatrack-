@@ -2,182 +2,137 @@
 @section('title', 'Reports & Analytics')
 
 @section('content')
-<div x-data="reportsPage()">
-
+<div>
   <div class="page-header">
-    <div><h1>Reports &amp; Analytics</h1><div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Reports</div></div>
+    <div>
+      <h1>Reports &amp; Analytics</h1>
+      <div class="page-breadcrumb">{{ $mine ? 'Your sales performance' : 'Company-wide sales performance' }}</div>
+    </div>
     <div class="d-flex gap-2">
-      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-calendar3 me-1"></i>Schedule Report</button>
-      <button class="btn btn-primary btn-sm" @click="showRunModal=true"><i class="bi bi-play-fill me-1"></i>Run Report</button>
+      <a href="{{ route('reports.csv', request()->query()) }}" class="btn btn-outline-success btn-sm"><i class="bi bi-filetype-csv me-1"></i>CSV</a>
+      <a href="{{ route('reports.pdf', request()->query()) }}" class="btn btn-outline-danger btn-sm"><i class="bi bi-file-pdf me-1"></i>PDF</a>
     </div>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-file-bar-graph"></i></div><div><div class="stat-value">24</div><div class="stat-label">Report Definitions</div></div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-check2-circle"></i></div><div><div class="stat-value">1,842</div><div class="stat-label">Reports Run (MTD)</div></div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-clock"></i></div><div><div class="stat-value">8</div><div class="stat-label">Scheduled Reports</div></div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card stat-info"><div class="stat-icon"><i class="bi bi-cloud-arrow-down"></i></div><div><div class="stat-value">347</div><div class="stat-label">Downloads This Month</div></div></div></div>
-  </div>
-
-  <!-- Tabs -->
-  <div class="pills-nav mb-3">
-    <button class="pill-btn" :class="{active: tab==='definitions'}" @click="tab='definitions'"><i class="bi bi-file-bar-graph me-1"></i>Report Catalog</button>
-    <button class="pill-btn" :class="{active: tab==='runs'}" @click="tab='runs'"><i class="bi bi-clock-history me-1"></i>Run History</button>
-    <button class="pill-btn" :class="{active: tab==='scheduled'}" @click="tab='scheduled'"><i class="bi bi-calendar-check me-1"></i>Scheduled</button>
-  </div>
-
-  <!-- Report Catalog -->
-  <div x-show="tab==='definitions'" class="row g-3">
-    <template x-for="r in reportDefs" :key="r.id">
-      <div class="col-md-6 col-lg-4">
-        <div class="card h-100">
-          <div class="card-body">
-            <div class="d-flex align-items-start gap-3">
-              <div class="stat-icon" :class="'stat-' + r.colorClass" style="width:40px;height:40px;font-size:18px;flex-shrink:0"><i class="bi" :class="r.icon"></i></div>
-              <div class="flex-fill">
-                <div class="fw-semibold" style="font-size:14px" x-text="r.name"></div>
-                <div class="text-muted-sm mt-1" x-text="r.description"></div>
-                <div class="d-flex align-items-center gap-2 mt-2">
-                  <span class="badge bg-light text-secondary border" style="font-size:11px" x-text="r.category"></span>
-                  <span class="text-muted-sm" x-text="r.lastRun"></span>
-                </div>
-              </div>
-            </div>
-            <div class="d-flex gap-2 mt-3">
-              <button class="btn btn-outline-primary btn-sm flex-fill" @click="showRunModal=true; selectedReport=r"><i class="bi bi-play-fill me-1"></i>Run</button>
-              <button class="btn btn-outline-secondary btn-sm btn-icon"><i class="bi bi-download"></i></button>
-              <button class="btn btn-outline-secondary btn-sm btn-icon"><i class="bi bi-calendar3"></i></button>
-            </div>
-          </div>
-        </div>
+  {{-- Filter bar --}}
+  <div class="card mb-3"><div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-2"><label class="form-label">Trend year</label>
+        <select name="year" class="form-select form-select-sm">
+          @foreach($years as $y)<option value="{{ $y }}" @selected($year==$y)>{{ $y }}</option>@endforeach
+        </select>
       </div>
-    </template>
-  </div>
-
-  <!-- Run History -->
-  <div x-show="tab==='runs'" class="card table-card">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead>
-            <tr><th>Report Name</th><th>Category</th><th>Run By</th><th>Parameters</th><th>Duration</th><th>Status</th><th>Actions</th></tr>
-          </thead>
-          <tbody>
-            <template x-for="run in reportRuns" :key="run.id">
-              <tr>
-                <td><div class="fw-semibold" style="font-size:13px" x-text="run.name"></div><div class="text-muted-sm" x-text="run.date"></div></td>
-                <td><span class="badge bg-light text-secondary border" style="font-size:11px" x-text="run.category"></span></td>
-                <td style="font-size:13px" x-text="run.runBy"></td>
-                <td style="font-size:12px" x-text="run.params"></td>
-                <td style="font-size:13px" x-text="run.duration"></td>
-                <td>
-                  <span x-show="run.status==='Completed'" class="badge-status badge-approved">Completed</span>
-                  <span x-show="run.status==='Running'" class="badge-status badge-pending">Running...</span>
-                  <span x-show="run.status==='Failed'" class="badge-status badge-cancelled">Failed</span>
-                </td>
-                <td>
-                  <button x-show="run.status==='Completed'" class="btn btn-outline-secondary btn-sm btn-icon" title="Download"><i class="bi bi-download"></i></button>
-                  <button class="btn btn-outline-primary btn-sm btn-icon" title="Re-run"><i class="bi bi-arrow-clockwise"></i></button>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
+      <div class="col-md-3"><label class="form-label">From</label><input type="date" name="from" value="{{ $from }}" class="form-control form-control-sm"></div>
+      <div class="col-md-3"><label class="form-label">To</label><input type="date" name="to" value="{{ $to }}" class="form-control form-control-sm"></div>
+      <div class="col-md-2 d-flex gap-1">
+        <button class="btn btn-primary btn-sm flex-fill"><i class="bi bi-funnel me-1"></i>Apply</button>
+        <a href="{{ route('reports') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise"></i></a>
       </div>
-    </div>
+    </form>
+  </div></div>
+
+  {{-- Summary cards --}}
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-cash-stack"></i></div><div><div class="stat-value">{{ number_format($summary['total_sales'], 0) }}</div><div class="stat-label">Total Sales (value)</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card stat-info"><div class="stat-icon"><i class="bi bi-bag-check"></i></div><div><div class="stat-value">{{ $summary['orders'] }}</div><div class="stat-label">Sales Orders</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-box-seam"></i></div><div><div class="stat-value">{{ number_format($summary['units']) }}</div><div class="stat-label">Units Sold</div></div></div></div>
+    <div class="col-6 col-lg-3"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-people"></i></div><div><div class="stat-value">{{ $summary['customers'] }}</div><div class="stat-label">Customers</div></div></div></div>
   </div>
 
-  <!-- Scheduled Reports -->
-  <div x-show="tab==='scheduled'" class="card table-card">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead>
-            <tr><th>Report Name</th><th>Frequency</th><th>Next Run</th><th>Format</th><th>Recipients</th><th>Status</th><th>Actions</th></tr>
-          </thead>
-          <tbody>
-            <template x-for="s in scheduledReports" :key="s.id">
-              <tr>
-                <td><div class="fw-semibold" style="font-size:13px" x-text="s.name"></div><div class="text-muted-sm" x-text="s.category"></div></td>
-                <td><span class="badge bg-light text-secondary border" style="font-size:11px" x-text="s.frequency"></span></td>
-                <td style="font-size:13px" x-text="s.nextRun"></td>
-                <td><span class="badge bg-light text-danger border" style="font-size:11px" x-text="s.format"></span></td>
-                <td style="font-size:12px" x-text="s.recipients"></td>
-                <td><span class="badge-status" :class="s.active ? 'badge-approved' : 'badge-pending'" x-text="s.active ? 'Active' : 'Paused'"></span></td>
-                <td>
-                  <div class="d-flex gap-1">
-                    <button class="btn btn-outline-secondary btn-sm btn-icon"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-outline-danger btn-sm btn-icon"><i class="bi bi-trash"></i></button>
-                  </div>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-    </div>
+  {{-- Charts row 1: trend + status donut --}}
+  <div class="row g-3 mb-3">
+    <div class="col-lg-8"><div class="card h-100"><div class="card-body">
+      <h6 class="fw-bold mb-3">Monthly Sales — {{ $year }}</h6>
+      <canvas id="trendChart" height="110"></canvas>
+    </div></div></div>
+    <div class="col-lg-4"><div class="card h-100"><div class="card-body">
+      <h6 class="fw-bold mb-3">Order Status</h6>
+      <canvas id="statusChart" height="180"></canvas>
+    </div></div></div>
   </div>
 
-  <!-- Run Report Modal -->
-  <div class="modal fade" :class="{show:showRunModal}" :style="showRunModal?'display:block':''" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title fw-semibold"><i class="bi bi-play-fill me-2 text-primary"></i>Run Report</h5><button class="btn-close" @click="showRunModal=false"></button></div>
-        <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-12"><label class="form-label">Report Type <span class="text-danger">*</span></label>
-              <select class="form-select">
-                <template x-for="r in reportDefs" :key="r.id"><option x-text="r.name"></option></template>
-              </select>
-            </div>
-            <div class="col-md-6"><label class="form-label">Date From</label><input type="date" class="form-control"></div>
-            <div class="col-md-6"><label class="form-label">Date To</label><input type="date" class="form-control"></div>
-            <div class="col-md-6"><label class="form-label">Country (optional)</label><select class="form-select"><option value="">All Countries</option><option>Philippines</option><option>Nigeria</option><option>Bangladesh</option></select></div>
-            <div class="col-md-6"><label class="form-label">Output Format</label><select class="form-select"><option>PDF</option><option>Excel</option><option>CSV</option></select></div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline-secondary" @click="showRunModal=false">Cancel</button>
-          <button class="btn btn-primary"><i class="bi bi-play-fill me-1"></i>Generate Report</button>
-        </div>
-      </div>
-    </div>
+  {{-- Charts row 2: customer pie + yearly bar --}}
+  <div class="row g-3 mb-3">
+    <div class="col-lg-5"><div class="card h-100"><div class="card-body">
+      <h6 class="fw-bold mb-3">Top Customers by Sales</h6>
+      <canvas id="customerPie" height="200"></canvas>
+    </div></div></div>
+    <div class="col-lg-7"><div class="card h-100"><div class="card-body">
+      <h6 class="fw-bold mb-3">Yearly Sales</h6>
+      <canvas id="yearlyChart" height="150"></canvas>
+    </div></div></div>
   </div>
-  <div class="modal-backdrop fade show" x-show="showRunModal" @click="showRunModal=false"></div>
 
+  {{-- Charts row 3: product value + qty --}}
+  <div class="row g-3 mb-3">
+    <div class="col-lg-6"><div class="card h-100"><div class="card-body">
+      <h6 class="fw-bold mb-3">Product-wise Sales (value)</h6>
+      <canvas id="productValueChart" height="200"></canvas>
+    </div></div></div>
+    <div class="col-lg-6"><div class="card h-100"><div class="card-body">
+      <h6 class="fw-bold mb-3">Product-wise Quantity</h6>
+      <canvas id="productQtyChart" height="200"></canvas>
+    </div></div></div>
+  </div>
+
+  {{-- Tables --}}
+  <div class="row g-3">
+    <div class="col-lg-6"><div class="card"><div class="card-body p-0">
+      <div class="px-3 pt-3 pb-2"><h6 class="fw-bold mb-0">Customer-wise sales</h6></div>
+      <div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>Customer</th><th class="text-center">Orders</th><th class="text-end">Sales value</th></tr></thead>
+        <tbody>
+          @forelse($customerWise as $c)<tr><td class="small">{{ $c['name'] }}</td><td class="text-center">{{ $c['orders'] }}</td><td class="text-end fw-semibold">{{ number_format($c['value'], 2) }}</td></tr>
+          @empty<tr><td colspan="3" class="text-center text-muted py-4">No sales in range.</td></tr>@endforelse
+        </tbody>
+      </table></div>
+    </div></div></div>
+    <div class="col-lg-6"><div class="card"><div class="card-body p-0">
+      <div class="px-3 pt-3 pb-2"><h6 class="fw-bold mb-0">Product-wise sales</h6></div>
+      <div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>Product</th><th class="text-center">Qty</th><th class="text-end">Sales value</th></tr></thead>
+        <tbody>
+          @forelse($productWise as $p)<tr><td class="small">{{ $p['name'] }}</td><td class="text-center">{{ number_format($p['qty']) }}</td><td class="text-end fw-semibold">{{ number_format($p['value'], 2) }}</td></tr>
+          @empty<tr><td colspan="3" class="text-center text-muted py-4">No sales in range.</td></tr>@endforelse
+        </tbody>
+      </table></div>
+    </div></div></div>
+  </div>
 </div>
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-function reportsPage() {
-  return {
-    tab:'definitions', showRunModal:false, selectedReport:null,
-    reportDefs:[
-      { id:1, name:'Order Summary Report',          description:'PO/SO/PI/CI summary with totals by period.',            category:'Orders',       icon:'bi-cart3',                colorClass:'primary', lastRun:'Today' },
-      { id:2, name:'Shipment Status Report',         description:'All shipments with carrier, status, ETA.',            category:'Shipments',    icon:'bi-truck',               colorClass:'info',    lastRun:'Yesterday' },
-      { id:3, name:'Batch Expiry Report',            description:'Batches expiring within selected period.',             category:'Inventory',    icon:'bi-layers',              colorClass:'warning', lastRun:'Jun 8, 2026' },
-      { id:4, name:'Country Regulatory Summary',     description:'Per-country registration and permit status.',          category:'Regulatory',   icon:'bi-globe2',              colorClass:'success', lastRun:'Jun 5, 2026' },
-      { id:5, name:'Anti-Counterfeit Scan Report',   description:'Scan events with counterfeit/suspicious breakdown.',   category:'Compliance',   icon:'bi-shield-check',        colorClass:'danger',  lastRun:'Jun 9, 2026' },
-      { id:6, name:'Document Vault Audit Trail',     description:'Upload, download and version history of vault docs.',  category:'Compliance',   icon:'bi-files',               colorClass:'purple',  lastRun:'Jun 7, 2026' },
-      { id:7, name:'Distributor Performance Report', description:'Sales volume and on-time delivery per distributor.',  category:'Distribution', icon:'bi-building',            colorClass:'primary', lastRun:'Jun 1, 2026' },
-      { id:8, name:'Patient Dispensing Report',      description:'Dispensing records grouped by product and country.',   category:'Patient',      icon:'bi-capsule-pill',        colorClass:'success', lastRun:'Jun 3, 2026' },
-      { id:9, name:'Financial Summary Report',       description:'PI/CI totals, outstanding payments, by period.',       category:'Finance',      icon:'bi-cash-coin',           colorClass:'warning', lastRun:'Jun 10, 2026' },
-    ],
-    reportRuns:[
-      { id:1, name:'Order Summary Report',          category:'Orders',    runBy:'admin@pharmatrack.com', params:'Jun 2026 · All Countries', duration:'2.1s',  date:'Jun 10, 2026 09:14', status:'Completed' },
-      { id:2, name:'Batch Expiry Report',           category:'Inventory', runBy:'admin@pharmatrack.com', params:'< 90 days · All',          duration:'1.8s',  date:'Jun 10, 2026 08:55', status:'Completed' },
-      { id:3, name:'Anti-Counterfeit Scan Report',  category:'Compliance',runBy:'admin@pharmatrack.com', params:'Jun 1–10, 2026',           duration:'3.4s',  date:'Jun 9, 2026 14:22',  status:'Completed' },
-      { id:4, name:'Financial Summary Report',      category:'Finance',   runBy:'finance@pharmatrack.com',params:'May 2026',                duration:'4.2s',  date:'Jun 9, 2026 10:05',  status:'Completed' },
-      { id:5, name:'Shipment Status Report',        category:'Shipments', runBy:'ops@pharmatrack.com',   params:'Active · All Carriers',    duration:'—',     date:'Jun 9, 2026 09:50',  status:'Failed'    },
-    ],
-    scheduledReports:[
-      { id:1, name:'Order Summary Report',   category:'Orders',    frequency:'Monthly',  nextRun:'Jul 1, 2026',  format:'PDF',   recipients:'4 users',  active:true  },
-      { id:2, name:'Batch Expiry Report',    category:'Inventory', frequency:'Weekly',   nextRun:'Jun 15, 2026', format:'Excel', recipients:'2 users',  active:true  },
-      { id:3, name:'Financial Summary',      category:'Finance',   frequency:'Monthly',  nextRun:'Jul 1, 2026',  format:'PDF',   recipients:'3 users',  active:true  },
-      { id:4, name:'Shipment Status Report', category:'Shipments', frequency:'Daily',    nextRun:'Jun 11, 2026', format:'CSV',   recipients:'1 user',   active:false },
-    ]
-  };
-}
+(function(){
+  const monthly  = @js($monthly);
+  const yearly   = @js($yearly);
+  const customer = @js($customerWise);
+  const product  = @js($productWise);
+  const soStatus = @js($soStatus);
+
+  const palette = ['#0d6efd','#198754','#ffc107','#dc3545','#6f42c1','#0dcaf0','#fd7e14','#20c997'];
+  const money = v => v.toLocaleString();
+  const mk = (id, cfg) => { const el = document.getElementById(id); if (el && window.Chart) new Chart(el, cfg); };
+
+  mk('trendChart', { type:'bar', data:{ labels: monthly.map(m=>m.label), datasets:[{ label:'Sales', data: monthly.map(m=>m.value), backgroundColor:'#0d6efd' }] },
+    options:{ plugins:{legend:{display:false}}, scales:{y:{ticks:{callback:money}}} } });
+
+  mk('yearlyChart', { type:'bar', data:{ labels: yearly.map(y=>y.label), datasets:[{ label:'Sales', data: yearly.map(y=>y.value), backgroundColor:'#198754' }] },
+    options:{ plugins:{legend:{display:false}}, scales:{y:{ticks:{callback:money}}} } });
+
+  mk('customerPie', { type:'pie', data:{ labels: customer.map(c=>c.name), datasets:[{ data: customer.map(c=>c.value), backgroundColor: palette }] },
+    options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:12, font:{size:11}}}} } });
+
+  mk('productValueChart', { type:'bar', data:{ labels: product.map(p=>p.name), datasets:[{ label:'Value', data: product.map(p=>p.value), backgroundColor:'#6f42c1' }] },
+    options:{ indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{ticks:{callback:money}}} } });
+
+  mk('productQtyChart', { type:'bar', data:{ labels: product.map(p=>p.name), datasets:[{ label:'Qty', data: product.map(p=>p.qty), backgroundColor:'#fd7e14' }] },
+    options:{ indexAxis:'y', plugins:{legend:{display:false}} } });
+
+  const sLabels = Object.keys(soStatus); const sData = Object.values(soStatus);
+  mk('statusChart', { type:'doughnut', data:{ labels: sLabels, datasets:[{ data: sData, backgroundColor: palette }] },
+    options:{ plugins:{legend:{position:'bottom', labels:{boxWidth:12, font:{size:11}}}} } });
+})();
 </script>
 @endpush

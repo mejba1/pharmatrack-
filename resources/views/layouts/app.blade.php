@@ -30,6 +30,7 @@
 
   <nav class="sidebar-nav">
 
+    @php $can = fn (string $k) => optional(auth()->user())->canModule($k); @endphp
     {{-- Main --}}
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Main</div>
     <a href="{{ route('dashboard') }}" class="nav-item-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
@@ -38,11 +39,16 @@
     </a>
 
     {{-- Products --}}
+    @if($can('products') || $can('batches') || $can('master_cartons'))
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Products</div>
+    @endif
+    @if($can('products'))
     <a href="{{ route('products.index') }}" class="nav-item-link {{ request()->routeIs('products.*') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-capsule"></i></span>
       <span x-show="!sidebarCollapsed">Product Master</span>
     </a>
+    @endif
+    @if($can('batches'))
     <a href="{{ route('batches') }}" class="nav-item-link {{ request()->routeIs('batches') || request()->routeIs('batches.*') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-layers"></i></span>
       <span x-show="!sidebarCollapsed">Batch &amp; Lot Mgmt</span>
@@ -55,6 +61,8 @@
       <span class="nav-icon"><i class="bi bi-cloud-download"></i></span>
       <span x-show="!sidebarCollapsed">Batch Downloads</span>
     </a>
+    @endif
+    @if($can('master_cartons'))
     <div x-data="{open: {{ request()->routeIs('master-cartons') || request()->routeIs('master-cartons.*') ? 'true' : 'false' }}}">
       <button class="nav-item-link {{ request()->routeIs('master-cartons') || request()->routeIs('master-cartons.*') ? 'active' : '' }}" @click="open = !open">
         <span class="nav-icon"><i class="bi bi-box-seam"></i></span>
@@ -80,8 +88,10 @@
         </a>
       </div>
     </div>
+    @endif
 
     {{-- Master Data --}}
+    @if($can('master_data'))
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Master Data</div>
     <a href="{{ route('master.countries.index') }}" class="nav-item-link {{ request()->routeIs('master.countries.*') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-globe2"></i></span>
@@ -91,8 +101,10 @@
       <span class="nav-icon"><i class="bi bi-tags"></i></span>
       <span x-show="!sidebarCollapsed">Therapeutic Classes</span>
     </a>
+    @endif
 
     {{-- Order Documents --}}
+    @if($can('orders') || $can('invoices'))
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Orders</div>
     <div x-data="{open: {{ request()->routeIs('orders.*') ? 'true' : 'false' }}}">
       <button class="nav-item-link {{ request()->routeIs('orders.*') ? 'active' : '' }}" @click="open = !open">
@@ -101,6 +113,7 @@
         <i class="bi bi-chevron-right nav-caret" x-show="!sidebarCollapsed" :class="{open: open}"></i>
       </button>
       <div class="nav-submenu" :class="{open: open}">
+        @if($can('orders'))
         <a href="{{ route('orders.po') }}" class="nav-item-link {{ request()->routeIs('orders.po') ? 'active' : '' }}">
           <span class="nav-icon"><i class="bi bi-cart3"></i></span>
           <span x-show="!sidebarCollapsed">Purchase Orders</span>
@@ -109,6 +122,8 @@
           <span class="nav-icon"><i class="bi bi-bag-check"></i></span>
           <span x-show="!sidebarCollapsed">Sales Orders</span>
         </a>
+        @endif
+        @if($can('invoices'))
         <a href="{{ route('orders.pi') }}" class="nav-item-link {{ request()->routeIs('orders.pi') ? 'active' : '' }}">
           <span class="nav-icon"><i class="bi bi-receipt"></i></span>
           <span x-show="!sidebarCollapsed">Proforma Invoice</span>
@@ -117,10 +132,13 @@
           <span class="nav-icon"><i class="bi bi-file-earmark-check"></i></span>
           <span x-show="!sidebarCollapsed">Commercial Invoice</span>
         </a>
+        @endif
       </div>
     </div>
+    @endif
 
     {{-- Logistics --}}
+    @if($can('logistics'))
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Logistics</div>
     <div x-data="{open: {{ request()->routeIs('shipments') || request()->routeIs('shipments.*') || request()->routeIs('distribution') ? 'true' : 'false' }}}">
       <button class="nav-item-link {{ request()->routeIs('shipments') || request()->routeIs('shipments.*') || request()->routeIs('distribution') ? 'active' : '' }}" @click="open = !open">
@@ -147,13 +165,19 @@
         </a>
       </div>
     </div>
+    @endif
 
     {{-- Compliance --}}
+    @if($can('compliance') || $can('anti_counterfeit') || $can('vault'))
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Compliance</div>
+    @endif
+    @if($can('compliance'))
     <a href="{{ route('countries') }}" class="nav-item-link {{ request()->routeIs('countries') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-globe2"></i></span>
       <span x-show="!sidebarCollapsed">Country Permissions</span>
     </a>
+    @endif
+    @if($can('anti_counterfeit'))
     <div x-data="{open: {{ request()->routeIs('anticounterfeit.*') ? 'true' : 'false' }}}">
       <button class="nav-item-link {{ request()->routeIs('anticounterfeit.*') ? 'active' : '' }}" @click="open = !open">
         <span class="nav-icon"><i class="bi bi-shield-check"></i></span>
@@ -216,33 +240,67 @@
         </a>
       </div>
     </div>
+    @endif
+    @if($can('vault'))
     <a href="{{ route('vault') }}" class="nav-item-link {{ request()->routeIs('vault') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-safe2"></i></span>
       <span x-show="!sidebarCollapsed">Document Vault</span>
     </a>
+    @endif
+
+    {{-- Sales --}}
+    @if($can('customers') || $can('country_managers'))
+    <div class="sidebar-section-label" x-show="!sidebarCollapsed">Sales</div>
+    @endif
+    @if($can('customers'))
+    <a href="{{ route('customers.index') }}" class="nav-item-link {{ request()->routeIs('customers.index') || request()->routeIs('customers.show') || request()->routeIs('customers.store') ? 'active' : '' }}">
+      <span class="nav-icon"><i class="bi bi-people-fill"></i></span>
+      <span x-show="!sidebarCollapsed">Customers &amp; Sales</span>
+    </a>
+    <a href="{{ route('customers.trace') }}" class="nav-item-link {{ request()->routeIs('customers.trace') ? 'active' : '' }}">
+      <span class="nav-icon"><i class="bi bi-upc-scan"></i></span>
+      <span x-show="!sidebarCollapsed">Trace Purchase</span>
+    </a>
+    @endif
+    @if($can('country_managers'))
+    <a href="{{ route('country-managers.index') }}" class="nav-item-link {{ request()->routeIs('country-managers.*') ? 'active' : '' }}">
+      <span class="nav-icon"><i class="bi bi-person-gear"></i></span>
+      <span x-show="!sidebarCollapsed">Country Managers</span>
+    </a>
+    @endif
 
     {{-- Portal --}}
+    @if($can('patients'))
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Portal</div>
     <a href="{{ route('patients') }}" class="nav-item-link {{ request()->routeIs('patients') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-person-heart"></i></span>
       <span x-show="!sidebarCollapsed">Patient Portal</span>
     </a>
+    @endif
 
     {{-- Admin --}}
+    @if($can('reports') || $can('notifications') || $can('users'))
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Admin</div>
+    @endif
+    @if($can('reports'))
     <a href="{{ route('reports') }}" class="nav-item-link {{ request()->routeIs('reports') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-bar-chart-line"></i></span>
       <span x-show="!sidebarCollapsed">Reports &amp; Analytics</span>
     </a>
+    @endif
+    @if($can('notifications'))
     <a href="{{ route('notifications') }}" class="nav-item-link {{ request()->routeIs('notifications') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-bell"></i></span>
       <span x-show="!sidebarCollapsed">Notifications</span>
       <span class="nav-badge" x-show="!sidebarCollapsed && unreadCount > 0" x-text="unreadCount"></span>
     </a>
+    @endif
+    @if($can('users'))
     <a href="{{ route('users') }}" class="nav-item-link {{ request()->routeIs('users') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-people"></i></span>
       <span x-show="!sidebarCollapsed">Users &amp; Roles</span>
     </a>
+    @endif
 
   </nav>
 </aside>
@@ -311,10 +369,11 @@
     {{-- User menu --}}
     <div class="position-relative" @click.outside="showUserMenu=false">
       <div class="d-flex align-items-center gap-2 cursor-pointer" @click="showUserMenu=!showUserMenu">
-        <div class="user-avatar" x-text="currentUser.initials"></div>
+        @php $authUser = auth()->user(); $roleLabels = ['super_admin'=>'Super Admin','manufacturer'=>'Manufacturer','logistics'=>'Logistics','finance'=>'Finance','qc_officer'=>'QC Officer','distributor'=>'Country Manager']; @endphp
+        <div class="user-avatar">{{ $authUser?->initials ?: strtoupper(substr($authUser?->name ?? 'U', 0, 2)) }}</div>
         <div class="d-none d-md-block">
-          <div class="topbar-user-name" style="font-size:13px;font-weight:600;line-height:1.2" x-text="currentUser.name"></div>
-          <div class="topbar-user-role" style="font-size:11px" x-text="currentUser.role"></div>
+          <div class="topbar-user-name" style="font-size:13px;font-weight:600;line-height:1.2">{{ $authUser?->name }}</div>
+          <div class="topbar-user-role" style="font-size:11px">{{ $roleLabels[$authUser?->role] ?? ucfirst((string)$authUser?->role) }}</div>
         </div>
         <i class="bi bi-chevron-down text-muted" style="font-size:10px"></i>
       </div>
@@ -322,11 +381,14 @@
            class="position-absolute end-0 mt-2 rounded-3 shadow-lg py-1 topbar-dropdown"
            style="width:180px;z-index:1050;top:100%">
         <a href="#" class="dropdown-item py-2 px-3" style="font-size:13px"><i class="bi bi-person me-2"></i>My Profile</a>
-        <a href="#" class="dropdown-item py-2 px-3" style="font-size:13px"><i class="bi bi-gear me-2"></i>Settings</a>
+        @if($can('users'))<a href="{{ route('users') }}" class="dropdown-item py-2 px-3" style="font-size:13px"><i class="bi bi-people me-2"></i>Users &amp; Roles</a>@endif
         <div class="dropdown-divider my-1"></div>
-        <a href="{{ route('login') }}" class="dropdown-item py-2 px-3 text-danger" style="font-size:13px">
-          <i class="bi bi-box-arrow-right me-2"></i>Sign Out
-        </a>
+        <form method="POST" action="{{ route('logout') }}">
+          @csrf
+          <button type="submit" class="dropdown-item py-2 px-3 text-danger w-100 text-start border-0 bg-transparent" style="font-size:13px">
+            <i class="bi bi-box-arrow-right me-2"></i>Sign Out
+          </button>
+        </form>
       </div>
     </div>
 

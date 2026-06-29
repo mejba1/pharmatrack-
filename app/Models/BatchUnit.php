@@ -19,6 +19,10 @@ class BatchUnit extends Model
         'last_blocked_scan_at',
         'vpn_scan_count',
         'last_vpn_scan_at',
+        'customer_sale_id',
+        'sales_order_id',
+        'sold_to_id',
+        'sold_at',
     ];
 
     protected $casts = [
@@ -28,11 +32,27 @@ class BatchUnit extends Model
         'locked_at'            => 'datetime',
         'last_blocked_scan_at' => 'datetime',
         'last_vpn_scan_at'     => 'datetime',
+        'sold_at'              => 'datetime',
     ];
 
     public function batch()
     {
         return $this->belongsTo(Batch::class);
+    }
+
+    public function sale()
+    {
+        return $this->belongsTo(CustomerSale::class, 'customer_sale_id');
+    }
+
+    public function salesOrder()
+    {
+        return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+    }
+
+    public function soldTo()
+    {
+        return $this->belongsTo(Customer::class, 'sold_to_id');
     }
 
     public function getStatusBadgeClassAttribute(): string
