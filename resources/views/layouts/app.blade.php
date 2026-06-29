@@ -296,10 +296,27 @@
     </a>
     @endif
     @if($can('users'))
-    <a href="{{ route('users') }}" class="nav-item-link {{ request()->routeIs('users') ? 'active' : '' }}">
-      <span class="nav-icon"><i class="bi bi-people"></i></span>
-      <span x-show="!sidebarCollapsed">Users &amp; Roles</span>
-    </a>
+    <div x-data="{open: {{ request()->routeIs('users') || request()->routeIs('users.*') || request()->routeIs('roles.*') ? 'true' : 'false' }}}">
+      <button class="nav-item-link {{ request()->routeIs('users') || request()->routeIs('users.*') || request()->routeIs('roles.*') ? 'active' : '' }}" @click="open = !open">
+        <span class="nav-icon"><i class="bi bi-people"></i></span>
+        <span x-show="!sidebarCollapsed">Users &amp; Roles</span>
+        <i class="bi bi-chevron-right nav-caret" x-show="!sidebarCollapsed" :class="{open: open}"></i>
+      </button>
+      <div class="nav-submenu" :class="{open: open}">
+        <a href="{{ route('roles.index') }}" class="nav-item-link {{ request()->routeIs('roles.index') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-shield-plus"></i></span>
+          <span x-show="!sidebarCollapsed">Create Role</span>
+        </a>
+        <a href="{{ route('roles.permissions') }}" class="nav-item-link {{ request()->routeIs('roles.permissions') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-shield-lock"></i></span>
+          <span x-show="!sidebarCollapsed">Permission Set</span>
+        </a>
+        <a href="{{ route('users') }}" class="nav-item-link {{ request()->routeIs('users') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-person-lines-fill"></i></span>
+          <span x-show="!sidebarCollapsed">Users</span>
+        </a>
+      </div>
+    </div>
     @endif
 
   </nav>

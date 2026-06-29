@@ -7,11 +7,12 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -43,9 +44,8 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password'    => 'hashed',
-            'permissions' => 'array',
-            'is_active'   => 'boolean',
+            'password'  => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -67,13 +67,18 @@ class User extends Authenticatable
         return $this->role === 'super_admin';
     }
 
-    /** Can this user access the given module key? super_admin always can. */
+    /**
+     * Can this user access the given module key? Access is granted via the
+     * user's Spatie role(s); each module key is registered as a permission.
+     * super_admin always can (also enforced by the Gate::before god-mode).
+     */
     public function canModule(string $key): bool
     {
         if ($this->isSuperAdmin()) {
             return true;
         }
-        return in_array($key, (array) $this->permissions, true);
+        // checkPermissionTo() returns false instead of throwing for unknown keys.
+        return $this->checkPermissionTo($key);
     }
 
     /** True when this user sees all data (no per-user row scoping). */

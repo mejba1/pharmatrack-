@@ -28,5 +28,5 @@ return [
     'patients'         => ['label' => 'Patient Portal',       'prefixes' => ['patients']],
     'reports'          => ['label' => 'Reports',             'prefixes' => ['reports']],
     'notifications'    => ['label' => 'Notifications',        'prefixes' => ['notifications']],
-    'users'            => ['label' => 'Users & Roles',       'prefixes' => ['users.', 'users']],
+    'users'            => ['label' => 'Users & Roles',       'prefixes' => ['users.', 'users', 'roles.', 'roles', 'roles-permissions']],
 ];

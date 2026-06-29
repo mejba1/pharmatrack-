@@ -263,7 +263,18 @@ Route::middleware(['auth', 'module'])->group(function () {
         return view('notifications');
     })->name('notifications');
 
-    // ── Users & Roles (per-user module permissions) ───────────────────────
+    // ── Users & Roles (Spatie role-based access) ──────────────────────────
+    // 1) Create Role — name-only CRUD
+    Route::get('/roles', [\App\Http\Controllers\RoleController::class, 'index'])->name('roles.index');
+    Route::post('/roles', [\App\Http\Controllers\RoleController::class, 'store'])->name('roles.store');
+    Route::put('/roles/{role}', [\App\Http\Controllers\RoleController::class, 'update'])->name('roles.update');
+    Route::delete('/roles/{role}', [\App\Http\Controllers\RoleController::class, 'destroy'])->name('roles.destroy');
+
+    // 2) Permission Set — pick a role, check modules, submit
+    Route::get('/roles-permissions', [\App\Http\Controllers\RoleController::class, 'permissions'])->name('roles.permissions');
+    Route::put('/roles/{role}/permissions', [\App\Http\Controllers\RoleController::class, 'syncPermissions'])->name('roles.permissions.update');
+
+    // 3) Users — add users and assign a role
     Route::get('/users', [UserController::class, 'index'])->name('users');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');

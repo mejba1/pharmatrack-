@@ -43,14 +43,14 @@
             <td class="small">{{ $roles[$u->role] ?? ucfirst($u->role) }}</td>
             <td class="small">
               @if($u->role === 'super_admin')<span class="badge bg-warning-subtle text-warning-emphasis">Full access</span>
-              @else <span class="badge bg-primary-subtle text-primary">{{ count((array)$u->permissions) }} module(s)</span>@endif
+              @else <span class="badge bg-primary-subtle text-primary">{{ $u->roles->first()?->permissions->count() ?? 0 }} module(s)</span>@endif
             </td>
             <td><span class="badge-status {{ $u->is_active ? 'badge-approved' : 'badge-cancelled' }}">{{ $u->is_active ? 'Active' : 'Inactive' }}</span></td>
             <td class="text-end">
               <div class="d-inline-flex gap-1">
                 <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ Illuminate\Support\Js::from([
                   'id'=>$u->id,'name'=>$u->name,'email'=>$u->email,'role'=>$u->role,
-                  'permissions'=>array_values((array)$u->permissions),'phone'=>$u->phone,'department'=>$u->department,'is_active'=>(bool)$u->is_active,
+                  'phone'=>$u->phone,'department'=>$u->department,'is_active'=>(bool)$u->is_active,
                 ]) }})"><i class="bi bi-pencil"></i></button>
                 @if($u->id !== auth()->id())
                 <form method="POST" action="{{ route('users.destroy', $u) }}" @submit="return confirm('Remove {{ addslashes($u->name) }}?')">
@@ -93,26 +93,12 @@
               <div class="col-md-3"><label class="form-label">Password <span class="text-muted-sm" x-text="form.id ? '(blank=keep)' : '(optional)'"></span></label><input type="text" name="password" class="form-control form-control-sm" x-model="form.password" placeholder="Auto if blank"></div>
 
               <div class="col-12">
-                <label class="form-label d-flex align-items-center">Module access
-                  <span class="ms-auto" x-show="form.role!=='super_admin'">
-                    <button type="button" class="btn btn-link btn-sm p-0 me-2" @click="form.permissions = allModuleKeys">Select all</button>
-                    <button type="button" class="btn btn-link btn-sm p-0 text-muted" @click="form.permissions = []">Clear</button>
-                  </span>
-                </label>
+                <label class="form-label">Module access</label>
                 <div x-show="form.role==='super_admin'" class="alert alert-warning py-2 small mb-0"><i class="bi bi-shield-check me-1"></i>Super Admin has full access to every module automatically.</div>
-                <div x-show="form.role!=='super_admin'" class="border rounded-2 p-2">
-                  <div class="row g-2">
-                    @foreach($modules as $key => $cfg)
-                      <div class="col-6 col-md-4">
-                        <div class="form-check">
-                          <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $key }}" id="perm_{{ $key }}" x-model="form.permissions">
-                          <label class="form-check-label small" for="perm_{{ $key }}">{{ $cfg['label'] }}</label>
-                        </div>
-                      </div>
-                    @endforeach
-                  </div>
+                <div x-show="form.role!=='super_admin'" class="alert alert-light border py-2 small mb-0">
+                  <i class="bi bi-info-circle me-1"></i>Access is determined by the assigned <strong>role</strong>. To change which modules a role can reach, edit it on the
+                  <a href="{{ route('roles.permissions') }}">Permission Set</a> page.
                 </div>
-                <div class="text-muted-sm mt-1"><i class="bi bi-info-circle me-1"></i>Dashboard is always available. Unchecked modules are hidden and blocked for this user.</div>
               </div>
             </div>
           </div>
@@ -131,11 +117,10 @@ function usersApp(){
   return {
     showModal:false,
     updateTpl: '{{ url('users') }}/__ID__',
-    allModuleKeys: @js(array_keys($modules)),
-    form: {id:null, name:'', email:'', role:'distributor', permissions:[], phone:'', department:'', is_active:'1', password:''},
+    form: {id:null, name:'', email:'', role:'distributor', phone:'', department:'', is_active:'1', password:''},
     get editAction(){ return this.updateTpl.replace('__ID__', this.form.id); },
-    openAdd(){ this.form={id:null, name:'', email:'', role:'distributor', permissions:[], phone:'', department:'', is_active:'1', password:''}; this.showModal=true; },
-    openEdit(u){ this.form={...u, is_active: u.is_active ? '1':'0', permissions:(u.permissions||[]), password:''}; this.showModal=true; },
+    openAdd(){ this.form={id:null, name:'', email:'', role:'distributor', phone:'', department:'', is_active:'1', password:''}; this.showModal=true; },
+    openEdit(u){ this.form={...u, is_active: u.is_active ? '1':'0', password:''}; this.showModal=true; },
   };
 }
 </script>

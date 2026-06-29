@@ -10,18 +10,19 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
-    public const ROLES = [
-        'super_admin'  => 'Super Admin',
-        'manufacturer' => 'Manufacturer',
-        'logistics'    => 'Logistics',
-        'finance'      => 'Finance',
-        'qc_officer'   => 'QC Officer',
-        'distributor'  => 'Country Manager',
-    ];
+    /** Available roles as [name => Label], sourced from Spatie. */
+    private function roleOptions(): array
+    {
+        return Role::orderBy('name')->pluck('name')
+            ->mapWithKeys(fn ($n) => [$n => Str::headline(str_replace('_', ' ', $n))])
+            ->all();
+    }
 
     public function index(Request $request): View
     {
@@ -32,7 +33,7 @@ class UserController extends Controller
         ];
         $perPage = in_array($filters['per_page'], [15, 30, 50, 100], true) ? $filters['per_page'] : 15;
 
-        $query = User::query();
+        $query = User::query()->with('roles.permissions');
         if ($filters['search'] !== '') {
             $s = $filters['search'];
             $query->where(fn ($q) => $q->where('name', 'like', "%{$s}%")->orWhere('email', 'like', "%{$s}%"));
@@ -48,10 +49,9 @@ class UserController extends Controller
             'inactive' => User::where('is_active', false)->count(),
         ];
 
-        $modules = config('modules', []);
-        $roles   = self::ROLES;
+        $roles = $this->roleOptions();
 
-        return view('users.index', compact('users', 'stats', 'filters', 'modules', 'roles'));
+        return view('users.index', compact('users', 'stats', 'filters', 'roles'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -60,18 +60,19 @@ class UserController extends Controller
 
         $user = new User();
         $user->forceFill([
-            'name'        => $data['name'],
-            'email'       => $data['email'],
-            'password'    => Hash::make($data['password'] ?: str()->random(16)),
-            'role'        => $data['role'] ?? 'distributor',
-            'permissions' => $this->cleanPermissions($data['permissions'] ?? []),
-            'phone'       => $data['phone'] ?? null,
-            'department'  => $data['department'] ?? null,
-            'initials'    => strtoupper(substr($data['name'], 0, 2)),
-            'is_active'   => $request->boolean('is_active', true),
+            'name'       => $data['name'],
+            'email'      => $data['email'],
+            'password'   => Hash::make($data['password'] ?: str()->random(16)),
+            'role'       => $data['role'] ?? 'distributor',
+            'phone'      => $data['phone'] ?? null,
+            'department' => $data['department'] ?? null,
+            'initials'   => strtoupper(substr($data['name'], 0, 2)),
+            'is_active'  => $request->boolean('is_active', true),
         ])->save();
 
-        return back()->with('success', "User '{$user->name}' created.");
+        $user->syncRoles([$user->role]);
+
+        return back()->with('success', "User '{$user->name}' created with the '{$user->role}' role.");
     }
 
     public function update(Request $request, User $user): RedirectResponse
@@ -79,18 +80,19 @@ class UserController extends Controller
         $data = $this->validateUser($request, $user->id);
 
         $user->forceFill([
-            'name'        => $data['name'],
-            'email'       => $data['email'],
-            'role'        => $data['role'] ?? $user->role,
-            'permissions' => $this->cleanPermissions($data['permissions'] ?? []),
-            'phone'       => $data['phone'] ?? null,
-            'department'  => $data['department'] ?? null,
-            'is_active'   => $request->boolean('is_active'),
+            'name'       => $data['name'],
+            'email'      => $data['email'],
+            'role'       => $data['role'] ?? $user->role,
+            'phone'      => $data['phone'] ?? null,
+            'department' => $data['department'] ?? null,
+            'is_active'  => $request->boolean('is_active'),
         ]);
         if (!empty($data['password'])) {
             $user->password = Hash::make($data['password']);
         }
         $user->save();
+
+        $user->syncRoles([$user->role]);
 
         return back()->with('success', "User '{$user->name}' updated.");
     }
@@ -119,21 +121,13 @@ class UserController extends Controller
     private function validateUser(Request $request, ?int $id = null): array
     {
         return $request->validate([
-            'name'          => 'required|string|max:120',
-            'email'         => 'required|email|max:160|unique:users,email,' . ($id ?? 'NULL'),
-            'role'          => 'nullable|in:' . implode(',', array_keys(self::ROLES)),
-            'permissions'   => 'nullable|array',
-            'permissions.*' => 'string',
-            'phone'         => 'nullable|string|max:30',
-            'department'    => 'nullable|string|max:120',
-            'password'      => 'nullable|string|min:6|max:100',
-            'is_active'     => 'nullable|boolean',
+            'name'       => 'required|string|max:120',
+            'email'      => 'required|email|max:160|unique:users,email,' . ($id ?? 'NULL'),
+            'role'       => 'nullable|string|exists:roles,name',
+            'phone'      => 'nullable|string|max:30',
+            'department' => 'nullable|string|max:120',
+            'password'   => 'nullable|string|min:6|max:100',
+            'is_active'  => 'nullable|boolean',
         ]);
-    }
-
-    /** Keep only known module keys. */
-    private function cleanPermissions(array $perms): array
-    {
-        return array_values(array_intersect($perms, array_keys(config('modules', []))));
     }
 }
