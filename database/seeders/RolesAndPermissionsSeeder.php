@@ -29,10 +29,18 @@ class RolesAndPermissionsSeeder extends Seeder
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        // 1. One permission per module key.
+        // 1. One permission per module key (role-based module access).
         $modules = array_keys(config('modules', []));
         foreach ($modules as $key) {
             Permission::firstOrCreate(['name' => $key, 'guard_name' => 'web']);
+        }
+
+        // 1b. Fine-grained "{module}.{action}" permissions, granted per-user.
+        $actions = array_keys(config('abilities.actions', []));
+        foreach ($modules as $key) {
+            foreach ($actions as $action) {
+                Permission::firstOrCreate(['name' => "{$key}.{$action}", 'guard_name' => 'web']);
+            }
         }
 
         // 2. super_admin gets every module (also bypasses via Gate::before).

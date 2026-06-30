@@ -33,7 +33,7 @@ class UserController extends Controller
         ];
         $perPage = in_array($filters['per_page'], [15, 30, 50, 100], true) ? $filters['per_page'] : 15;
 
-        $query = User::query()->with('roles.permissions');
+        $query = User::query()->with(['roles.permissions', 'permissions']);
         if ($filters['search'] !== '') {
             $s = $filters['search'];
             $query->where(fn ($q) => $q->where('name', 'like', "%{$s}%")->orWhere('email', 'like', "%{$s}%"));
@@ -49,9 +49,11 @@ class UserController extends Controller
             'inactive' => User::where('is_active', false)->count(),
         ];
 
-        $roles = $this->roleOptions();
+        $roles   = $this->roleOptions();
+        $modules = config('modules', []);          // module key => [label, ...]
+        $actions = config('abilities.actions', []); // action key => Label
 
-        return view('users.index', compact('users', 'stats', 'filters', 'roles'));
+        return view('users.index', compact('users', 'stats', 'filters', 'roles', 'modules', 'actions'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -71,6 +73,7 @@ class UserController extends Controller
         ])->save();
 
         $user->syncRoles([$user->role]);
+        $user->syncPermissions($data['permissions'] ?? []);
 
         return back()->with('success', "User '{$user->name}' created with the '{$user->role}' role.");
     }
@@ -93,6 +96,7 @@ class UserController extends Controller
         $user->save();
 
         $user->syncRoles([$user->role]);
+        $user->syncPermissions($data['permissions'] ?? []);
 
         return back()->with('success', "User '{$user->name}' updated.");
     }
@@ -121,13 +125,15 @@ class UserController extends Controller
     private function validateUser(Request $request, ?int $id = null): array
     {
         return $request->validate([
-            'name'       => 'required|string|max:120',
-            'email'      => 'required|email|max:160|unique:users,email,' . ($id ?? 'NULL'),
-            'role'       => 'nullable|string|exists:roles,name',
-            'phone'      => 'nullable|string|max:30',
-            'department' => 'nullable|string|max:120',
-            'password'   => 'nullable|string|min:6|max:100',
-            'is_active'  => 'nullable|boolean',
+            'name'          => 'required|string|max:120',
+            'email'         => 'required|email|max:160|unique:users,email,' . ($id ?? 'NULL'),
+            'role'          => 'nullable|string|exists:roles,name',
+            'phone'         => 'nullable|string|max:30',
+            'department'    => 'nullable|string|max:120',
+            'password'      => 'nullable|string|min:6|max:100',
+            'is_active'     => 'nullable|boolean',
+            'permissions'   => 'nullable|array',
+            'permissions.*' => 'string|exists:permissions,name',
         ]);
     }
 }

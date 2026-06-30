@@ -43,7 +43,10 @@
             <td class="small">{{ $roles[$u->role] ?? ucfirst($u->role) }}</td>
             <td class="small">
               @if($u->role === 'super_admin')<span class="badge bg-warning-subtle text-warning-emphasis">Full access</span>
-              @else <span class="badge bg-primary-subtle text-primary">{{ $u->roles->first()?->permissions->count() ?? 0 }} module(s)</span>@endif
+              @else
+                <span class="badge bg-primary-subtle text-primary">{{ $u->roles->first()?->permissions->count() ?? 0 }} module(s)</span>
+                @if($u->permissions->count())<span class="badge bg-info-subtle text-info-emphasis" title="Direct per-user permissions">+{{ $u->permissions->count() }} direct</span>@endif
+              @endif
             </td>
             <td><span class="badge-status {{ $u->is_active ? 'badge-approved' : 'badge-cancelled' }}">{{ $u->is_active ? 'Active' : 'Inactive' }}</span></td>
             <td class="text-end">
@@ -51,6 +54,7 @@
                 <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ Illuminate\Support\Js::from([
                   'id'=>$u->id,'name'=>$u->name,'email'=>$u->email,'role'=>$u->role,
                   'phone'=>$u->phone,'department'=>$u->department,'is_active'=>(bool)$u->is_active,
+                  'permissions'=>$u->permissions->pluck('name')->values(),
                 ]) }})"><i class="bi bi-pencil"></i></button>
                 @if($u->id !== auth()->id())
                 <form method="POST" action="{{ route('users.destroy', $u) }}" @submit="return confirm('Remove {{ addslashes($u->name) }}?')">
@@ -96,9 +100,47 @@
                 <label class="form-label">Module access</label>
                 <div x-show="form.role==='super_admin'" class="alert alert-warning py-2 small mb-0"><i class="bi bi-shield-check me-1"></i>Super Admin has full access to every module automatically.</div>
                 <div x-show="form.role!=='super_admin'" class="alert alert-light border py-2 small mb-0">
-                  <i class="bi bi-info-circle me-1"></i>Access is determined by the assigned <strong>role</strong>. To change which modules a role can reach, edit it on the
+                  <i class="bi bi-info-circle me-1"></i>Module access is determined by the assigned <strong>role</strong>. To change which modules a role can reach, edit it on the
                   <a href="{{ route('roles.permissions') }}">Permission Set</a> page.
                 </div>
+              </div>
+
+              {{-- Per-user fine-grained permissions (in addition to the role) --}}
+              <div class="col-12" x-show="form.role!=='super_admin'">
+                <label class="form-label d-flex align-items-center mb-1">
+                  Direct permissions <span class="text-muted-sm ms-1">(per-user, on top of the role)</span>
+                  <span class="ms-auto">
+                    <button type="button" class="btn btn-link btn-sm p-0 me-2" @click="form.permissions = allPerms()">Select all</button>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-muted" @click="form.permissions = []">Clear</button>
+                  </span>
+                </label>
+                <div class="border rounded-2" style="max-height:300px;overflow:auto">
+                  <table class="table table-sm mb-0 align-middle">
+                    <thead class="position-sticky top-0 bg-body" style="z-index:1">
+                      <tr>
+                        <th class="small" style="min-width:140px">Module</th>
+                        @foreach($actions as $aKey => $aLabel)<th class="text-center small">{{ $aLabel }}</th>@endforeach
+                        <th class="text-center small">All</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @foreach($modules as $mKey => $cfg)
+                        <tr>
+                          <td class="small fw-semibold">{{ $cfg['label'] }}</td>
+                          @foreach($actions as $aKey => $aLabel)
+                            <td class="text-center">
+                              <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $mKey }}.{{ $aKey }}" x-model="form.permissions">
+                            </td>
+                          @endforeach
+                          <td class="text-center">
+                            <input class="form-check-input" type="checkbox" :checked="moduleAll('{{ $mKey }}')" @change="toggleModule('{{ $mKey }}', $event.target.checked)">
+                          </td>
+                        </tr>
+                      @endforeach
+                    </tbody>
+                  </table>
+                </div>
+                <div class="text-muted-sm mt-1"><i class="bi bi-info-circle me-1"></i>Grants specific abilities (e.g. <code>products.edit</code>) directly to this user, on top of their role. Super Admins always have everything.</div>
               </div>
             </div>
           </div>
@@ -117,10 +159,15 @@ function usersApp(){
   return {
     showModal:false,
     updateTpl: '{{ url('users') }}/__ID__',
-    form: {id:null, name:'', email:'', role:'distributor', phone:'', department:'', is_active:'1', password:''},
+    // module key => [ "{module}.{action}", ... ]
+    moduleMatrix: @js(collect($modules)->mapWithKeys(fn ($cfg, $k) => [$k => array_map(fn ($a) => "$k.$a", array_keys($actions))])->all()),
+    form: {id:null, name:'', email:'', role:'distributor', phone:'', department:'', is_active:'1', password:'', permissions:[]},
     get editAction(){ return this.updateTpl.replace('__ID__', this.form.id); },
-    openAdd(){ this.form={id:null, name:'', email:'', role:'distributor', phone:'', department:'', is_active:'1', password:''}; this.showModal=true; },
-    openEdit(u){ this.form={...u, is_active: u.is_active ? '1':'0', password:''}; this.showModal=true; },
+    openAdd(){ this.form={id:null, name:'', email:'', role:'distributor', phone:'', department:'', is_active:'1', password:'', permissions:[]}; this.showModal=true; },
+    openEdit(u){ this.form={...u, is_active: u.is_active ? '1':'0', password:'', permissions:(u.permissions||[])}; this.showModal=true; },
+    allPerms(){ return Object.values(this.moduleMatrix).flat(); },
+    moduleAll(m){ const a=this.moduleMatrix[m]||[]; return a.length>0 && a.every(p=>this.form.permissions.includes(p)); },
+    toggleModule(m, on){ const a=this.moduleMatrix[m]||[]; this.form.permissions = on ? [...new Set([...this.form.permissions, ...a])] : this.form.permissions.filter(p=>!a.includes(p)); },
   };
 }
 </script>
