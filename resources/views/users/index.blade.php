@@ -51,11 +51,13 @@
             <td><span class="badge-status {{ $u->is_active ? 'badge-approved' : 'badge-cancelled' }}">{{ $u->is_active ? 'Active' : 'Inactive' }}</span></td>
             <td class="text-end">
               <div class="d-inline-flex gap-1">
-                <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ Illuminate\Support\Js::from([
+                @php $payload = Illuminate\Support\Js::from([
                   'id'=>$u->id,'name'=>$u->name,'email'=>$u->email,'role'=>$u->role,
                   'phone'=>$u->phone,'department'=>$u->department,'is_active'=>(bool)$u->is_active,
                   'permissions'=>$u->permissions->pluck('name')->values(),
-                ]) }})"><i class="bi bi-pencil"></i></button>
+                ]); @endphp
+                <button class="btn btn-outline-primary btn-sm btn-icon" title="Set permissions" @click="openPermissions({{ $payload }})"><i class="bi bi-shield-lock"></i></button>
+                <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ $payload }})"><i class="bi bi-pencil"></i></button>
                 @if($u->id !== auth()->id())
                 <form method="POST" action="{{ route('users.destroy', $u) }}" @submit="return confirm('Remove {{ addslashes($u->name) }}?')">
                   @csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm btn-icon" title="Delete"><i class="bi bi-trash"></i></button>
@@ -106,7 +108,7 @@
               </div>
 
               {{-- Per-user fine-grained permissions (in addition to the role) --}}
-              <div class="col-12" x-show="form.role!=='super_admin'">
+              <div class="col-12" x-show="form.role!=='super_admin'" x-ref="permSection">
                 <label class="form-label d-flex align-items-center mb-1">
                   Direct permissions <span class="text-muted-sm ms-1">(per-user, on top of the role)</span>
                   <span class="ms-auto">
@@ -165,6 +167,7 @@ function usersApp(){
     get editAction(){ return this.updateTpl.replace('__ID__', this.form.id); },
     openAdd(){ this.form={id:null, name:'', email:'', role:'distributor', phone:'', department:'', is_active:'1', password:'', permissions:[]}; this.showModal=true; },
     openEdit(u){ this.form={...u, is_active: u.is_active ? '1':'0', password:'', permissions:(u.permissions||[])}; this.showModal=true; },
+    openPermissions(u){ this.openEdit(u); this.$nextTick(() => { const el=this.$refs.permSection; if(el) el.scrollIntoView({behavior:'smooth', block:'center'}); }); },
     allPerms(){ return Object.values(this.moduleMatrix).flat(); },
     moduleAll(m){ const a=this.moduleMatrix[m]||[]; return a.length>0 && a.every(p=>this.form.permissions.includes(p)); },
     toggleModule(m, on){ const a=this.moduleMatrix[m]||[]; this.form.permissions = on ? [...new Set([...this.form.permissions, ...a])] : this.form.permissions.filter(p=>!a.includes(p)); },
