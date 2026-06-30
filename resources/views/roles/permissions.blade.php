@@ -57,6 +57,7 @@
                 <th class="small" style="min-width:160px">Module</th>
                 <th class="text-center small">Access</th>
                 @foreach($actions as $aKey => $aLabel)<th class="text-center small">{{ $aLabel }}</th>@endforeach
+                @foreach(config('abilities.scopes', []) as $sKey => $sLabel)<th class="text-center small text-info" title="See all records in this module, not just own">{{ $sLabel }}</th>@endforeach
                 <th class="text-center small">All</th>
               </tr>
             </thead>
@@ -70,6 +71,11 @@
                   @foreach($actions as $aKey => $aLabel)
                     <td class="text-center">
                       <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $mKey }}.{{ $aKey }}" x-model="selected" :disabled="protectedRole">
+                    </td>
+                  @endforeach
+                  @foreach(config('abilities.scopes', []) as $sKey => $sLabel)
+                    <td class="text-center">
+                      <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $mKey }}.{{ $sKey }}" x-model="selected" :disabled="protectedRole" title="{{ $sLabel }}">
                     </td>
                   @endforeach
                   <td class="text-center">
@@ -99,7 +105,7 @@ function permissionSet(){
     rolePermissions: @js($rolePermissions),
     rolesMeta: @js($roles->mapWithKeys(fn ($r) => [$r->id => ['label' => ucwords(str_replace('_',' ',$r->name)), 'protected' => $r->name === 'super_admin']])),
     // module key => [ "{module}", "{module}.{action}", ... ]
-    moduleMatrix: @js(collect($modules)->mapWithKeys(fn ($cfg, $k) => [$k => array_merge([$k], array_map(fn ($a) => "$k.$a", array_keys($actions)))])->all()),
+    moduleMatrix: @js(collect($modules)->mapWithKeys(fn ($cfg, $k) => [$k => array_merge([$k], array_map(fn ($a) => "$k.$a", array_keys($actions)), array_map(fn ($s) => "$k.$s", array_keys(config('abilities.scopes', []))))])->all()),
     submitTpl: '{{ url('roles') }}/__ID__/permissions',
 
     init(){

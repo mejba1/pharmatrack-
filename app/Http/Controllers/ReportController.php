@@ -67,7 +67,7 @@ class ReportController extends Controller
     private function gather(Request $request): array
     {
         $user = $request->user();
-        $mine = !$user->seesAllData();
+        $mine = !$user->canViewAll('reports');
         $uid  = $user->id;
 
         $year = (int) ($request->query('year') ?: now()->year);

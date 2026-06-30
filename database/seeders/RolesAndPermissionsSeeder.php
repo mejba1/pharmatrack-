@@ -43,6 +43,16 @@ class RolesAndPermissionsSeeder extends Seeder
             }
         }
 
+        // 1c. Visibility scopes ("{module}.view_all"). Created but NOT granted
+        //     to roles by default — super admin assigns them selectively so a
+        //     user can see all records in an area instead of just their own.
+        $scopes = array_keys(config('abilities.scopes', []));
+        foreach ($modules as $key) {
+            foreach ($scopes as $scope) {
+                Permission::firstOrCreate(['name' => "{$key}.{$scope}", 'guard_name' => 'web']);
+            }
+        }
+
         // 2. super_admin gets every module (also bypasses via Gate::before).
         $this->syncRole('super_admin', $modules);
 

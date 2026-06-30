@@ -32,7 +32,7 @@ class CustomerController extends Controller
         $perPage = in_array($filters['per_page'], [15, 30, 50, 100], true) ? $filters['per_page'] : 15;
 
         // Per-manager scope: a manager sees only the customers assigned to them.
-        $isAdmin = $request->user()->seesAllData();
+        $isAdmin = $request->user()->canViewAll('customers');
         $mine    = !$isAdmin;
         $uid     = $request->user()->id;
         $scoped = fn ($q) => $mine ? $q->where('manager_id', $uid) : $q;

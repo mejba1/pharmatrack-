@@ -87,6 +87,20 @@ class User extends Authenticatable
         return $this->isSuperAdmin();
     }
 
+    /**
+     * Can this user see ALL records in the given module (not just their own)?
+     * super_admin always can; otherwise it requires the "{module}.view_all"
+     * scope permission granted by a super admin (via role or per-user).
+     */
+    public function canViewAll(string $module): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->checkPermissionTo("{$module}.view_all");
+    }
+
     /** IDs of countries this manager covers (for customer scoping). */
     public function managedCountryIds(): array
     {

@@ -79,13 +79,16 @@ class RoleController extends Controller
     // ── Sync role permissions (module access + fine-grained actions) ──────
     public function syncPermissions(Request $request, Role $role): RedirectResponse
     {
-        // Allowed names: module keys (access) + every "{module}.{action}".
+        // Allowed names: module keys (access) + "{module}.{action}" + "{module}.{scope}".
         $modules = array_keys(config('modules', []));
-        $actions = array_keys(config('abilities.actions', []));
+        $verbs   = array_merge(
+            array_keys(config('abilities.actions', [])),
+            array_keys(config('abilities.scopes', []))
+        );
         $allowed = $modules;
         foreach ($modules as $m) {
-            foreach ($actions as $a) {
-                $allowed[] = "{$m}.{$a}";
+            foreach ($verbs as $v) {
+                $allowed[] = "{$m}.{$v}";
             }
         }
 

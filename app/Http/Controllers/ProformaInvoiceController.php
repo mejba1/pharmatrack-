@@ -19,7 +19,7 @@ class ProformaInvoiceController extends Controller
 {
     public function index(Request $request): View
     {
-        $mine = !$request->user()->seesAllData();
+        $mine = !$request->user()->canViewAll('invoices');
         $uid  = $request->user()->id;
         $own  = fn ($q) => $mine ? $q->where('created_by', $uid) : $q;
 

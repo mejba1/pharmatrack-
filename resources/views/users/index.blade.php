@@ -122,6 +122,7 @@
                       <tr>
                         <th class="small" style="min-width:140px">Module</th>
                         @foreach($actions as $aKey => $aLabel)<th class="text-center small">{{ $aLabel }}</th>@endforeach
+                        @foreach(config('abilities.scopes', []) as $sKey => $sLabel)<th class="text-center small text-info" title="See all records in this module, not just own">{{ $sLabel }}</th>@endforeach
                         <th class="text-center small">All</th>
                       </tr>
                     </thead>
@@ -132,6 +133,11 @@
                           @foreach($actions as $aKey => $aLabel)
                             <td class="text-center">
                               <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $mKey }}.{{ $aKey }}" x-model="form.permissions">
+                            </td>
+                          @endforeach
+                          @foreach(config('abilities.scopes', []) as $sKey => $sLabel)
+                            <td class="text-center">
+                              <input class="form-check-input" type="checkbox" name="permissions[]" value="{{ $mKey }}.{{ $sKey }}" x-model="form.permissions" title="{{ $sLabel }}">
                             </td>
                           @endforeach
                           <td class="text-center">
@@ -162,7 +168,7 @@ function usersApp(){
     showModal:false,
     updateTpl: '{{ url('users') }}/__ID__',
     // module key => [ "{module}.{action}", ... ]
-    moduleMatrix: @js(collect($modules)->mapWithKeys(fn ($cfg, $k) => [$k => array_map(fn ($a) => "$k.$a", array_keys($actions))])->all()),
+    moduleMatrix: @js(collect($modules)->mapWithKeys(fn ($cfg, $k) => [$k => array_merge(array_map(fn ($a) => "$k.$a", array_keys($actions)), array_map(fn ($s) => "$k.$s", array_keys(config('abilities.scopes', []))))])->all()),
     form: {id:null, name:'', email:'', role:'distributor', phone:'', department:'', is_active:'1', password:'', permissions:[]},
     get editAction(){ return this.updateTpl.replace('__ID__', this.form.id); },
     openAdd(){ this.form={id:null, name:'', email:'', role:'distributor', phone:'', department:'', is_active:'1', password:'', permissions:[]}; this.showModal=true; },

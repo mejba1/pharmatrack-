@@ -21,13 +21,20 @@ class DashboardController extends Controller
     public function index(): View
     {
         $user = Auth::user();
-        $mine = !$user->seesAllData();
         $uid  = $user->id;
 
-        // created_by scope for the order entities.
-        $own = fn ($q) => $mine ? $q->where('created_by', $uid) : $q;
+        // Per-area visibility: a user sees only their own records unless a
+        // super admin granted the "{module}.view_all" scope for that area.
+        $ordersMine = !$user->canViewAll('orders');    // PO / SO
+        $invMine    = !$user->canViewAll('invoices');  // PI / CI
+        $custMine   = !$user->canViewAll('customers');
+        $mine       = !$user->seesAllData();           // generic flag for the view label
+
+        // created_by scope for orders (PO/SO) and invoices (PI/CI).
+        $own  = fn ($q) => $ordersMine ? $q->where('created_by', $uid) : $q;
+        $ownI = fn ($q) => $invMine ? $q->where('created_by', $uid) : $q;
         // assignment scope for customers (assigned account manager).
-        $cust = fn ($q) => $mine ? $q->where('manager_id', $uid) : $q;
+        $cust = fn ($q) => $custMine ? $q->where('manager_id', $uid) : $q;
 
         $stats = [
             'po_total'        => $own(PurchaseOrder::query())->count(),
@@ -35,10 +42,10 @@ class DashboardController extends Controller
             'po_acknowledged' => $own(PurchaseOrder::where('status', 'acknowledged'))->count(),
             'so_total'        => $own(SalesOrder::query())->count(),
             'so_confirmed'    => $own(SalesOrder::where('status', 'confirmed'))->count(),
-            'pi_total'        => $own(ProformaInvoice::query())->count(),
-            'pi_pending'      => $own(ProformaInvoice::whereIn('status', ['sent', 'pending_approval']))->count(),
-            'pi_approved'     => $own(ProformaInvoice::where('status', 'approved'))->count(),
-            'ci_total'        => $own(CommercialInvoice::query())->count(),
+            'pi_total'        => $ownI(ProformaInvoice::query())->count(),
+            'pi_pending'      => $ownI(ProformaInvoice::whereIn('status', ['sent', 'pending_approval']))->count(),
+            'pi_approved'     => $ownI(ProformaInvoice::where('status', 'approved'))->count(),
+            'ci_total'        => $ownI(CommercialInvoice::query())->count(),
             'customers'       => $cust(Customer::query())->count(),
         ];
 

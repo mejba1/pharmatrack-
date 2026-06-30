@@ -17,4 +17,14 @@ return [
         'delete' => 'Delete',
         'export' => 'Export',
     ],
+
+    /*
+     * Visibility scopes. These are NOT granted to roles by default — every
+     * user only sees their own records (created_by / assigned). A super admin
+     * grants "{module}.view_all" (per area) to let a user see everyone's data
+     * in that module. Checked via User::canViewAll($module).
+     */
+    'scopes' => [
+        'view_all' => 'View All',
+    ],
 ];
