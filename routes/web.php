@@ -47,6 +47,17 @@ Route::get('/carton/{qr}', [MasterCartonController::class, 'scan'])->name('carto
 // ── Public shipment scan (reached from a parent shipment QR code) ──────────
 Route::get('/shipment/{qr}', [ConsignmentController::class, 'scan'])->name('shipment.scan');
 
+// ── Customer self-service portal (separate `customer` auth guard) ──────────
+Route::prefix('portal')->name('portal.')->group(function () {
+    Route::get('/login', [\App\Http\Controllers\CustomerPortalController::class, 'showLogin'])->name('login');
+    Route::post('/login', [\App\Http\Controllers\CustomerPortalController::class, 'login'])->middleware('throttle:10,1')->name('login.post');
+    Route::post('/logout', [\App\Http\Controllers\CustomerPortalController::class, 'logout'])->name('logout');
+
+    Route::middleware('auth:customer')->group(function () {
+        Route::get('/', [\App\Http\Controllers\CustomerPortalController::class, 'dashboard'])->name('dashboard');
+    });
+});
+
 // ── Main Application (auth required + per-module permission gate) ──────────
 Route::middleware(['auth', 'module'])->group(function () {
 

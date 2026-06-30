@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
+
+        // Send unauthenticated customers to the portal login, staff to the app login.
+        $middleware->redirectGuestsTo(fn ($request) => $request->is('portal*')
+            ? route('portal.login')
+            : route('login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

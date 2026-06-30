@@ -248,19 +248,32 @@
     </a>
     @endif
 
-    {{-- Sales --}}
+    {{-- Customers --}}
     @if($can('customers') || $can('country_managers'))
-    <div class="sidebar-section-label" x-show="!sidebarCollapsed">Sales</div>
+    <div class="sidebar-section-label" x-show="!sidebarCollapsed">Customers</div>
     @endif
     @if($can('customers'))
-    <a href="{{ route('customers.index') }}" class="nav-item-link {{ request()->routeIs('customers.index') || request()->routeIs('customers.show') || request()->routeIs('customers.store') ? 'active' : '' }}">
-      <span class="nav-icon"><i class="bi bi-people-fill"></i></span>
-      <span x-show="!sidebarCollapsed">Customers &amp; Sales</span>
-    </a>
-    <a href="{{ route('customers.trace') }}" class="nav-item-link {{ request()->routeIs('customers.trace') ? 'active' : '' }}">
-      <span class="nav-icon"><i class="bi bi-upc-scan"></i></span>
-      <span x-show="!sidebarCollapsed">Trace Purchase</span>
-    </a>
+    <div x-data="{open: {{ request()->routeIs('customers.*') ? 'true' : 'false' }}}">
+      <button class="nav-item-link {{ request()->routeIs('customers.*') ? 'active' : '' }}" @click="open = !open">
+        <span class="nav-icon"><i class="bi bi-people-fill"></i></span>
+        <span x-show="!sidebarCollapsed">Customer Management</span>
+        <i class="bi bi-chevron-right nav-caret" x-show="!sidebarCollapsed" :class="{open: open}"></i>
+      </button>
+      <div class="nav-submenu" :class="{open: open}">
+        <a href="{{ route('customers.index') }}" class="nav-item-link {{ request()->routeIs('customers.index') || request()->routeIs('customers.show') || request()->routeIs('customers.store') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-card-list"></i></span>
+          <span x-show="!sidebarCollapsed">Customer Directory</span>
+        </a>
+        <a href="{{ route('customers.trace') }}" class="nav-item-link {{ request()->routeIs('customers.trace') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-upc-scan"></i></span>
+          <span x-show="!sidebarCollapsed">Trace a Purchase</span>
+        </a>
+        <a href="{{ route('portal.login') }}" target="_blank" class="nav-item-link">
+          <span class="nav-icon"><i class="bi bi-box-arrow-up-right"></i></span>
+          <span x-show="!sidebarCollapsed">Customer Portal</span>
+        </a>
+      </div>
+    </div>
     @endif
     @if($can('country_managers'))
     <a href="{{ route('country-managers.index') }}" class="nav-item-link {{ request()->routeIs('country-managers.*') ? 'active' : '' }}">

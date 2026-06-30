@@ -14,8 +14,8 @@
 
   <div class="page-header">
     <div>
-      <h1>Customers &amp; Sales</h1>
-      <div class="page-breadcrumb">Sales / Customers</div>
+      <h1>Customer Directory</h1>
+      <div class="page-breadcrumb">Customers / Directory</div>
     </div>
     <div class="d-flex gap-2">
       <button class="btn btn-outline-primary btn-sm" @click="openSale()"><i class="bi bi-receipt me-1"></i>Record Sale</button>
