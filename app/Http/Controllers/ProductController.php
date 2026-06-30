@@ -22,6 +22,8 @@ class ProductController extends Controller
 
     public function index(Request $request): View
     {
+        abort_if($request->boolean('export') && $request->user()->cannot('products.export'), 403);
+
         $filters = $request->only(['search', 'dosage_form', 'status', 'therapeutic_class']);
 
         $products = Product::with('primaryImage')
@@ -77,6 +79,8 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request): JsonResponse|RedirectResponse
     {
+        abort_unless($request->user()->can('products.create'), 403);
+
         $data = $request->validated();
 
         // Resolve Country of Origin from the chosen/typed country name → store its code
@@ -187,6 +191,8 @@ class ProductController extends Controller
 
     public function update(UpdateProductRequest $request, Product $product): JsonResponse|RedirectResponse
     {
+        abort_unless($request->user()->can('products.edit'), 403);
+
         $data = $request->validated();
 
         // Resolve Country of Origin from the chosen/typed country name → store its code
@@ -267,6 +273,8 @@ class ProductController extends Controller
 
     public function destroy(Product $product): RedirectResponse
     {
+        abort_unless(request()->user()->can('products.delete'), 403);
+
         $name = $product->name;
         // Delete physical images before soft-deleting product
         foreach ($product->images as $img) {

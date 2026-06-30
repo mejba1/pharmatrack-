@@ -202,13 +202,17 @@
       <div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Product Master</div>
     </div>
     <div class="d-flex gap-2">
+      @can('products.export')
       <a href="{{ route('products.index', array_merge(request()->query(), ['export'=>1])) }}"
          class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-download me-1"></i>Export
       </a>
+      @endcan
+      @can('products.create')
       <button class="btn btn-primary btn-sm" @click="showAddModal = true">
         <i class="bi bi-plus-lg me-1"></i>Add Product
       </button>
+      @endcan
     </div>
   </div>
 
@@ -372,10 +376,13 @@
                           @click="openView({{ $product->id }})">
                     <i class="bi bi-eye"></i>
                   </button>
+                  @can('products.edit')
                   <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit"
                           @click="openEdit({{ $product->id }})">
                     <i class="bi bi-pencil"></i>
                   </button>
+                  @endcan
+                  @can('products.delete')
                   <form method="POST" action="{{ route('products.destroy', $product) }}"
                         @submit.prevent="confirmDelete($event, '{{ addslashes($product->name) }}')">
                     @csrf @method('DELETE')
@@ -383,6 +390,7 @@
                       <i class="bi bi-trash"></i>
                     </button>
                   </form>
+                  @endcan
                 </div>
               </td>
             </tr>
@@ -592,10 +600,12 @@
           <a href="{{ route('batches') }}" class="btn btn-outline-info btn-sm">
             <i class="bi bi-layers me-1"></i>View Batches
           </a>
+          @can('products.edit')
           <button class="btn btn-primary btn-sm"
                   @click="showViewModal=false; openEdit(viewProduct?.id)">
             <i class="bi bi-pencil me-1"></i>Edit
           </button>
+          @endcan
         </div>
       </div>
     </div>
