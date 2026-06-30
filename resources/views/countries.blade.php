@@ -8,7 +8,7 @@
     <div><h1>Country Permissions</h1><div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Country Permissions</div></div>
     <div class="d-flex gap-2">
       <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>Export</button>
-      <button class="btn btn-primary btn-sm" @click="showAddModal=true"><i class="bi bi-plus-lg me-1"></i>Add Country</button>
+      @can('compliance.create')<button class="btn btn-primary btn-sm" @click="showAddModal=true"><i class="bi bi-plus-lg me-1"></i>Add Country</button>@endcan
     </div>
   </div>
 

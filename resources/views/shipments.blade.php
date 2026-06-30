@@ -35,7 +35,7 @@
     </div>
     <div class="d-flex gap-2">
       <a href="{{ route('shipments.labels', request()->only('status','destination','search','date_from','date_to')) }}" target="_blank" class="btn btn-outline-secondary btn-sm" title="Print QR labels for the current filter (date-wise)"><i class="bi bi-qr-code me-1"></i>QR Labels</a>
-      <button class="btn btn-primary btn-sm" @click="openCreate()"><i class="bi bi-plus-lg me-1"></i>Create Shipment</button>
+      @can('logistics.create')<button class="btn btn-primary btn-sm" @click="openCreate()"><i class="bi bi-plus-lg me-1"></i>Create Shipment</button>@endcan
     </div>
   </div>
 
@@ -115,10 +115,12 @@
           <td class="text-end"><div class="d-flex gap-1 justify-content-end">
             <button class="btn btn-outline-primary btn-sm btn-icon" title="View / track" @click="openView({{ $s->id }})"><i class="bi bi-eye"></i></button>
             <a href="{{ route('shipment.scan', $s->qr_code) }}" target="_blank" class="btn btn-outline-secondary btn-sm btn-icon" title="Open scan page"><i class="bi bi-qr-code-scan"></i></a>
+            @can('logistics.delete')
             <form method="POST" action="{{ route('shipments.destroy', $s) }}" @submit.prevent="confirmDelete($event, '{{ $s->consignment_number }}')">
               @csrf @method('DELETE')
               <button class="btn btn-outline-danger btn-sm btn-icon" title="Remove"><i class="bi bi-trash"></i></button>
             </form>
+            @endcan
           </div></td>
         </tr>
         @empty

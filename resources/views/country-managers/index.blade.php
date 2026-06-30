@@ -12,7 +12,7 @@
 
   <div class="page-header">
     <div><h1>Country Managers</h1><div class="page-breadcrumb">Sales / Country Managers</div></div>
-    <div><button class="btn btn-primary btn-sm" @click="openAdd()"><i class="bi bi-person-plus me-1"></i>Add Manager</button></div>
+    <div>@can('country_managers.create')<button class="btn btn-primary btn-sm" @click="openAdd()"><i class="bi bi-person-plus me-1"></i>Add Manager</button>@endcan</div>
   </div>
 
   <div class="row g-3 mb-3">
@@ -58,15 +58,17 @@
             <td><span class="badge-status {{ $m->is_active ? 'badge-approved' : 'badge-cancelled' }}">{{ $m->is_active ? 'Active' : 'Inactive' }}</span></td>
             <td class="text-end">
               <div class="d-inline-flex gap-1">
-                <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ Illuminate\Support\Js::from([
+                @can('country_managers.edit')<button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ Illuminate\Support\Js::from([
                   'id'=>$m->id,'name'=>$m->name,'email'=>$m->email,'role'=>$m->role,
                   'country_ids'=>$m->countries->pluck('id')->map(fn($i)=>(string)$i)->all(),
                   'phone'=>$m->phone,'department'=>$m->department,'is_active'=>(bool)$m->is_active,
-                ]) }})"><i class="bi bi-pencil"></i></button>
+                ]) }})"><i class="bi bi-pencil"></i></button>@endcan
+                @can('country_managers.delete')
                 <form method="POST" action="{{ route('country-managers.destroy', $m) }}" @submit="return confirm('Remove {{ addslashes($m->name) }}? (Deactivated instead if linked to orders.)')">
                   @csrf @method('DELETE')
                   <button class="btn btn-outline-danger btn-sm btn-icon" title="Delete"><i class="bi bi-trash"></i></button>
                 </form>
+                @endcan
               </div>
             </td>
           </tr>

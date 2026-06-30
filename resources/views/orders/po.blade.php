@@ -19,7 +19,7 @@
       <div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Orders / Purchase Orders</div>
     </div>
     <div class="d-flex gap-2">
-      <button class="btn btn-primary btn-sm" @click="openCreate()"><i class="bi bi-plus-lg me-1"></i>Create PO</button>
+      @can('orders.create')<button class="btn btn-primary btn-sm" @click="openCreate()"><i class="bi bi-plus-lg me-1"></i>Create PO</button>@endcan
     </div>
   </div>
 

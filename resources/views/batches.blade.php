@@ -52,7 +52,7 @@
       <div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Batch &amp; Lot Mgmt</div>
     </div>
     <div class="d-flex gap-2">
-      <button class="btn btn-primary btn-sm" @click="showAddModal=true"><i class="bi bi-plus-lg me-1"></i>New Batch</button>
+      @can('batches.create')<button class="btn btn-primary btn-sm" @click="showAddModal=true"><i class="bi bi-plus-lg me-1"></i>New Batch</button>@endcan
     </div>
   </div>
 
@@ -159,11 +159,13 @@
                   <button class="btn btn-outline-primary btn-sm btn-icon" title="View" @click="openView({{ $batch->id }})"><i class="bi bi-eye"></i></button>
                   <button class="btn btn-outline-success btn-sm btn-icon" title="Quantity tracking log" @click="openTracking({{ $batch->id }})"><i class="bi bi-clock-history"></i></button>
                   <a href="{{ route('batches.units', $batch) }}" class="btn btn-outline-info btn-sm btn-icon" title="Serialized units ({{ number_format($batch->units_count) }})"><i class="bi bi-upc-scan"></i></a>
-                  <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ $batch->id }})"><i class="bi bi-pencil"></i></button>
+                  @can('batches.edit')<button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ $batch->id }})"><i class="bi bi-pencil"></i></button>@endcan
+                  @can('batches.delete')
                   <form method="POST" action="{{ route('batches.destroy', $batch) }}" @submit.prevent="confirmDelete($event, '{{ $batch->brn }}')">
                     @csrf @method('DELETE')
                     <button type="submit" class="btn btn-outline-danger btn-sm btn-icon" title="Remove"><i class="bi bi-trash"></i></button>
                   </form>
+                  @endcan
                 </div>
               </td>
             </tr>
@@ -235,7 +237,7 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary btn-sm" @click="showViewModal=false">Close</button>
-          <button class="btn btn-primary btn-sm" @click="showViewModal=false; openEdit(viewBatch?.id)"><i class="bi bi-pencil me-1"></i>Edit</button>
+          @can('batches.edit')<button class="btn btn-primary btn-sm" @click="showViewModal=false; openEdit(viewBatch?.id)"><i class="bi bi-pencil me-1"></i>Edit</button>@endcan
         </div>
       </div>
     </div>

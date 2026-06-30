@@ -19,7 +19,7 @@
     </div>
     <div class="d-flex gap-2">
       <button class="btn btn-outline-primary btn-sm" @click="openSale()"><i class="bi bi-receipt me-1"></i>Record Sale</button>
-      <button class="btn btn-primary btn-sm" @click="openAdd()"><i class="bi bi-person-plus me-1"></i>Add Customer</button>
+      @can('customers.create')<button class="btn btn-primary btn-sm" @click="openAdd()"><i class="bi bi-person-plus me-1"></i>Add Customer</button>@endcan
     </div>
   </div>
 
@@ -90,11 +90,11 @@
             <td class="text-end">
               <div class="d-inline-flex gap-1">
                 <button class="btn btn-outline-primary btn-sm btn-icon" title="View" @click="openView({{ $c->id }})"><i class="bi bi-eye"></i></button>
-                <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ Illuminate\Support\Js::from([
+                @can('customers.edit')<button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ Illuminate\Support\Js::from([
                   'id'=>$c->id,'name'=>$c->name,'company_name'=>$c->company_name,'type'=>$c->type,'country_id'=>$c->country_id,'manager_id'=>$c->manager_id,'contact_person'=>$c->contact_person,
                   'contact_email'=>$c->contact_email,'contact_phone'=>$c->contact_phone,'address'=>$c->address,
                   'license_number'=>$c->license_number,'status'=>$c->status,
-                ]) }})"><i class="bi bi-pencil"></i></button>
+                ]) }})"><i class="bi bi-pencil"></i></button>@endcan
                 <button class="btn btn-outline-success btn-sm btn-icon" title="Sell to this customer" @click="openSale({{ $c->id }})"><i class="bi bi-receipt"></i></button>
               </div>
             </td>

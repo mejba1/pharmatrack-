@@ -10,7 +10,7 @@
 
   <div class="page-header">
     <div><h1>Proforma Invoices</h1><div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Orders / Proforma Invoices</div></div>
-    <div class="d-flex gap-2"><button class="btn btn-primary btn-sm" @click="openCreate()"><i class="bi bi-plus-lg me-1"></i>Issue PI</button></div>
+    <div class="d-flex gap-2">@can('invoices.create')<button class="btn btn-primary btn-sm" @click="openCreate()"><i class="bi bi-plus-lg me-1"></i>Issue PI</button>@endcan</div>
   </div>
 
   <div class="info-box info mb-4">
