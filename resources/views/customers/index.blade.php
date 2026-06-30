@@ -76,13 +76,23 @@
         @forelse($customers as $c)
           <tr>
             <td class="font-monospace small">{{ $c->customer_code ?? '—' }}</td>
-            <td class="fw-semibold">{{ $c->name }}@if($c->company_name)<div class="text-muted-sm fw-normal">{{ $c->company_name }}</div>@endif</td>
+            <td class="fw-semibold">
+              <div class="d-flex align-items-center gap-2">
+                @if($c->logo_url)
+                  <img src="{{ $c->logo_url }}" alt="" style="width:34px;height:34px;border-radius:7px;object-fit:cover">
+                @else
+                  <span class="rounded d-inline-flex align-items-center justify-content-center bg-primary-subtle text-primary" style="width:34px;height:34px;font-size:12px;font-weight:600">{{ $c->initials }}</span>
+                @endif
+                <div>{{ $c->name }}@if($c->company_name)<div class="text-muted-sm fw-normal">{{ $c->company_name }}</div>@endif</div>
+              </div>
+            </td>
             <td class="small">{{ $c->type_label }}</td>
-            <td class="small">{{ $c->country?->flag }} {{ $c->country?->name ?? '—' }}</td>
+            <td class="small">{{ $c->country?->flag }} {{ $c->country?->name ?? '—' }}@if($c->city)<div class="text-muted-sm">{{ $c->city }}</div>@endif</td>
             @if($isAdmin)<td class="small">@if($c->manager){{ $c->manager->name }}@else<span class="text-muted">— unassigned —</span>@endif</td>@endif
             <td class="small">
-              {{ $c->contact_person ?? '—' }}
-              @if($c->contact_phone)<div class="text-muted-sm"><i class="bi bi-telephone me-1"></i>{{ $c->contact_phone }}</div>@endif
+              @if($c->email)<div><i class="bi bi-envelope me-1 text-muted"></i>{{ $c->email }}</div>@endif
+              @if($c->phone)<div class="text-muted-sm"><i class="bi bi-telephone me-1"></i>{{ $c->phone }}</div>@endif
+              @if(!$c->email && !$c->phone)—@endif
             </td>
             <td class="text-center">{{ $c->sales_count }}</td>
             <td class="text-center">{{ $c->units_sold }}</td>
@@ -91,9 +101,12 @@
               <div class="d-inline-flex gap-1">
                 <button class="btn btn-outline-primary btn-sm btn-icon" title="View" @click="openView({{ $c->id }})"><i class="bi bi-eye"></i></button>
                 @can('customers.edit')<button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ Illuminate\Support\Js::from([
-                  'id'=>$c->id,'name'=>$c->name,'company_name'=>$c->company_name,'type'=>$c->type,'country_id'=>$c->country_id,'manager_id'=>$c->manager_id,'contact_person'=>$c->contact_person,
-                  'contact_email'=>$c->contact_email,'contact_phone'=>$c->contact_phone,'address'=>$c->address,
-                  'license_number'=>$c->license_number,'status'=>$c->status,
+                  'id'=>$c->id,'name'=>$c->name,'type'=>$c->type,'email'=>$c->email,'phone'=>$c->phone,
+                  'country_id'=>$c->country_id,'city'=>$c->city,'address'=>$c->address,'referenced_by'=>$c->referenced_by,
+                  'company_name'=>$c->company_name,'company_id'=>$c->company_id,
+                  'identification_type'=>$c->identification_type,'identification_number'=>$c->identification_number,
+                  'license_number'=>$c->license_number,'manager_id'=>$c->manager_id,'status'=>$c->status,
+                  'company_logo_url'=>$c->logo_url,
                 ]) }})"><i class="bi bi-pencil"></i></button>@endcan
                 <button class="btn btn-outline-success btn-sm btn-icon" title="Sell to this customer" @click="openSale({{ $c->id }})"><i class="bi bi-receipt"></i></button>
               </div>
@@ -122,12 +135,15 @@
       saleUrl: '{{ route('customers.sales.store') }}',
       updateTpl: '{{ url('customers') }}/__ID__',
       viewTpl: '{{ url('customers') }}/__ID__',
-      form: {id:null, name:'', company_name:'', type:'retailer', country_id:'', manager_id:'', contact_person:'', contact_email:'', contact_phone:'', address:'', license_number:'', status:'active'},
+      blank(){ return {id:null, name:'', type:'distributor', email:'', phone:'', country_id:'', city:'', referenced_by:'', address:'', company_name:'', company_id:'', identification_type:'', identification_number:'', license_number:'', manager_id:'', status:'active', password:'', company_logo_url:''}; },
+      form: {},
+      logoPreview: null,
       view: null,
       sale: {customer_id:'', sale_date:'{{ now()->format('Y-m-d') }}', currency:'USD', status:'confirmed', notes:'', items:[]},
 
-      openAdd(){ this.form={id:null, name:'', company_name:'', type:'retailer', country_id:'', manager_id:'', contact_person:'', contact_email:'', contact_phone:'', address:'', license_number:'', status:'active'}; this.showAdd=true; },
-      openEdit(c){ this.form={...c}; this.showEdit=true; },
+      openAdd(){ this.form=this.blank(); this.logoPreview=null; this.showAdd=true; },
+      openEdit(c){ this.form={...this.blank(), ...c, password:''}; this.logoPreview=null; this.showEdit=true; },
+      onLogo(e){ const f=e.target.files?.[0]; this.logoPreview = f ? URL.createObjectURL(f) : null; },
       get editAction(){ return this.updateTpl.replace('__ID__', this.form.id); },
 
       async openView(id){

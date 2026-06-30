@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class CustomerController extends Controller
@@ -89,6 +90,8 @@ class CustomerController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validateCustomer($request);
+        if (empty($data['password'])) unset($data['password']);
+        $data['company_logo']  = $this->handleLogo($request, null);
         $data['customer_code'] = Customer::nextCode();
         $data['status'] ??= 'active';
         // Super admin assigns any manager; a manager creating a customer owns it.
@@ -103,6 +106,8 @@ class CustomerController extends Controller
     public function update(Request $request, Customer $customer): RedirectResponse
     {
         $data = $this->validateCustomer($request, $customer->id);
+        if (empty($data['password'])) unset($data['password']);
+        $data['company_logo'] = $this->handleLogo($request, $customer);
         // Only super admin may (re)assign the account manager.
         if (!$request->user()->seesAllData()) {
             unset($data['manager_id']);
@@ -129,9 +134,12 @@ class CustomerController extends Controller
 
         return response()->json([
             ...$customer->toArray(),
-            'type_label'   => $customer->type_label,
-            'country_name' => $customer->country?->name,
-            'manager_name' => $customer->manager?->name,
+            'type_label'    => $customer->type_label,
+            'id_type_label' => $customer->id_type_label,
+            'logo_url'      => $customer->logo_url,
+            'has_login'     => ! empty($customer->password) && ! empty($customer->email),
+            'country_name'  => $customer->country?->name,
+            'manager_name'  => $customer->manager?->name,
             'sales' => $sales->map(fn ($s) => [
                 'id'        => $s->id,
                 'reference' => $s->reference_number,
@@ -160,7 +168,7 @@ class CustomerController extends Controller
     public function storeSale(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'customer_id'        => 'required|exists:distributors,id',
+            'customer_id'        => 'required|exists:customers,id',
             'sale_date'          => 'required|date',
             'status'             => 'nullable|in:draft,confirmed,delivered,cancelled',
             'currency'           => 'nullable|string|max:3',
@@ -282,18 +290,24 @@ class CustomerController extends Controller
     private function validateCustomer(Request $request, ?int $id = null): array
     {
         return $request->validate([
-            'name'            => 'required|string|max:160',
-            'company_name'    => 'nullable|string|max:160',
-            'manager_id'      => 'nullable|exists:users,id',
-            'type'            => 'required|in:' . implode(',', array_keys(Customer::TYPES)),
-            'country_id'      => 'required|exists:countries,id',
-            'contact_person'  => 'nullable|string|max:120',
-            'contact_email'   => 'nullable|email|max:160',
-            'contact_phone'   => 'nullable|string|max:30',
-            'address'         => 'nullable|string|max:500',
-            'license_number'  => 'nullable|string|max:120|unique:distributors,license_number,' . ($id ?? 'NULL'),
-            'license_expiry'  => 'nullable|date',
-            'status'          => 'nullable|in:active,suspended,expired,pending',
+            'name'                  => 'required|string|max:160',
+            'type'                  => 'required|in:' . implode(',', array_keys(Customer::TYPES)),
+            'email'                 => 'nullable|email|max:160|unique:customers,email,' . ($id ?? 'NULL'),
+            'phone'                 => 'nullable|string|max:40',
+            'country_id'            => 'required|exists:countries,id',
+            'city'                  => 'nullable|string|max:120',
+            'address'               => 'nullable|string|max:500',
+            'company_name'          => 'nullable|string|max:160',
+            'company_id'            => 'nullable|string|max:100',
+            'identification_type'   => 'nullable|in:' . implode(',', array_keys(Customer::ID_TYPES)),
+            'identification_number' => 'nullable|string|max:100',
+            'referenced_by'         => 'nullable|string|max:160',
+            'company_logo'          => 'nullable|image|mimes:jpg,jpeg,png,webp,svg|max:2048',
+            'manager_id'            => 'nullable|exists:users,id',
+            'license_number'        => 'nullable|string|max:120|unique:customers,license_number,' . ($id ?? 'NULL'),
+            'license_expiry'        => 'nullable|date',
+            'status'                => 'nullable|in:active,suspended,expired,pending',
+            'password'              => 'nullable|string|min:6|max:100',
         ]);
     }
 
@@ -323,5 +337,19 @@ class CustomerController extends Controller
     private function splitCodes(string $raw): array
     {
         return collect(preg_split('/[\s,;]+/', trim($raw)))->filter()->unique()->values()->all();
+    }
+
+    /** Store an uploaded company logo (replacing any old one); keep current if none. */
+    private function handleLogo(Request $request, ?Customer $customer): ?string
+    {
+        if (! $request->hasFile('company_logo')) {
+            return $customer?->company_logo;
+        }
+
+        if ($customer?->company_logo) {
+            Storage::disk('public')->delete($customer->company_logo);
+        }
+
+        return $request->file('company_logo')->store('customers/logos', 'public');
     }
 }

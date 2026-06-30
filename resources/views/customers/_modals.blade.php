@@ -2,7 +2,7 @@
 <div class="modal fade" :class="{show:showAdd}" :style="showAdd?'display:block':''" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
-      <form method="POST" action="{{ route('customers.store') }}">
+      <form method="POST" action="{{ route('customers.store') }}" enctype="multipart/form-data">
         @csrf
         <div class="modal-header"><h5 class="modal-title"><i class="bi bi-person-plus me-2 text-primary"></i>Add Customer</h5><button type="button" class="btn-close" @click="showAdd=false"></button></div>
         <div class="modal-body">@include('customers._form')</div>
@@ -17,7 +17,7 @@
 <div class="modal fade" :class="{show:showEdit}" :style="showEdit?'display:block':''" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
-      <form method="POST" :action="editAction">
+      <form method="POST" :action="editAction" enctype="multipart/form-data">
         @csrf @method('PUT')
         <div class="modal-header"><h5 class="modal-title"><i class="bi bi-pencil me-2 text-primary"></i>Edit Customer</h5><button type="button" class="btn-close" @click="showEdit=false"></button></div>
         <div class="modal-body">@include('customers._form')</div>
@@ -41,16 +41,22 @@
       <div class="modal-body" x-show="view && !view.error">
         <div class="row g-3 mb-3">
           <div class="col-md-6"><div class="perm-box">
-            <div class="text-muted-sm text-uppercase fw-bold mb-2" style="font-size:11px">Profile</div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <template x-if="view?.logo_url"><img :src="view.logo_url" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover"></template>
+              <div class="text-muted-sm text-uppercase fw-bold" style="font-size:11px">Profile</div>
+            </div>
             <table class="table table-sm mb-0">
-              <tr><td class="text-muted" style="width:120px">Company</td><td x-text="view?.company_name || '—'"></td></tr>
-              <tr><td class="text-muted">Type</td><td x-text="view?.type_label"></td></tr>
-              <tr><td class="text-muted">Country</td><td x-text="view?.country_name ?? '—'"></td></tr>
-              <tr><td class="text-muted">Account Manager</td><td x-text="view?.manager_name ?? '—'"></td></tr>
-              <tr><td class="text-muted">Contact</td><td x-text="view?.contact_person ?? '—'"></td></tr>
-              <tr><td class="text-muted">Phone</td><td x-text="view?.contact_phone ?? '—'"></td></tr>
-              <tr><td class="text-muted">Email</td><td x-text="view?.contact_email ?? '—'"></td></tr>
+              <tr><td class="text-muted" style="width:140px">Type</td><td><span class="badge bg-primary-subtle text-primary" x-text="view?.type_label"></span></td></tr>
+              <tr><td class="text-muted">Email</td><td x-text="view?.email ?? '—'"></td></tr>
+              <tr><td class="text-muted">Phone</td><td x-text="view?.phone ?? '—'"></td></tr>
+              <tr><td class="text-muted">Country / City</td><td><span x-text="view?.country_name ?? '—'"></span><span x-show="view?.city" x-text="', ' + (view?.city||'')"></span></td></tr>
               <tr><td class="text-muted">Address</td><td x-text="view?.address ?? '—'"></td></tr>
+              <tr><td class="text-muted">Company</td><td x-text="view?.company_name ?? '—'"></td></tr>
+              <tr><td class="text-muted">Company ID</td><td x-text="view?.company_id ?? '—'"></td></tr>
+              <tr><td class="text-muted">Identification</td><td><span x-text="view?.id_type_label || '—'"></span><span x-show="view?.identification_number" x-text="' · ' + (view?.identification_number||'')"></span></td></tr>
+              <tr><td class="text-muted">Referenced by</td><td x-text="view?.referenced_by ?? '—'"></td></tr>
+              <tr><td class="text-muted">Account Manager</td><td x-text="view?.manager_name ?? '—'"></td></tr>
+              <tr><td class="text-muted">Portal login</td><td><span x-show="view?.has_login" class="badge bg-success-subtle text-success">Enabled</span><span x-show="!view?.has_login" class="text-muted">Not set</span></td></tr>
             </table>
           </div></div>
           <div class="col-md-6"><div class="perm-box">

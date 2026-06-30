@@ -54,7 +54,7 @@ class PurchaseOrderController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'buyer_id'         => 'required|exists:distributors,id',
+            'buyer_id'         => 'required|exists:customers,id',
             'po_date'          => 'nullable|date',
             'required_by_date' => 'required|date',
             'currency'         => 'nullable|string|max:3',

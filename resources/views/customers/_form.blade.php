@@ -1,26 +1,65 @@
 {{-- Shared add/edit customer fields. Bound to Alpine `form`. --}}
 <div class="row g-3">
-  <div class="col-md-6">
-    <label class="form-label">Customer name <span class="text-danger">*</span></label>
-    <input type="text" name="name" class="form-control form-control-sm" x-model="form.name" required>
+
+  {{-- Logo + identity --}}
+  <div class="col-md-3 text-center">
+    <label class="form-label d-block">Company logo</label>
+    <div class="border rounded-3 d-flex align-items-center justify-content-center mx-auto mb-2" style="width:96px;height:96px;overflow:hidden;background:var(--bs-light)">
+      <template x-if="logoPreview || form.company_logo_url">
+        <img :src="logoPreview || form.company_logo_url" alt="logo" style="width:100%;height:100%;object-fit:cover">
+      </template>
+      <template x-if="!(logoPreview || form.company_logo_url)">
+        <span class="fw-bold text-muted" style="font-size:28px" x-text="(form.name||'C').slice(0,2).toUpperCase()"></span>
+      </template>
+    </div>
+    <input type="file" name="company_logo" accept="image/*" class="form-control form-control-sm" @change="onLogo($event)">
   </div>
-  <div class="col-md-6">
-    <label class="form-label">Company name</label>
-    <input type="text" name="company_name" class="form-control form-control-sm" x-model="form.company_name" placeholder="Registered company / trading name">
+
+  <div class="col-md-9">
+    <div class="row g-3">
+      <div class="col-md-7">
+        <label class="form-label">Customer name <span class="text-danger">*</span></label>
+        <input type="text" name="name" class="form-control form-control-sm" x-model="form.name" required>
+      </div>
+      <div class="col-md-5">
+        <label class="form-label">Type <span class="text-danger">*</span></label>
+        <select name="type" class="form-select form-select-sm" x-model="form.type" required>
+          @foreach($types as $k => $label)<option value="{{ $k }}">{{ $label }}</option>@endforeach
+        </select>
+      </div>
+      <div class="col-md-6"><label class="form-label">Email</label><input type="email" name="email" class="form-control form-control-sm" x-model="form.email" placeholder="login &amp; contact email"></div>
+      <div class="col-md-6"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control form-control-sm" x-model="form.phone"></div>
+    </div>
   </div>
-  <div class="col-md-5">
-    <label class="form-label">Type <span class="text-danger">*</span></label>
-    <select name="type" class="form-select form-select-sm" x-model="form.type" required>
-      @foreach($types as $k => $label)<option value="{{ $k }}">{{ $label }}</option>@endforeach
-    </select>
-  </div>
-  <div class="col-md-5">
+
+  {{-- Location --}}
+  <div class="col-md-4">
     <label class="form-label">Country <span class="text-danger">*</span></label>
     <select name="country_id" class="form-select form-select-sm" x-model="form.country_id" required>
       <option value="">Select country…</option>
       @foreach($countries as $co)<option value="{{ $co->id }}">{{ $co->flag }} {{ $co->name }}</option>@endforeach
     </select>
   </div>
+  <div class="col-md-4"><label class="form-label">City</label><input type="text" name="city" class="form-control form-control-sm" x-model="form.city"></div>
+  <div class="col-md-4"><label class="form-label">Referenced by</label><input type="text" name="referenced_by" class="form-control form-control-sm" x-model="form.referenced_by" placeholder="who referred them"></div>
+  <div class="col-12"><label class="form-label">Address</label><textarea name="address" rows="2" class="form-control form-control-sm" x-model="form.address"></textarea></div>
+
+  {{-- Company --}}
+  <div class="col-12"><hr class="my-1"><div class="text-muted-sm text-uppercase fw-bold" style="font-size:11px">Company &amp; identification</div></div>
+  <div class="col-md-6"><label class="form-label">Company name</label><input type="text" name="company_name" class="form-control form-control-sm" x-model="form.company_name" placeholder="Registered / trading name"></div>
+  <div class="col-md-6"><label class="form-label">Company ID</label><input type="text" name="company_id" class="form-control form-control-sm" x-model="form.company_id" placeholder="registration / trade id"></div>
+  <div class="col-md-4">
+    <label class="form-label">Identification type</label>
+    <select name="identification_type" class="form-select form-select-sm" x-model="form.identification_type">
+      <option value="">—</option>
+      @foreach(\App\Models\Customer::ID_TYPES as $k => $label)<option value="{{ $k }}">{{ $label }}</option>@endforeach
+    </select>
+  </div>
+  <div class="col-md-4"><label class="form-label">Identification number</label><input type="text" name="identification_number" class="form-control form-control-sm" x-model="form.identification_number"></div>
+  <div class="col-md-4"><label class="form-label">License no.</label><input type="text" name="license_number" class="form-control form-control-sm" x-model="form.license_number" placeholder="optional"></div>
+
+  {{-- Admin / status / portal --}}
+  <div class="col-12"><hr class="my-1"><div class="text-muted-sm text-uppercase fw-bold" style="font-size:11px">Account</div></div>
   @if($isAdmin)
   <div class="col-md-4">
     <label class="form-label">Account Manager</label>
@@ -28,7 +67,6 @@
       <option value="">— Unassigned —</option>
       @foreach($managers as $m)<option value="{{ $m->id }}">{{ $m->name }}</option>@endforeach
     </select>
-    <div class="text-muted-sm mt-1">The manager who can see &amp; sell to this customer.</div>
   </div>
   @endif
   <div class="col-md-4">
@@ -38,14 +76,8 @@
       <option value="suspended">Suspended</option><option value="expired">Expired</option>
     </select>
   </div>
-  <div class="col-md-3">
-    <label class="form-label">License no.</label>
-    <input type="text" name="license_number" class="form-control form-control-sm" x-model="form.license_number" placeholder="optional">
+  <div class="col-md-4">
+    <label class="form-label">Portal password <span class="text-muted-sm" x-text="form.id ? '(blank = keep)' : '(for customer login)'"></span></label>
+    <input type="text" name="password" class="form-control form-control-sm" x-model="form.password" placeholder="set to enable login">
   </div>
-
-  <div class="col-md-4"><label class="form-label">Contact person</label><input type="text" name="contact_person" class="form-control form-control-sm" x-model="form.contact_person"></div>
-  <div class="col-md-4"><label class="form-label">Phone</label><input type="text" name="contact_phone" class="form-control form-control-sm" x-model="form.contact_phone"></div>
-  <div class="col-md-4"><label class="form-label">Email</label><input type="email" name="contact_email" class="form-control form-control-sm" x-model="form.contact_email"></div>
-
-  <div class="col-12"><label class="form-label">Address</label><textarea name="address" rows="2" class="form-control form-control-sm" x-model="form.address"></textarea></div>
 </div>
