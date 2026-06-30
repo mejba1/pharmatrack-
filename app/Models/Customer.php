@@ -2,37 +2,54 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
 /**
- * Customer — reuses the existing `distributors` table. Represents anyone we
- * sell product to (distributor, retailer, hospital, pharmacy …).
+ * Customer — a first-class entity (own `customers` table). Represents anyone
+ * we sell to: Agent, Distributor, GPSP or Local. Can self-login to a customer
+ * portal/dashboard via the `customer` auth guard.
  */
-class Customer extends Model
+class Customer extends Authenticatable
 {
-    use SoftDeletes;
+    use SoftDeletes, Notifiable;
 
-    protected $table = 'distributors';
+    protected $table = 'customers';
 
     protected $fillable = [
-        'customer_code', 'parent_id', 'country_id', 'manager_id', 'name', 'company_name', 'type',
+        'customer_code', 'parent_id', 'country_id', 'manager_id', 'name', 'type',
+        'email', 'phone', 'city', 'address', 'company_name', 'company_id',
+        'identification_type', 'identification_number', 'referenced_by', 'company_logo',
         'license_number', 'gmp_certificate_number', 'license_expiry',
-        'contact_person', 'contact_email', 'contact_phone', 'address', 'status',
+        'contact_person', 'contact_email', 'contact_phone', 'status', 'password',
     ];
+
+    protected $hidden = ['password', 'remember_token'];
 
     protected $casts = [
-        'license_expiry' => 'date',
+        'license_expiry'    => 'date',
+        'email_verified_at' => 'datetime',
+        'last_login_at'     => 'datetime',
+        'password'          => 'hashed',
     ];
 
+    /** Customer types. */
     public const TYPES = [
-        'national_distributor' => 'National Distributor',
-        'regional_distributor' => 'Regional Distributor',
-        'sub_distributor'      => 'Sub Distributor',
-        'retailer'             => 'Retailer',
-        'pharmacy'             => 'Pharmacy',
-        'hospital'             => 'Hospital',
-        'manufacturer'         => 'Manufacturer',
+        'agent'       => 'Agent',
+        'distributor' => 'Distributor',
+        'gpsp'        => 'GPSP',
+        'local'       => 'Local',
+    ];
+
+    /** Identification document types. */
+    public const ID_TYPES = [
+        'nid'           => 'National ID',
+        'passport'      => 'Passport',
+        'trade_license' => 'Trade License',
+        'tin'           => 'TIN',
+        'other'         => 'Other',
     ];
 
     // ── Relationships ──────────────────────────────────────────────────────
@@ -40,6 +57,7 @@ class Customer extends Model
     public function manager()  { return $this->belongsTo(User::class, 'manager_id'); }
     public function sales()     { return $this->hasMany(CustomerSale::class, 'customer_id'); }
     public function soldUnits()  { return $this->hasMany(BatchUnit::class, 'sold_to_id'); }
+    public function purchaseOrders() { return $this->hasMany(PurchaseOrder::class, 'buyer_id'); }
 
     // ── Accessors ──────────────────────────────────────────────────────────
     public function getTypeLabelAttribute(): string
@@ -54,6 +72,25 @@ class Customer extends Model
             'suspended', 'expired' => 'badge-cancelled',
             default              => 'badge-pending',
         };
+    }
+
+    public function getIdTypeLabelAttribute(): string
+    {
+        return self::ID_TYPES[$this->identification_type] ?? (string) $this->identification_type;
+    }
+
+    /** Public URL for the company logo, or null. */
+    public function getLogoUrlAttribute(): ?string
+    {
+        return $this->company_logo ? url('storage/' . ltrim($this->company_logo, '/')) : null;
+    }
+
+    /** Two-letter initials for an avatar fallback. */
+    public function getInitialsAttribute(): string
+    {
+        $parts = preg_split('/\s+/', trim((string) $this->name)) ?: [];
+
+        return strtoupper(collect($parts)->filter()->take(2)->map(fn ($w) => mb_substr($w, 0, 1))->implode('')) ?: 'C';
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
