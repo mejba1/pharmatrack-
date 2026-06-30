@@ -63,9 +63,25 @@ class RolesAndPermissionsSeeder extends Seeder
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 
-    /** @param list<string> $permissions */
-    protected function syncRole(string $name, array $permissions): void
+    /**
+     * Sync a role to the given modules: grants module access plus every
+     * action ({module}.{action}) for those modules, so the role carries full
+     * CRUD by default. Admins can fine-tune per role on the Permission Set page.
+     *
+     * @param  list<string>  $modules
+     */
+    protected function syncRole(string $name, array $modules): void
     {
+        $actions = array_keys(config('abilities.actions', []));
+
+        $permissions = [];
+        foreach ($modules as $module) {
+            $permissions[] = $module; // module access
+            foreach ($actions as $action) {
+                $permissions[] = "{$module}.{$action}";
+            }
+        }
+
         $role = Role::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         $role->syncPermissions($permissions);
     }

@@ -29,18 +29,19 @@ class RoleController extends Controller
         return view('roles.index', compact('roles', 'modules'));
     }
 
-    // ── Permission Set page: pick a role, check modules, submit ───────────
+    // ── Permission Set page: pick a role, check module + actions, submit ──
     public function permissions(): View
     {
         $roles   = Role::with('permissions')->orderBy('name')->get();
-        $modules = config('modules', []);
+        $modules = config('modules', []);          // module key => [label, ...]
+        $actions = config('abilities.actions', []); // action key => Label
 
-        // role id => [module keys it currently has]
+        // role id => [all permission names it currently has] (module + action)
         $rolePermissions = $roles->mapWithKeys(
             fn ($r) => [$r->id => $r->permissions->pluck('name')->values()]
         );
 
-        return view('roles.permissions', compact('roles', 'modules', 'rolePermissions'));
+        return view('roles.permissions', compact('roles', 'modules', 'actions', 'rolePermissions'));
     }
 
     // ── Store: create a role (name only) ──────────────────────────────────
@@ -75,23 +76,32 @@ class RoleController extends Controller
         return redirect()->route('roles.index')->with('success', "Role renamed to '{$role->name}'.");
     }
 
-    // ── Sync module permissions for a role (Permission Set page) ──────────
+    // ── Sync role permissions (module access + fine-grained actions) ──────
     public function syncPermissions(Request $request, Role $role): RedirectResponse
     {
+        // Allowed names: module keys (access) + every "{module}.{action}".
         $modules = array_keys(config('modules', []));
+        $actions = array_keys(config('abilities.actions', []));
+        $allowed = $modules;
+        foreach ($modules as $m) {
+            foreach ($actions as $a) {
+                $allowed[] = "{$m}.{$a}";
+            }
+        }
+
         $data = $request->validate([
             'permissions'   => ['array'],
-            'permissions.*' => ['string', Rule::in($modules)],
+            'permissions.*' => ['string', Rule::in($allowed)],
         ]);
 
-        // Ensure each module key exists as a permission, then sync.
-        foreach ($data['permissions'] ?? [] as $key) {
-            Permission::firstOrCreate(['name' => $key, 'guard_name' => 'web']);
+        // Ensure each selected permission exists, then sync them to the role.
+        foreach ($data['permissions'] ?? [] as $name) {
+            Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
         $role->syncPermissions($data['permissions'] ?? []);
 
         return redirect()->route('roles.permissions', ['role' => $role->id])
-            ->with('success', "Modules updated for '{$role->name}' (" . count($data['permissions'] ?? []) . ' assigned).');
+            ->with('success', "Permissions updated for '{$role->name}' (" . count($data['permissions'] ?? []) . ' assigned).');
     }
 
     // ── Destroy ───────────────────────────────────────────────────────────
