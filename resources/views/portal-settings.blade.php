@@ -14,7 +14,7 @@
 
   <div class="alert alert-light border small"><i class="bi bi-info-circle me-1 text-primary"></i>Control what your customers see and can do in the self-service portal. Changes take effect immediately.</div>
 
-  <form method="POST" action="{{ route('customers.portal-settings.update') }}">
+  <form method="POST" action="{{ route('customers.portal-settings.update') }}" enctype="multipart/form-data">
     @csrf
     @php
       $toggle = function ($key, $label, $desc) use ($portal) {
@@ -75,6 +75,39 @@
         </div>
       </div>
 
+      {{-- Branding --}}
+      <div class="col-12" x-data="{ logoPreview:null }">
+        <div class="card"><div class="card-header bg-transparent fw-semibold"><i class="bi bi-palette me-1 text-primary"></i>Branding</div>
+          <div class="card-body">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-3 text-center">
+                <label class="form-label d-block">Portal logo</label>
+                <div class="border rounded-3 d-flex align-items-center justify-content-center mx-auto mb-2" style="width:120px;height:70px;overflow:hidden;background:var(--bs-light)">
+                  <template x-if="logoPreview || '{{ \App\Support\PortalSettings::logoUrl() }}'.length">
+                    <img :src="logoPreview || '{{ \App\Support\PortalSettings::logoUrl() }}'" style="max-width:100%;max-height:100%;object-fit:contain">
+                  </template>
+                  <template x-if="!(logoPreview || '{{ \App\Support\PortalSettings::logoUrl() }}'.length)"><span class="text-muted-sm">No logo</span></template>
+                </div>
+                <input type="file" name="portal_logo" accept="image/*" class="form-control form-control-sm" @change="logoPreview = $event.target.files[0] ? URL.createObjectURL($event.target.files[0]) : null">
+              </div>
+              <div class="col-md-5">
+                <label class="form-label">Brand name</label>
+                <input type="text" name="portal_brand_name" class="form-control" value="{{ $portal['portal_brand_name'] }}" placeholder="PharmaTrack">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Primary</label>
+                <input type="color" name="portal_primary" class="form-control form-control-color w-100" value="{{ $portal['portal_primary'] }}">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Accent</label>
+                <input type="color" name="portal_accent" class="form-control form-control-color w-100" value="{{ $portal['portal_accent'] }}">
+              </div>
+            </div>
+            <div class="text-muted-sm mt-2"><i class="bi bi-info-circle me-1"></i>Used for the portal login, dashboard and emails-facing pages.</div>
+          </div>
+        </div>
+      </div>
+
       {{-- Messaging --}}
       <div class="col-12">
         <div class="card"><div class="card-header bg-transparent fw-semibold"><i class="bi bi-megaphone me-1 text-primary"></i>Messaging</div>
@@ -99,5 +132,32 @@
       <button class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save settings</button>
     </div>
   </form>
+
+  {{-- Audit trail --}}
+  <div class="card mt-4"><div class="card-header bg-transparent fw-semibold"><i class="bi bi-clock-history me-1 text-primary"></i>Change history</div>
+    <div class="card-body p-0"><div class="list-group list-group-flush">
+      @forelse($logs as $log)
+        <div class="list-group-item">
+          <div class="d-flex align-items-center">
+            <span class="fw-semibold small">{{ $log->user?->name ?? 'Someone' }}</span>
+            <span class="text-muted-sm ms-2">{{ $log->created_at->diffForHumans() }}</span>
+            <span class="text-muted-sm ms-auto">{{ $log->created_at->format('d M Y, H:i') }}</span>
+          </div>
+          <div class="small text-muted mt-1">
+            @foreach($log->changes as $key => $c)
+              <span class="badge bg-light text-dark border me-1 mb-1" style="font-weight:500">
+                {{ \Illuminate\Support\Str::of($key)->after('portal_')->replace('_',' ')->title() }}:
+                <span class="text-danger">{{ \Illuminate\Support\Str::limit((string) ($c['from'] === true ? 'on' : ($c['from'] === false ? 'off' : $c['from'])), 20) ?: '—' }}</span>
+                →
+                <span class="text-success">{{ \Illuminate\Support\Str::limit((string) ($c['to'] === true ? 'on' : ($c['to'] === false ? 'off' : $c['to'])), 20) ?: '—' }}</span>
+              </span>
+            @endforeach
+          </div>
+        </div>
+      @empty
+        <div class="text-center text-muted py-4 small">No changes recorded yet.</div>
+      @endforelse
+    </div></div>
+  </div>
 </div>
 @endsection

@@ -80,4 +80,23 @@
     <label class="form-label">Portal password <span class="text-muted-sm" x-text="form.id ? '(blank = keep)' : '(for customer login)'"></span></label>
     <input type="text" name="password" class="form-control form-control-sm" x-model="form.password" placeholder="set to enable login">
   </div>
+
+  {{-- Per-customer portal overrides --}}
+  <div class="col-12"><hr class="my-1"><div class="text-muted-sm text-uppercase fw-bold" style="font-size:11px">Portal access (overrides)</div></div>
+  <div class="col-md-4">
+    <label class="form-label d-block">Portal login</label>
+    <div class="form-check form-switch">
+      <input type="hidden" name="portal_access" value="0">
+      <input class="form-check-input" type="checkbox" name="portal_access" value="1" id="portal_access" x-model="form.portal_access">
+      <label class="form-check-label small" for="portal_access">Allow this customer to sign in</label>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Ordering</label>
+    <select name="portal_can_order" class="form-select form-select-sm" x-model="form.portal_can_order">
+      <option value="">Follow global setting</option>
+      <option value="1">Always allow</option>
+      <option value="0">Block ordering</option>
+    </select>
+  </div>
 </div>

@@ -25,6 +25,11 @@ class PortalSettings
             'portal_allow_profile_edit' => true,   // profile self-edit
             'portal_welcome_message'    => '',     // banner on the dashboard
             'portal_support_email'      => '',      // shown on login/portal
+            // Branding
+            'portal_brand_name'         => 'PharmaTrack',
+            'portal_logo'               => '',     // storage path
+            'portal_primary'            => '#4f46e5',
+            'portal_accent'             => '#0ea5e9',
         ];
     }
 
@@ -49,6 +54,14 @@ class PortalSettings
     public static function get(string $key): mixed
     {
         return static::all()[$key] ?? null;
+    }
+
+    /** Public URL for the uploaded portal logo, or null. */
+    public static function logoUrl(): ?string
+    {
+        $path = static::get('portal_logo');
+
+        return $path ? url('storage/' . ltrim($path, '/')) : null;
     }
 
     /** Persist submitted settings and clear the cache. */

@@ -6,9 +6,10 @@
   <title>@yield('title', 'Customer Portal') — PharmaTrack</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  @php $ps = \App\Support\PortalSettings::all(); @endphp
   <style>
     :root{
-      --brand1:#4f46e5; --brand2:#0ea5e9; --ink:#0f172a; --muted:#64748b;
+      --brand1:{{ $ps['portal_primary'] ?: '#4f46e5' }}; --brand2:{{ $ps['portal_accent'] ?: '#0ea5e9' }}; --ink:#0f172a; --muted:#64748b;
       --line:#e8edf3; --bg:#f4f7fb; --card:#ffffff;
     }
     *{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }

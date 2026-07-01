@@ -139,6 +139,8 @@
                   'identification_type'=>$c->identification_type,'identification_number'=>$c->identification_number,
                   'license_number'=>$c->license_number,'manager_id'=>$c->manager_id,'status'=>$c->status,
                   'company_logo_url'=>$c->logo_url,
+                  'portal_access'=>(bool)($c->portal_access ?? true),
+                  'portal_can_order'=>is_null($c->portal_can_order) ? '' : (string)(int)$c->portal_can_order,
                 ]) }})"><i class="bi bi-pencil"></i></button>@endcan
                 <button class="btn btn-outline-success btn-sm btn-icon" title="Sell to this customer" @click="openSale({{ $c->id }})"><i class="bi bi-receipt"></i></button>
               </div>
@@ -171,7 +173,7 @@
       saleUrl: '{{ route('customers.sales.store') }}',
       updateTpl: '{{ url('customers') }}/__ID__',
       viewTpl: '{{ url('customers') }}/__ID__',
-      blank(){ return {id:null, name:'', type:'distributor', email:'', phone:'', country_id:'', city:'', referenced_by:'', address:'', company_name:'', company_id:'', identification_type:'', identification_number:'', license_number:'', manager_id:'', status:'active', password:'', company_logo_url:''}; },
+      blank(){ return {id:null, name:'', type:'distributor', email:'', phone:'', country_id:'', city:'', referenced_by:'', address:'', company_name:'', company_id:'', identification_type:'', identification_number:'', license_number:'', manager_id:'', status:'active', password:'', company_logo_url:'', portal_access:true, portal_can_order:''}; },
       form: {},
       logoPreview: null,
       view: null,

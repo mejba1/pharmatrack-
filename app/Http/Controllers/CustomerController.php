@@ -94,6 +94,8 @@ class CustomerController extends Controller
         $data = $this->validateCustomer($request);
         if (empty($data['password'])) unset($data['password']);
         $data['company_logo']  = $this->handleLogo($request, null);
+        $data['portal_access']    = $request->boolean('portal_access', true);
+        $data['portal_can_order'] = $request->filled('portal_can_order') ? (int) $request->input('portal_can_order') : null;
         $data['customer_code'] = Customer::nextCode();
         $data['status'] ??= 'active';
         // Super admin assigns any manager; a manager creating a customer owns it.
@@ -110,6 +112,8 @@ class CustomerController extends Controller
         $data = $this->validateCustomer($request, $customer->id);
         if (empty($data['password'])) unset($data['password']);
         $data['company_logo'] = $this->handleLogo($request, $customer);
+        $data['portal_access']    = $request->boolean('portal_access');
+        $data['portal_can_order'] = $request->filled('portal_can_order') ? (int) $request->input('portal_can_order') : null;
         // Only super admin may (re)assign the account manager.
         if (!$request->user()->seesAllData()) {
             unset($data['manager_id']);
@@ -426,6 +430,8 @@ class CustomerController extends Controller
             'license_expiry'        => 'nullable|date',
             'status'                => 'nullable|in:active,suspended,expired,pending',
             'password'              => 'nullable|string|min:6|max:100',
+            'portal_access'         => 'nullable|boolean',
+            'portal_can_order'      => 'nullable|in:0,1',
         ]);
     }
 

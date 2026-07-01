@@ -50,10 +50,10 @@ class CustomerPortalController extends Controller
         }
 
         $customer = Auth::guard('customer')->user();
-        if ($customer->status !== 'active') {
+        if ($customer->status !== 'active' || ! $customer->canUsePortal()) {
             Auth::guard('customer')->logout();
 
-            return back()->withErrors(['email' => 'Your account is not active. Please contact us.'])->onlyInput('email');
+            return back()->withErrors(['email' => 'Your account cannot access the portal. Please contact us.'])->onlyInput('email');
         }
 
         $customer->forceFill(['last_login_at' => now()])->saveQuietly();
@@ -109,6 +109,8 @@ class CustomerPortalController extends Controller
         ];
 
         $portal = PortalSettings::all();
+        // Ordering button respects the per-customer override, not just the global flag.
+        $portal['portal_allow_ordering'] = $customer->canPlaceOrders();
 
         return view('portal.dashboard', compact('customer', 'orders', 'units', 'invoices', 'documents', 'stats', 'portal'));
     }
@@ -116,7 +118,7 @@ class CustomerPortalController extends Controller
     // ── Place an order (creates a Purchase Order) ─────────────────────────
     public function createOrder(): View
     {
-        abort_unless(PortalSettings::get('portal_allow_ordering'), 403, 'Ordering is currently disabled.');
+        abort_unless(Auth::guard('customer')->user()->canPlaceOrders(), 403, 'Ordering is currently disabled.');
 
         return view('portal.order', [
             'customer' => Auth::guard('customer')->user(),
@@ -126,9 +128,8 @@ class CustomerPortalController extends Controller
 
     public function storeOrder(Request $request): RedirectResponse
     {
-        abort_unless(PortalSettings::get('portal_allow_ordering'), 403, 'Ordering is currently disabled.');
-
         $customer = Auth::guard('customer')->user();
+        abort_unless($customer->canPlaceOrders(), 403, 'Ordering is currently disabled.');
 
         $data = $request->validate([
             'required_by_date'   => 'nullable|date|after_or_equal:today',

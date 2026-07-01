@@ -24,6 +24,7 @@ class Customer extends Authenticatable
         'identification_type', 'identification_number', 'referenced_by', 'company_logo',
         'license_number', 'gmp_certificate_number', 'license_expiry',
         'contact_person', 'contact_email', 'contact_phone', 'status', 'password',
+        'portal_access', 'portal_can_order',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -33,7 +34,21 @@ class Customer extends Authenticatable
         'email_verified_at' => 'datetime',
         'last_login_at'     => 'datetime',
         'password'          => 'hashed',
+        'portal_access'     => 'boolean',
+        'portal_can_order'  => 'boolean',
     ];
+
+    /** May this customer sign in to the portal at all? */
+    public function canUsePortal(): bool
+    {
+        return $this->portal_access !== false;
+    }
+
+    /** May this customer place orders? Global setting can be individually restricted. */
+    public function canPlaceOrders(): bool
+    {
+        return (bool) \App\Support\PortalSettings::get('portal_allow_ordering') && $this->portal_can_order !== false;
+    }
 
     /** Customer types. */
     public const TYPES = [
