@@ -33,6 +33,31 @@ class PurchaseOrder extends Model
     public function salesOrder() { return $this->hasOne(SalesOrder::class); }
     public function documents() { return $this->morphMany(OrderDocument::class, 'documentable')->where('is_active', true)->latest(); }
 
+    /**
+     * Progress through the document chain PO → SO → PI → CI. Uses already-loaded
+     * relations when available (eager-load salesOrder.proformaInvoice.commercialInvoices).
+     *
+     * @return array{po:bool,so:bool,pi:bool,ci:bool,ci_count:int,so_status:?string,pi_status:?string,stage:string,step:int}
+     */
+    public function chainStages(): array
+    {
+        $so = $this->salesOrder;
+        $pi = $so?->proformaInvoice;
+        $ciCount = $pi ? $pi->commercialInvoices->count() : 0;
+
+        return [
+            'po'        => true,
+            'so'        => (bool) $so,
+            'pi'        => (bool) $pi,
+            'ci'        => $ciCount > 0,
+            'ci_count'  => $ciCount,
+            'so_status' => $so?->status,
+            'pi_status' => $pi?->status,
+            'stage'     => $ciCount > 0 ? 'CI' : ($pi ? 'PI' : ($so ? 'SO' : 'PO')),
+            'step'      => $ciCount > 0 ? 4 : ($pi ? 3 : ($so ? 2 : 1)),
+        ];
+    }
+
     // ── Accessors ──────────────────────────────────────────────────────────
     public function getStatusBadgeClassAttribute(): string
     {

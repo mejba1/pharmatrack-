@@ -27,8 +27,10 @@ class PurchaseOrderController extends Controller
         $uid  = $request->user()->id;
         $own  = fn ($q) => $mine ? $q->where('created_by', $uid) : $q;
 
-        $orders = $own(PurchaseOrder::with(['buyer.country', 'lines.product', 'documents']))
-            ->latest()->limit(300)->get();
+        $orders = $own(PurchaseOrder::with([
+            'buyer.country', 'lines.product', 'documents',
+            'salesOrder.proformaInvoice.commercialInvoices:id,proforma_invoice_id',
+        ]))->latest()->limit(300)->get();
 
         $pos = $orders->map(fn ($po) => $this->payload($po))->values();
 
@@ -213,6 +215,7 @@ class PurchaseOrderController extends Controller
         return [
             'pid'        => $po->id,
             'id'         => $po->po_number,
+            'chain'      => $po->chainStages(),
             'buyer'      => $po->buyer?->name ?? '—',
             'country'    => $po->buyer?->country?->name ?? '',
             'products'   => $po->lines->count() . ' SKU' . ($po->lines->count() === 1 ? '' : 's') . ' / ' . number_format($units) . ' units',

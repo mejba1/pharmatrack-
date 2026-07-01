@@ -18,6 +18,31 @@
 
       {{-- Details --}}
       <div class="modal-body" x-show="viewTab==='details'">
+        {{-- Document chain progress: PO → SO → PI → CI --}}
+        <div class="p-3 border rounded-3 mb-3 bg-light">
+          <div class="text-muted-sm mb-2 fw-semibold">ORDER PROGRESS</div>
+          <div class="d-flex align-items-center">
+            <template x-for="(s, i) in [{n:1,l:'PO'},{n:2,l:'SO'},{n:3,l:'PI'},{n:4,l:'CI'}]" :key="s.n">
+              <div class="d-flex align-items-center" :class="i<3 && 'flex-fill'">
+                <div class="text-center" style="width:46px">
+                  <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center"
+                       :style="((selectedPO?.chain?.step||1) >= s.n) ? 'width:34px;height:34px;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff' : 'width:34px;height:34px;background:#fff;border:1px solid #dee2e6;color:#adb5bd'">
+                    <template x-if="(selectedPO?.chain?.step||1) >= s.n"><i class="bi bi-check-lg"></i></template>
+                    <template x-if="(selectedPO?.chain?.step||1) < s.n"><span style="font-size:11px;font-weight:700" x-text="s.l"></span></template>
+                  </div>
+                  <div class="mt-1" style="font-size:11px" :class="((selectedPO?.chain?.step||1) >= s.n) ? 'fw-semibold text-success' : 'text-muted'">
+                    <span x-text="s.l"></span><span x-show="s.n===4 && (selectedPO?.chain?.ci_count||0) > 1" x-text="' ×'+selectedPO?.chain?.ci_count"></span>
+                  </div>
+                </div>
+                <div class="flex-fill mx-1" x-show="i<3" style="height:3px;border-radius:2px"
+                     :style="((selectedPO?.chain?.step||1) > s.n) ? 'background:#16a34a' : 'background:#dee2e6'"></div>
+              </div>
+            </template>
+          </div>
+          <div class="text-muted-sm mt-2" x-show="(selectedPO?.chain?.step||1) < 4">
+            Next step: <span class="fw-semibold" x-text="({1:'Acknowledge, then create Sales Order',2:'Issue Proforma Invoice',3:'Raise Commercial Invoice'})[selectedPO?.chain?.step] || ''"></span>
+          </div>
+        </div>
         <div class="row g-3">
           <div class="col-md-6"><div class="p-3 border rounded-3"><div class="text-muted-sm mb-2 fw-semibold">BUYER</div><div class="fw-semibold" x-text="selectedPO?.buyer"></div><div class="text-muted-sm" x-text="selectedPO?.country"></div></div></div>
           <div class="col-md-6"><div class="p-3 border rounded-3"><div class="text-muted-sm mb-2 fw-semibold">MANAGER</div><div class="fw-semibold" x-text="selectedPO?.manager || '—'"></div><div class="text-muted-sm">Payment: <span x-text="selectedPO?.payTerms"></span> <span x-show="selectedPO?.incoterms">· <span x-text="selectedPO?.incoterms"></span></span></div></div></div>

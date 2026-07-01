@@ -78,7 +78,13 @@
             <td style="font-size:13px" x-text="po.requiredBy"></td>
             <td class="fw-semibold" style="font-size:13px" x-text="po.value"></td>
             <td style="font-size:12px" x-text="po.manager || '—'"></td>
-            <td><span class="badge-status" :class="'badge-' + po.statusClass" x-text="po.status"></span></td>
+            <td>
+              <span class="badge-status" :class="'badge-' + po.statusClass" x-text="po.status"></span>
+              <span class="d-inline-flex align-items-center gap-1 ms-2 align-middle" x-show="po.chain" :title="'Progress: '+(po.chain?.stage)">
+                <template x-for="s in [1,2,3,4]" :key="s"><span class="rounded-circle d-inline-block" style="width:7px;height:7px" :style="((po.chain?.step||1)>=s)?'background:#16a34a':'background:#dee2e6'"></span></template>
+                <span class="text-muted-sm" style="font-size:10px" x-text="po.chain?.stage"></span>
+              </span>
+            </td>
             <td>
               <div class="d-flex gap-1">
                 <button class="btn btn-outline-primary btn-sm btn-icon" @click="viewPO(po)" title="View"><i class="bi bi-eye"></i></button>

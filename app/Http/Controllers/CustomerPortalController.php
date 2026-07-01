@@ -71,7 +71,9 @@ class CustomerPortalController extends Controller
         $customer = Auth::guard('customer')->user()->load('country', 'manager');
         $cid = $customer->id;
 
-        $orders = $customer->purchaseOrders()->with('lines.product', 'documents')->latest()->limit(20)->get();
+        $orders = $customer->purchaseOrders()
+            ->with('lines.product', 'documents', 'salesOrder.proformaInvoice.commercialInvoices:id,proforma_invoice_id')
+            ->latest()->limit(20)->get();
         $units  = $customer->soldUnits()->with('batch.product')->latest('sold_at')->limit(50)->get();
 
         // Invoices raised against this customer's sales orders.

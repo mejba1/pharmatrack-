@@ -64,18 +64,34 @@
       </div>
       <div class="table-responsive">
         <table class="table table-clean mb-0">
-          <thead><tr><th>PO #</th><th>Date</th><th>Items</th><th>Status</th><th class="text-end">Value</th></tr></thead>
+          <thead><tr><th>PO #</th><th>Date</th><th>Items</th><th style="min-width:170px">Progress</th><th>Status</th><th class="text-end">Value</th></tr></thead>
           <tbody>
             @forelse($orders as $po)
+              @php $chain = $po->chainStages(); @endphp
               <tr>
                 <td class="font-monospace fw-semibold">{{ $po->po_number }}</td>
                 <td>{{ $po->po_date?->format('d M Y') }}</td>
                 <td>{{ $po->lines->count() }} SKU{{ $po->lines->count() === 1 ? '' : 's' }}</td>
+                <td>
+                  <div class="d-flex align-items-center">
+                    @foreach(['PO','SO','PI','CI'] as $i => $label)
+                      @php $n = $i + 1; $done = $chain['step'] >= $n; @endphp
+                      <div class="text-center" style="width:38px">
+                        <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center"
+                             style="width:24px;height:24px;font-size:9px;font-weight:700;{{ $done ? 'background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff' : 'background:#fff;border:1px solid #e2e8f0;color:#94a3b8' }}">
+                          @if($done)<i class="bi bi-check-lg"></i>@else{{ $label }}@endif
+                        </div>
+                        <div style="font-size:9px;{{ $done ? 'color:#16a34a;font-weight:600' : 'color:#94a3b8' }}">{{ $label }}@if($label==='CI' && $chain['ci_count'] > 1) ×{{ $chain['ci_count'] }}@endif</div>
+                      </div>
+                      @if($i < 3)<div class="flex-fill" style="height:2px;{{ $chain['step'] > $n ? 'background:#16a34a' : 'background:#e2e8f0' }}"></div>@endif
+                    @endforeach
+                  </div>
+                </td>
                 <td><span class="chip" style="background:#eef2ff;color:#4f46e5">{{ $po->status_label ?? $po->status }}</span></td>
                 <td class="text-end fw-semibold">{{ $po->currency }} {{ number_format((float) $po->total_value, 2) }}</td>
               </tr>
             @empty
-              <tr><td colspan="5" class="text-center text-muted py-4">No purchase orders yet.</td></tr>
+              <tr><td colspan="6" class="text-center text-muted py-4">No purchase orders yet.</td></tr>
             @endforelse
           </tbody>
         </table>
