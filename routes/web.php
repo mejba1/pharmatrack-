@@ -49,12 +49,24 @@ Route::get('/shipment/{qr}', [ConsignmentController::class, 'scan'])->name('ship
 
 // ── Customer self-service portal (separate `customer` auth guard) ──────────
 Route::prefix('portal')->name('portal.')->group(function () {
-    Route::get('/login', [\App\Http\Controllers\CustomerPortalController::class, 'showLogin'])->name('login');
-    Route::post('/login', [\App\Http\Controllers\CustomerPortalController::class, 'login'])->middleware('throttle:10,1')->name('login.post');
-    Route::post('/logout', [\App\Http\Controllers\CustomerPortalController::class, 'logout'])->name('logout');
+    $portal = \App\Http\Controllers\CustomerPortalController::class;
 
-    Route::middleware('auth:customer')->group(function () {
-        Route::get('/', [\App\Http\Controllers\CustomerPortalController::class, 'dashboard'])->name('dashboard');
+    Route::get('/login', [$portal, 'showLogin'])->name('login');
+    Route::post('/login', [$portal, 'login'])->middleware('throttle:10,1')->name('login.post');
+    Route::post('/logout', [$portal, 'logout'])->name('logout');
+
+    // Self-registration
+    Route::get('/register', [$portal, 'showRegister'])->name('register');
+    Route::post('/register', [$portal, 'register'])->middleware('throttle:10,1')->name('register.post');
+
+    // Password reset
+    Route::get('/forgot-password', [$portal, 'showForgot'])->name('password.request');
+    Route::post('/forgot-password', [$portal, 'sendResetLink'])->middleware('throttle:6,1')->name('password.email');
+    Route::get('/reset-password/{token}', [$portal, 'showReset'])->name('password.reset');
+    Route::post('/reset-password', [$portal, 'resetPassword'])->middleware('throttle:6,1')->name('password.update');
+
+    Route::middleware('auth:customer')->group(function () use ($portal) {
+        Route::get('/', [$portal, 'dashboard'])->name('dashboard');
     });
 });
 
