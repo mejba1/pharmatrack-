@@ -76,6 +76,16 @@ function piPage(pis, confirmedSos, managers){
     piTpl: '{{ url('orders/proforma-invoices') }}/__ID__',
     form: { sales_order_id:'', pi_date:'{{ now()->format('Y-m-d') }}', valid_until:'{{ now()->addDays(30)->format('Y-m-d') }}', currency:'USD', incoterms:'', payment_terms:'', port_of_loading:'', bank_name:'', bank_account_number:'', bank_swift_code:'', bank_iban:'', freight:'', status:'draft', remarks:'' },
 
+    init(){
+      // Deep-link from an SO: /proforma-invoices?so={id} opens the create modal preselected.
+      const so = new URLSearchParams(location.search).get('so');
+      if (so && this.confirmedSos.some(s => String(s.id) === String(so))) {
+        this.openCreate();
+        this.form.sales_order_id = so;
+        this.onPickSo();
+      }
+    },
+
     get filtered(){
       return this.pis.filter(p => { const q=this.search.toLowerCase();
         return (!q || p.id.toLowerCase().includes(q) || (p.customer||'').toLowerCase().includes(q)) && (!this.filterStatus || p.status === this.filterStatus); });

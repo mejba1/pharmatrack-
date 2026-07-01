@@ -74,7 +74,7 @@
         </form>
         <form method="POST" :action="statusUrl()" x-show="selectedSO?.status==='Draft'">@csrf <input type="hidden" name="action" value="confirm"><button class="btn btn-success btn-sm"><i class="bi bi-check2 me-1"></i>Confirm SO</button></form>
         @if(auth()->user()->canModule('invoices'))
-        <a href="{{ route('orders.pi') }}" class="btn btn-primary btn-sm" x-show="selectedSO?.status==='Confirmed'"><i class="bi bi-receipt me-1"></i>Issue Proforma Invoice</a>
+        <a :href="'{{ route('orders.pi') }}?so=' + selectedSO?.pid" class="btn btn-primary btn-sm" x-show="selectedSO?.status==='Confirmed'"><i class="bi bi-receipt me-1"></i>Issue Proforma Invoice</a>
         @endif
       </div>
     </div>

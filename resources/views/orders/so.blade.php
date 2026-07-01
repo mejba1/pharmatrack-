@@ -83,6 +83,16 @@ function soPage(sos, ackPos, batches){
     soTpl: '{{ url('orders/sales-orders') }}/__ID__',
     form: { purchase_order_id:'', so_date:'{{ now()->format('Y-m-d') }}', incoterms:'', payment_terms:'', estimated_delivery_date:'', status:'confirmed', remarks:'', lines:[] },
 
+    init(){
+      // Deep-link from a PO: /sales-orders?po={id} opens the create modal preselected.
+      const po = new URLSearchParams(location.search).get('po');
+      if (po && this.ackPos.some(p => String(p.id) === String(po))) {
+        this.openCreate();
+        this.form.purchase_order_id = po;
+        this.onPickPo();
+      }
+    },
+
     get filtered(){
       return this.sos.filter(s => {
         const q = this.search.toLowerCase();

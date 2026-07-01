@@ -84,8 +84,8 @@
           @csrf <input type="hidden" name="action" value="acknowledge">
           <button class="btn btn-success btn-sm"><i class="bi bi-check2 me-1"></i>Acknowledge PO</button>
         </form>
-        {{-- Create SO (forward link, later phase) --}}
-        <a href="{{ route('orders.so') }}" class="btn btn-primary btn-sm" x-show="selectedPO?.status==='Acknowledged'"><i class="bi bi-arrow-right-circle me-1"></i>Create Sales Order</a>
+        {{-- Create SO from this PO (preselects it on the SO page) --}}
+        <a :href="'{{ route('orders.so') }}?po=' + selectedPO?.pid" class="btn btn-primary btn-sm" x-show="selectedPO?.status==='Acknowledged'"><i class="bi bi-arrow-right-circle me-1"></i>Create Sales Order</a>
       </div>
     </div>
   </div>
