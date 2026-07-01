@@ -16,6 +16,7 @@
         @endif
         <div class="lh-1 d-none d-sm-block"><div class="fw-semibold small">{{ $customer->name }}</div><div class="text-muted" style="font-size:11px">{{ $customer->type_label }} · {{ $customer->customer_code }}</div></div>
       </div>
+      <a href="{{ route('portal.profile') }}" class="btn btn-outline-secondary btn-sm rounded-3"><i class="bi bi-gear me-1"></i><span class="d-none d-sm-inline">Profile</span></a>
       <form method="POST" action="{{ route('portal.logout') }}">@csrf<button class="btn btn-outline-secondary btn-sm rounded-3"><i class="bi bi-box-arrow-right me-1"></i>Sign out</button></form>
     </div>
   </nav>
@@ -139,7 +140,10 @@
 
     {{-- Profile --}}
     <div class="card-soft p-3 p-md-4" x-show="tab==='profile'" x-cloak>
-      <div class="fw-semibold mb-3"><i class="bi bi-person-badge me-1" style="color:var(--brand1)"></i>My Profile</div>
+      <div class="d-flex align-items-center mb-3">
+        <div class="fw-semibold"><i class="bi bi-person-badge me-1" style="color:var(--brand1)"></i>My Profile</div>
+        <a href="{{ route('portal.profile') }}" class="btn btn-grad btn-sm ms-auto"><i class="bi bi-pencil me-1"></i>Edit profile</a>
+      </div>
       <div class="row g-4">
         <div class="col-md-6"><table class="table table-clean mb-0">
           <tr><th style="width:150px">Customer code</th><td class="font-monospace">{{ $customer->customer_code }}</td></tr>

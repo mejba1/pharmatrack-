@@ -83,10 +83,10 @@ class CustomerPortalController extends Controller
             'currency' => $c->currency, 'total' => (float) ($c->total_value ?? 0), 'status' => ucfirst((string) $c->status),
         ]))->values();
 
-        // Documents attached to this customer's purchase orders (public storage URLs).
-        $documents = $orders->flatMap(fn ($po) => $po->documents)->map(fn ($d) => [
+        // Documents staff explicitly shared with this customer.
+        $documents = $customer->documents()->with('uploader')->get()->map(fn ($d) => [
             'name' => $d->name, 'category' => $d->category, 'size' => $d->size_human,
-            'date' => $d->created_at?->format('d M Y'), 'url' => $d->url, 'icon' => $d->icon_class ?? 'text-secondary',
+            'date' => $d->created_at?->format('d M Y'), 'url' => $d->url, 'icon' => $d->icon_class,
         ])->values();
 
         $stats = [
@@ -97,6 +97,50 @@ class CustomerPortalController extends Controller
         ];
 
         return view('portal.dashboard', compact('customer', 'orders', 'units', 'invoices', 'documents', 'stats'));
+    }
+
+    // ── Profile self-edit ─────────────────────────────────────────────────
+    public function editProfile(): View
+    {
+        return view('portal.profile', [
+            'customer'  => Auth::guard('customer')->user()->load('country', 'manager'),
+            'countries' => Country::orderBy('name')->get(['id', 'name', 'flag']),
+        ]);
+    }
+
+    public function updateProfile(Request $request): RedirectResponse
+    {
+        $customer = Auth::guard('customer')->user();
+
+        $data = $request->validate([
+            'name'         => 'required|string|max:160',
+            'email'        => 'required|email|max:160|unique:customers,email,' . $customer->id,
+            'phone'        => 'nullable|string|max:40',
+            'country_id'   => 'required|exists:countries,id',
+            'city'         => 'nullable|string|max:120',
+            'address'      => 'nullable|string|max:500',
+            'company_name' => 'nullable|string|max:160',
+            'company_id'   => 'nullable|string|max:100',
+            'company_logo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'password'     => ['nullable', 'confirmed', PasswordRule::min(8)],
+        ]);
+
+        if ($request->hasFile('company_logo')) {
+            if ($customer->company_logo) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($customer->company_logo);
+            }
+            $data['company_logo'] = $request->file('company_logo')->store('customers/logos', 'public');
+        } else {
+            unset($data['company_logo']);
+        }
+
+        if (empty($data['password'])) {
+            unset($data['password']);
+        }
+
+        $customer->update($data);
+
+        return redirect()->route('portal.profile')->with('status', 'Your profile has been updated.');
     }
 
     // ── Self-registration ─────────────────────────────────────────────────

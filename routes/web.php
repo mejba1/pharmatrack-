@@ -67,6 +67,8 @@ Route::prefix('portal')->name('portal.')->group(function () {
 
     Route::middleware('auth:customer')->group(function () use ($portal) {
         Route::get('/', [$portal, 'dashboard'])->name('dashboard');
+        Route::get('/profile', [$portal, 'editProfile'])->name('profile');
+        Route::post('/profile', [$portal, 'updateProfile'])->name('profile.update');
     });
 });
 
@@ -266,6 +268,9 @@ Route::middleware(['auth', 'module'])->group(function () {
         Route::get('/trace', [CustomerController::class, 'trace'])->name('trace');
         Route::post('/sales', [CustomerController::class, 'storeSale'])->name('sales.store');
         Route::get('/sales/{sale}', [CustomerController::class, 'showSale'])->name('sales.show');
+        // Shared documents (staff → customer portal)
+        Route::post('/{customer}/documents', [CustomerController::class, 'uploadDocument'])->name('documents.store');
+        Route::delete('/documents/{document}', [CustomerController::class, 'destroyDocument'])->name('documents.destroy');
         Route::get('/{customer}', [CustomerController::class, 'show'])->name('show');
         Route::put('/{customer}', [CustomerController::class, 'update'])->name('update');
         Route::delete('/{customer}', [CustomerController::class, 'destroy'])->name('destroy');

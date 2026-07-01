@@ -6,6 +6,7 @@ use App\Models\Batch;
 use App\Models\BatchUnit;
 use App\Models\Country;
 use App\Models\Customer;
+use App\Models\CustomerDocument;
 use App\Models\CustomerSale;
 use App\Models\CustomerSaleItem;
 use App\Models\Product;
@@ -112,7 +113,17 @@ class CustomerController extends Controller
         if (!$request->user()->seesAllData()) {
             unset($data['manager_id']);
         }
+
+        $wasActive = $customer->status === 'active';
         $customer->update($data);
+
+        // Approval: notify the customer when they're activated (e.g. pending -> active).
+        if (! $wasActive && $customer->status === 'active' && $customer->email) {
+            $customer->notify(new \App\Notifications\CustomerApproved());
+
+            return back()->with('success', "Customer '{$customer->name}' activated — approval email sent.");
+        }
+
         return back()->with('success', "Customer '{$customer->name}' updated.");
     }
 
@@ -126,9 +137,42 @@ class CustomerController extends Controller
         return back()->with('success', "Customer '{$name}' removed.");
     }
 
+    // ── Shared documents (staff pick what the customer sees in the portal) ──
+    public function uploadDocument(Request $request, Customer $customer): RedirectResponse
+    {
+        $data = $request->validate([
+            'name'     => 'nullable|string|max:160',
+            'category' => 'nullable|string|max:80',
+            'file'     => 'required|file|mimes:pdf,doc,docx,xls,xlsx,csv,txt,jpg,jpeg,png,webp|max:8192',
+        ]);
+
+        $file = $request->file('file');
+        $path = $file->store("customers/{$customer->id}/docs", 'public');
+
+        $customer->documents()->create([
+            'name'        => $data['name'] ?: $file->getClientOriginalName(),
+            'category'    => $data['category'] ?? null,
+            'file_path'   => $path,
+            'disk'        => 'public',
+            'file_type'   => $file->getClientOriginalExtension(),
+            'file_size'   => $file->getSize(),
+            'uploaded_by' => $request->user()->id,
+        ]);
+
+        return back()->with('success', 'Document shared with the customer.');
+    }
+
+    public function destroyDocument(CustomerDocument $document): RedirectResponse
+    {
+        $document->deleteFile();
+        $document->delete();
+
+        return back()->with('success', 'Shared document removed.');
+    }
+
     public function show(Customer $customer): JsonResponse
     {
-        $customer->load('country', 'manager');
+        $customer->load('country', 'manager', 'documents.uploader');
         $sales = $customer->sales()->with('items.product', 'items.batch')->latest()->limit(50)->get();
         $units = $customer->soldUnits()->with('batch.product')->latest('sold_at')->limit(100)->get();
 
@@ -140,6 +184,17 @@ class CustomerController extends Controller
             'has_login'     => ! empty($customer->password) && ! empty($customer->email),
             'country_name'  => $customer->country?->name,
             'manager_name'  => $customer->manager?->name,
+            'documents'     => $customer->documents->map(fn ($d) => [
+                'id'         => $d->id,
+                'name'       => $d->name,
+                'category'   => $d->category,
+                'size'       => $d->size_human,
+                'date'       => $d->created_at?->format('d M Y'),
+                'url'        => $d->url,
+                'icon'       => $d->icon_class,
+                'by'         => $d->uploader?->name,
+                'delete_url' => route('customers.documents.destroy', $d->id),
+            ]),
             'sales' => $sales->map(fn ($s) => [
                 'id'        => $s->id,
                 'reference' => $s->reference_number,

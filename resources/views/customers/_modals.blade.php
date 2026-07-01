@@ -74,6 +74,45 @@
             </div>
           </div></div>
         </div>
+        {{-- Shared documents (staff pick what the customer sees in their portal) --}}
+        <div class="perm-box mb-3">
+          <div class="d-flex align-items-center mb-2">
+            <div class="text-muted-sm text-uppercase fw-bold" style="font-size:11px">Shared documents — <span x-text="(view?.documents||[]).length"></span></div>
+            <span class="ms-auto text-muted-sm"><i class="bi bi-eye me-1"></i>Visible in the customer's portal</span>
+          </div>
+          @can('customers.create')
+          <form method="POST" :action="'{{ url('customers') }}/' + (view?.id) + '/documents'" enctype="multipart/form-data" class="row g-2 align-items-end mb-3">
+            @csrf
+            <div class="col-md-4"><input type="text" name="name" class="form-control form-control-sm" placeholder="Document name (optional)"></div>
+            <div class="col-md-3"><input type="text" name="category" class="form-control form-control-sm" placeholder="Category (optional)"></div>
+            <div class="col-md-3"><input type="file" name="file" class="form-control form-control-sm" required></div>
+            <div class="col-md-2"><button class="btn btn-primary btn-sm w-100"><i class="bi bi-upload me-1"></i>Share</button></div>
+          </form>
+          @endcan
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <tbody>
+                <template x-for="d in (view?.documents||[])" :key="d.id">
+                  <tr>
+                    <td><i class="bi bi-file-earmark-text me-1" :class="d.icon"></i><a :href="d.url" target="_blank" x-text="d.name"></a></td>
+                    <td class="small text-muted" x-text="d.category || '—'"></td>
+                    <td class="small text-muted" x-text="d.size + ' · ' + d.date"></td>
+                    <td class="text-end">
+                      @can('customers.delete')
+                      <form method="POST" :action="d.delete_url" @submit="return confirm('Remove this shared document?')">
+                        @csrf @method('DELETE')
+                        <button class="btn btn-outline-danger btn-sm btn-icon"><i class="bi bi-trash"></i></button>
+                      </form>
+                      @endcan
+                    </td>
+                  </tr>
+                </template>
+                <tr x-show="!(view?.documents||[]).length"><td colspan="4" class="text-center text-muted py-2">No documents shared yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="perm-box">
           <div class="text-muted-sm text-uppercase fw-bold mb-2" style="font-size:11px">Units purchased (traceable) — <span x-text="(view?.units||[]).length"></span></div>
           <div style="max-height:260px;overflow:auto" class="no-sb">
