@@ -2,7 +2,13 @@
 @section('title', 'My Dashboard')
 
 @section('body')
-<div x-data="{ tab: 'orders' }">
+@php
+  $defaultTab = $portal['portal_show_orders'] ? 'orders'
+    : ($portal['portal_show_invoices'] ? 'invoices'
+    : ($portal['portal_show_documents'] ? 'documents'
+    : ($portal['portal_show_units'] ? 'units' : 'profile')));
+@endphp
+<div x-data="{ tab: '{{ $defaultTab }}' }">
 
   {{-- Topbar --}}
   <nav class="navbar bg-white border-bottom px-3 px-md-4 py-2 sticky-top">
@@ -16,9 +22,9 @@
         @endif
         <div class="lh-1 d-none d-sm-block"><div class="fw-semibold small">{{ $customer->name }}</div><div class="text-muted" style="font-size:11px">{{ $customer->type_label }} · {{ $customer->customer_code }}</div></div>
       </div>
-      <a href="{{ route('portal.order.create') }}" class="btn btn-grad btn-sm rounded-3"><i class="bi bi-cart-plus me-1"></i><span class="d-none d-sm-inline">Place Order</span></a>
+      @if($portal['portal_allow_ordering'])<a href="{{ route('portal.order.create') }}" class="btn btn-grad btn-sm rounded-3"><i class="bi bi-cart-plus me-1"></i><span class="d-none d-sm-inline">Place Order</span></a>@endif
       @include('portal._notifications')
-      <a href="{{ route('portal.profile') }}" class="btn btn-outline-secondary btn-sm rounded-3"><i class="bi bi-gear me-1"></i><span class="d-none d-sm-inline">Profile</span></a>
+      @if($portal['portal_allow_profile_edit'])<a href="{{ route('portal.profile') }}" class="btn btn-outline-secondary btn-sm rounded-3"><i class="bi bi-gear me-1"></i><span class="d-none d-sm-inline">Profile</span></a>@endif
       <form method="POST" action="{{ route('portal.logout') }}">@csrf<button class="btn btn-outline-secondary btn-sm rounded-3"><i class="bi bi-box-arrow-right me-1"></i>Sign out</button></form>
     </div>
   </nav>
@@ -28,6 +34,12 @@
     <div class="text-muted small mb-4">{{ $customer->country?->flag }} {{ $customer->country?->name }}{{ $customer->city ? ', '.$customer->city : '' }}</div>
 
     @if(session('status'))<div class="alert alert-success py-2 small"><i class="bi bi-check-circle me-1"></i>{{ session('status') }}</div>@endif
+    @if(trim($portal['portal_welcome_message']) !== '')
+      <div class="card-soft p-3 mb-4 d-flex flex-row align-items-start gap-2" style="border-left:4px solid var(--brand1)">
+        <i class="bi bi-megaphone-fill" style="color:var(--brand1)"></i>
+        <div class="small">{{ $portal['portal_welcome_message'] }}</div>
+      </div>
+    @endif
 
     {{-- Stats --}}
     <div class="row g-3 mb-4">
@@ -49,18 +61,18 @@
 
     {{-- Tabs --}}
     <div class="d-flex gap-2 mb-3 flex-wrap">
-      <span class="pill" :class="{active: tab==='orders'}" @click="tab='orders'"><i class="bi bi-cart3 me-1"></i>Orders</span>
-      <span class="pill" :class="{active: tab==='invoices'}" @click="tab='invoices'"><i class="bi bi-receipt me-1"></i>Invoices</span>
-      <span class="pill" :class="{active: tab==='documents'}" @click="tab='documents'"><i class="bi bi-folder2-open me-1"></i>Documents</span>
-      <span class="pill" :class="{active: tab==='units'}" @click="tab='units'"><i class="bi bi-upc-scan me-1"></i>Traceable Units</span>
+      @if($portal['portal_show_orders'])<span class="pill" :class="{active: tab==='orders'}" @click="tab='orders'"><i class="bi bi-cart3 me-1"></i>Orders</span>@endif
+      @if($portal['portal_show_invoices'])<span class="pill" :class="{active: tab==='invoices'}" @click="tab='invoices'"><i class="bi bi-receipt me-1"></i>Invoices</span>@endif
+      @if($portal['portal_show_documents'])<span class="pill" :class="{active: tab==='documents'}" @click="tab='documents'"><i class="bi bi-folder2-open me-1"></i>Documents</span>@endif
+      @if($portal['portal_show_units'])<span class="pill" :class="{active: tab==='units'}" @click="tab='units'"><i class="bi bi-upc-scan me-1"></i>Traceable Units</span>@endif
       <span class="pill" :class="{active: tab==='profile'}" @click="tab='profile'"><i class="bi bi-person-badge me-1"></i>Profile</span>
     </div>
 
     {{-- Orders --}}
-    <div class="card-soft p-3 p-md-4" x-show="tab==='orders'" x-cloak>
+    <div class="card-soft p-3 p-md-4" x-show="tab==='orders' && {{ $portal['portal_show_orders'] ? '1' : '0' }}" x-cloak>
       <div class="d-flex align-items-center mb-3">
         <div class="fw-semibold"><i class="bi bi-cart3 me-1" style="color:var(--brand1)"></i>Purchase Orders</div>
-        <a href="{{ route('portal.order.create') }}" class="btn btn-grad btn-sm ms-auto"><i class="bi bi-cart-plus me-1"></i>Place Order</a>
+        @if($portal['portal_allow_ordering'])<a href="{{ route('portal.order.create') }}" class="btn btn-grad btn-sm ms-auto"><i class="bi bi-cart-plus me-1"></i>Place Order</a>@endif
       </div>
       <div class="table-responsive">
         <table class="table table-clean mb-0">
@@ -99,7 +111,7 @@
     </div>
 
     {{-- Invoices --}}
-    <div class="card-soft p-3 p-md-4" x-show="tab==='invoices'" x-cloak>
+    <div class="card-soft p-3 p-md-4" x-show="tab==='invoices' && {{ $portal['portal_show_invoices'] ? '1' : '0' }}" x-cloak>
       <div class="fw-semibold mb-3"><i class="bi bi-receipt me-1" style="color:var(--brand1)"></i>Invoices</div>
       <div class="table-responsive">
         <table class="table table-clean mb-0">
@@ -122,7 +134,7 @@
     </div>
 
     {{-- Documents --}}
-    <div class="card-soft p-3 p-md-4" x-show="tab==='documents'" x-cloak>
+    <div class="card-soft p-3 p-md-4" x-show="tab==='documents' && {{ $portal['portal_show_documents'] ? '1' : '0' }}" x-cloak>
       <div class="fw-semibold mb-3"><i class="bi bi-folder2-open me-1" style="color:var(--brand1)"></i>Documents</div>
       @if($documents->isEmpty())
         <div class="text-center text-muted py-4">No documents shared yet.</div>
@@ -145,7 +157,7 @@
     </div>
 
     {{-- Units --}}
-    <div class="card-soft p-3 p-md-4" x-show="tab==='units'" x-cloak>
+    <div class="card-soft p-3 p-md-4" x-show="tab==='units' && {{ $portal['portal_show_units'] ? '1' : '0' }}" x-cloak>
       <div class="fw-semibold mb-3"><i class="bi bi-upc-scan me-1" style="color:var(--brand1)"></i>My Traceable Units ({{ $units->count() }})</div>
       <div class="table-responsive" style="max-height:420px;overflow:auto">
         <table class="table table-clean mb-0">
@@ -165,7 +177,7 @@
     <div class="card-soft p-3 p-md-4" x-show="tab==='profile'" x-cloak>
       <div class="d-flex align-items-center mb-3">
         <div class="fw-semibold"><i class="bi bi-person-badge me-1" style="color:var(--brand1)"></i>My Profile</div>
-        <a href="{{ route('portal.profile') }}" class="btn btn-grad btn-sm ms-auto"><i class="bi bi-pencil me-1"></i>Edit profile</a>
+        @if($portal['portal_allow_profile_edit'])<a href="{{ route('portal.profile') }}" class="btn btn-grad btn-sm ms-auto"><i class="bi bi-pencil me-1"></i>Edit profile</a>@endif
       </div>
       <div class="row g-4">
         <div class="col-md-6"><table class="table table-clean mb-0">

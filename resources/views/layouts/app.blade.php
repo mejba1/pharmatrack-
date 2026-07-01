@@ -287,6 +287,12 @@
           <span class="nav-icon"><i class="bi bi-box-arrow-up-right"></i></span>
           <span x-show="!sidebarCollapsed">Customer Portal</span>
         </a>
+        @if(auth()->user()->isSuperAdmin())
+        <a href="{{ route('customers.portal-settings') }}" class="nav-item-link {{ request()->routeIs('customers.portal-settings') ? 'active' : '' }}">
+          <span class="nav-icon"><i class="bi bi-sliders"></i></span>
+          <span x-show="!sidebarCollapsed">Portal Settings</span>
+        </a>
+        @endif
       </div>
     </div>
     @endif

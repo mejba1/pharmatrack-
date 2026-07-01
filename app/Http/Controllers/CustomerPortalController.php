@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
 use App\Models\User;
+use App\Support\PortalSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,11 +31,15 @@ class CustomerPortalController extends Controller
             return redirect()->route('portal.dashboard');
         }
 
-        return view('portal.login');
+        return view('portal.login', ['portal' => PortalSettings::all()]);
     }
 
     public function login(Request $request): RedirectResponse
     {
+        if (! PortalSettings::get('portal_enabled')) {
+            return back()->withErrors(['email' => 'The customer portal is temporarily unavailable. Please try again later.']);
+        }
+
         $data = $request->validate([
             'email'    => 'required|email',
             'password' => 'required|string',
@@ -103,12 +108,16 @@ class CustomerPortalController extends Controller
             'documents' => $documents->count(),
         ];
 
-        return view('portal.dashboard', compact('customer', 'orders', 'units', 'invoices', 'documents', 'stats'));
+        $portal = PortalSettings::all();
+
+        return view('portal.dashboard', compact('customer', 'orders', 'units', 'invoices', 'documents', 'stats', 'portal'));
     }
 
     // ── Place an order (creates a Purchase Order) ─────────────────────────
     public function createOrder(): View
     {
+        abort_unless(PortalSettings::get('portal_allow_ordering'), 403, 'Ordering is currently disabled.');
+
         return view('portal.order', [
             'customer' => Auth::guard('customer')->user(),
             'products' => Product::orderBy('name')->get(['id', 'name', 'prn']),
@@ -117,6 +126,8 @@ class CustomerPortalController extends Controller
 
     public function storeOrder(Request $request): RedirectResponse
     {
+        abort_unless(PortalSettings::get('portal_allow_ordering'), 403, 'Ordering is currently disabled.');
+
         $customer = Auth::guard('customer')->user();
 
         $data = $request->validate([
@@ -186,6 +197,8 @@ class CustomerPortalController extends Controller
     // ── Profile self-edit ─────────────────────────────────────────────────
     public function editProfile(): View
     {
+        abort_unless(PortalSettings::get('portal_allow_profile_edit'), 403, 'Profile editing is disabled.');
+
         return view('portal.profile', [
             'customer'  => Auth::guard('customer')->user()->load('country', 'manager'),
             'countries' => Country::orderBy('name')->get(['id', 'name', 'flag']),
@@ -194,6 +207,8 @@ class CustomerPortalController extends Controller
 
     public function updateProfile(Request $request): RedirectResponse
     {
+        abort_unless(PortalSettings::get('portal_allow_profile_edit'), 403, 'Profile editing is disabled.');
+
         $customer = Auth::guard('customer')->user();
 
         $data = $request->validate([
@@ -234,6 +249,10 @@ class CustomerPortalController extends Controller
             return redirect()->route('portal.dashboard');
         }
 
+        if (! PortalSettings::get('portal_allow_registration')) {
+            return redirect()->route('portal.login')->with('status', 'Self-registration is currently closed. Please contact us to open an account.');
+        }
+
         return view('portal.register', [
             'countries' => Country::orderBy('name')->get(['id', 'name', 'flag']),
             'types'     => Customer::TYPES,
@@ -242,6 +261,8 @@ class CustomerPortalController extends Controller
 
     public function register(Request $request): RedirectResponse
     {
+        abort_unless(PortalSettings::get('portal_allow_registration'), 403, 'Self-registration is disabled.');
+
         $data = $request->validate([
             'name'         => 'required|string|max:160',
             'type'         => 'required|in:' . implode(',', array_keys(Customer::TYPES)),

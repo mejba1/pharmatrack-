@@ -269,6 +269,9 @@ Route::middleware(['auth', 'module'])->group(function () {
         Route::get('/', [CustomerController::class, 'index'])->name('index');
         Route::post('/', [CustomerController::class, 'store'])->name('store');
         Route::get('/trace', [CustomerController::class, 'trace'])->name('trace');
+        // Customer portal management (super admin only — gated in controller)
+        Route::get('/portal-settings', [\App\Http\Controllers\PortalSettingsController::class, 'edit'])->name('portal-settings');
+        Route::post('/portal-settings', [\App\Http\Controllers\PortalSettingsController::class, 'update'])->name('portal-settings.update');
         Route::post('/sales', [CustomerController::class, 'storeSale'])->name('sales.store');
         Route::get('/sales/{sale}', [CustomerController::class, 'showSale'])->name('sales.show');
         // Bulk actions + one-click approve

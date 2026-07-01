@@ -3,6 +3,14 @@
 
 @section('form')
 <div class="card-soft p-4 p-md-5">
+  @if(empty($portal['portal_enabled']))
+    <div class="text-center py-4">
+      <i class="bi bi-cone-striped d-block mb-3" style="font-size:34px;color:var(--brand1)"></i>
+      <h5 class="fw-bold">Portal temporarily unavailable</h5>
+      <div class="text-muted small">We're doing some maintenance. Please check back soon.</div>
+      @if(!empty($portal['portal_support_email']))<div class="small mt-3">Need help? <a href="mailto:{{ $portal['portal_support_email'] }}" style="color:var(--brand1)">{{ $portal['portal_support_email'] }}</a></div>@endif
+    </div>
+  @else
   <h4 class="fw-bold mb-1">Welcome back</h4>
   <div class="text-muted small mb-4">Sign in to your customer portal.</div>
 
@@ -26,6 +34,12 @@
     <button class="btn btn-grad w-100 py-2"><i class="bi bi-box-arrow-in-right me-1"></i>Sign in</button>
   </form>
 
+  @if(!empty($portal['portal_allow_registration']))
   <div class="text-center small text-muted mt-4">New customer? <a href="{{ route('portal.register') }}" class="fw-semibold" style="color:var(--brand1)">Create an account</a></div>
+  @endif
+  @if(!empty($portal['portal_support_email']))
+  <div class="text-center small text-muted mt-2">Need help? <a href="mailto:{{ $portal['portal_support_email'] }}" style="color:var(--brand1)">{{ $portal['portal_support_email'] }}</a></div>
+  @endif
+  @endif
 </div>
 @endsection
