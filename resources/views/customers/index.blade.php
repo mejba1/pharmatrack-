@@ -31,6 +31,15 @@
     <div class="col-6 col-lg-3"><div class="stat-card stat-danger"><div class="stat-label">Units sold</div><div class="stat-value">{{ $stats['units_sold'] }}</div></div></div>
   </div>
 
+  {{-- Pending-approval alert (new self-registrations) --}}
+  @if(($stats['pending'] ?? 0) > 0 && $filters['status'] !== 'pending')
+    <div class="alert alert-warning d-flex align-items-center py-2 mb-3">
+      <i class="bi bi-person-exclamation me-2 fs-5"></i>
+      <span><strong>{{ $stats['pending'] }}</strong> customer{{ $stats['pending'] === 1 ? '' : 's' }} awaiting approval.</span>
+      <a href="{{ route('customers.index', ['status' => 'pending']) }}" class="btn btn-warning btn-sm ms-auto"><i class="bi bi-eye me-1"></i>Review pending</a>
+    </div>
+  @endif
+
   {{-- Filters --}}
   <div class="card mb-3"><div class="card-body">
     <form method="GET" class="row g-2 align-items-end">
@@ -68,13 +77,29 @@
     </form>
   </div></div>
 
+  {{-- Bulk actions bar --}}
+  @can('customers.edit')
+  <form method="POST" action="{{ route('customers.bulk') }}" x-show="selected.length" x-cloak
+        @submit="return confirm('Apply to '+selected.length+' customer(s)?')" class="card mb-2 border-primary">
+    <div class="card-body py-2 d-flex align-items-center gap-2 flex-wrap">
+      @csrf
+      <template x-for="id in selected" :key="id"><input type="hidden" name="ids[]" :value="id"></template>
+      <span class="fw-semibold small"><span x-text="selected.length"></span> selected</span>
+      <button name="action" value="approve" class="btn btn-success btn-sm ms-2"><i class="bi bi-check2-circle me-1"></i>Approve &amp; activate</button>
+      <button name="action" value="suspend" class="btn btn-outline-warning btn-sm"><i class="bi bi-pause-circle me-1"></i>Suspend</button>
+      <button type="button" class="btn btn-link btn-sm text-muted ms-auto" @click="selected=[]">Clear selection</button>
+    </div>
+  </form>
+  @endcan
+
   {{-- Table --}}
   <div class="card"><div class="card-body p-0"><div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
-      <thead><tr><th>Code</th><th>Customer</th><th>Type</th><th>Country</th>@if($isAdmin)<th>Account Manager</th>@endif<th>Contact</th><th class="text-center">Sales</th><th class="text-center">Units</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+      <thead><tr>@can('customers.edit')<th style="width:34px"><input type="checkbox" class="form-check-input" @change="toggleAll($event.target.checked)" :checked="allSelected"></th>@endcan<th>Code</th><th>Customer</th><th>Type</th><th>Country</th>@if($isAdmin)<th>Account Manager</th>@endif<th>Contact</th><th class="text-center">Sales</th><th class="text-center">Units</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
       <tbody>
         @forelse($customers as $c)
           <tr>
+            @can('customers.edit')<td><input type="checkbox" class="form-check-input" value="{{ $c->id }}" x-model="selected"></td>@endcan
             <td class="font-monospace small">{{ $c->customer_code ?? '—' }}</td>
             <td class="fw-semibold">
               <div class="d-flex align-items-center gap-2">
@@ -120,7 +145,7 @@
             </td>
           </tr>
         @empty
-          <tr><td colspan="{{ $isAdmin ? 10 : 9 }}" class="text-center text-muted py-4">No customers yet. Click <strong>Add Customer</strong> to start.</td></tr>
+          <tr><td colspan="{{ ($isAdmin ? 10 : 9) + (auth()->user()->can('customers.edit') ? 1 : 0) }}" class="text-center text-muted py-4">No customers yet. Click <strong>Add Customer</strong> to start.</td></tr>
         @endforelse
       </tbody>
     </table>
@@ -137,6 +162,10 @@
   function customersApp(batches){
     return {
       batches: batches || [],
+      selected: [],
+      allIds: @js($customers->pluck('id')->map(fn ($i) => (string) $i)->values()),
+      get allSelected(){ return this.allIds.length > 0 && this.selected.length === this.allIds.length; },
+      toggleAll(checked){ this.selected = checked ? [...this.allIds] : []; },
       showAdd:false, showEdit:false, showView:false, showSale:false,
       addUrl: '{{ route('customers.store') }}',
       saleUrl: '{{ route('customers.sales.store') }}',

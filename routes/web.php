@@ -269,7 +269,8 @@ Route::middleware(['auth', 'module'])->group(function () {
         Route::get('/trace', [CustomerController::class, 'trace'])->name('trace');
         Route::post('/sales', [CustomerController::class, 'storeSale'])->name('sales.store');
         Route::get('/sales/{sale}', [CustomerController::class, 'showSale'])->name('sales.show');
-        // One-click approve a pending customer
+        // Bulk actions + one-click approve
+        Route::post('/bulk', [CustomerController::class, 'bulkAction'])->name('bulk');
         Route::post('/{customer}/approve', [CustomerController::class, 'approve'])->name('approve');
         // Shared documents (staff → customer portal)
         Route::post('/{customer}/documents', [CustomerController::class, 'uploadDocument'])->name('documents.store');

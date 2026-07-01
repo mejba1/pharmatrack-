@@ -70,6 +70,7 @@ class CustomerController extends Controller
         $stats = [
             'customers'  => $scoped(Customer::query())->count(),
             'active'     => $scoped(Customer::where('status', 'active'))->count(),
+            'pending'    => $scoped(Customer::where('status', 'pending'))->count(),
             'sales'      => CustomerSale::when($mine, fn ($q) => $q->whereHas('customer', fn ($c) => $c->where('manager_id', $uid)))->count(),
             'units_sold' => BatchUnit::whereNotNull('sold_to_id')
                 ->when($mine, fn ($q) => $q->whereHas('soldTo', fn ($c) => $c->where('manager_id', $uid)))->count(),
@@ -144,6 +145,44 @@ class CustomerController extends Controller
         }
 
         return back()->with('success', "'{$customer->name}' approved and notified.");
+    }
+
+    /** Bulk approve/suspend selected customers from the Directory. */
+    public function bulkAction(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->can('customers.edit'), 403);
+
+        $data = $request->validate([
+            'action' => 'required|in:approve,suspend',
+            'ids'    => 'required|array|min:1',
+            'ids.*'  => 'integer',
+        ]);
+
+        $query = Customer::whereIn('id', $data['ids']);
+        if (! $request->user()->canViewAll('customers')) {
+            $query->where('manager_id', $request->user()->id);   // managers act only on their own
+        }
+
+        $n = 0;
+        foreach ($query->get() as $customer) {
+            if ($data['action'] === 'approve') {
+                if ($customer->status !== 'active') {
+                    $customer->update(['status' => 'active']);
+                    $customer->notifyPortal('approved', 'Account approved', 'Your account is now active. Welcome to PharmaTrack!', 'bi-check-circle');
+                    if ($customer->email) {
+                        $customer->notify(new \App\Notifications\CustomerApproved());
+                    }
+                    $n++;
+                }
+            } elseif ($customer->status !== 'suspended') {
+                $customer->update(['status' => 'suspended']);
+                $n++;
+            }
+        }
+
+        $verb = $data['action'] === 'approve' ? 'approved' : 'suspended';
+
+        return back()->with('success', $n . ' customer(s) ' . $verb . '.');
     }
 
     public function destroy(Customer $customer): RedirectResponse
