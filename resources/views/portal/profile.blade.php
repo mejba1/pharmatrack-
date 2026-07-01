@@ -5,6 +5,7 @@
 <nav class="navbar bg-white border-bottom px-3 px-md-4 py-2 sticky-top">
   <a href="{{ route('portal.dashboard') }}" class="brand fs-5 text-decoration-none">Pharma<span>Track</span> <span class="text-muted fs-6 fw-normal ms-1">Portal</span></a>
   <div class="ms-auto d-flex align-items-center gap-2">
+    @include('portal._notifications')
     <a href="{{ route('portal.dashboard') }}" class="btn btn-outline-secondary btn-sm rounded-3"><i class="bi bi-arrow-left me-1"></i>Dashboard</a>
     <form method="POST" action="{{ route('portal.logout') }}">@csrf<button class="btn btn-outline-secondary btn-sm rounded-3"><i class="bi bi-box-arrow-right me-1"></i>Sign out</button></form>
   </div>

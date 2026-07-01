@@ -127,6 +127,25 @@ class CustomerController extends Controller
         return back()->with('success', "Customer '{$customer->name}' updated.");
     }
 
+    /** One-click approve: activate a pending customer and notify them. */
+    public function approve(Request $request, Customer $customer): RedirectResponse
+    {
+        abort_unless($request->user()->can('customers.edit'), 403);
+
+        if ($customer->status === 'active') {
+            return back()->with('warning', "'{$customer->name}' is already active.");
+        }
+
+        $customer->update(['status' => 'active']);
+        $customer->notifyPortal('approved', 'Account approved', 'Your account is now active. Welcome to PharmaTrack!', 'bi-check-circle');
+
+        if ($customer->email) {
+            $customer->notify(new \App\Notifications\CustomerApproved());
+        }
+
+        return back()->with('success', "'{$customer->name}' approved and notified.");
+    }
+
     public function destroy(Customer $customer): RedirectResponse
     {
         if ($customer->sales()->exists()) {
@@ -149,7 +168,7 @@ class CustomerController extends Controller
         $file = $request->file('file');
         $path = $file->store("customers/{$customer->id}/docs", 'public');
 
-        $customer->documents()->create([
+        $document = $customer->documents()->create([
             'name'        => $data['name'] ?: $file->getClientOriginalName(),
             'category'    => $data['category'] ?? null,
             'file_path'   => $path,
@@ -159,7 +178,12 @@ class CustomerController extends Controller
             'uploaded_by' => $request->user()->id,
         ]);
 
-        return back()->with('success', 'Document shared with the customer.');
+        $customer->notifyPortal('document', 'New document shared', $document->name, 'bi-file-earmark-text');
+        if ($customer->email) {
+            $customer->notify(new \App\Notifications\CustomerDocumentShared($document));
+        }
+
+        return back()->with('success', 'Document shared with the customer' . ($customer->email ? ' and they were notified.' : '.'));
     }
 
     public function destroyDocument(CustomerDocument $document): RedirectResponse

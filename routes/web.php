@@ -69,6 +69,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/', [$portal, 'dashboard'])->name('dashboard');
         Route::get('/profile', [$portal, 'editProfile'])->name('profile');
         Route::post('/profile', [$portal, 'updateProfile'])->name('profile.update');
+        Route::post('/notifications/read', [$portal, 'markNotificationsRead'])->name('notifications.read');
     });
 });
 
@@ -268,6 +269,8 @@ Route::middleware(['auth', 'module'])->group(function () {
         Route::get('/trace', [CustomerController::class, 'trace'])->name('trace');
         Route::post('/sales', [CustomerController::class, 'storeSale'])->name('sales.store');
         Route::get('/sales/{sale}', [CustomerController::class, 'showSale'])->name('sales.show');
+        // One-click approve a pending customer
+        Route::post('/{customer}/approve', [CustomerController::class, 'approve'])->name('approve');
         // Shared documents (staff → customer portal)
         Route::post('/{customer}/documents', [CustomerController::class, 'uploadDocument'])->name('documents.store');
         Route::delete('/documents/{document}', [CustomerController::class, 'destroyDocument'])->name('documents.destroy');

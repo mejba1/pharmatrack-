@@ -99,6 +99,14 @@ class CustomerPortalController extends Controller
         return view('portal.dashboard', compact('customer', 'orders', 'units', 'invoices', 'documents', 'stats'));
     }
 
+    // ── In-app notifications ──────────────────────────────────────────────
+    public function markNotificationsRead(): RedirectResponse
+    {
+        Auth::guard('customer')->user()->portalNotifications()->whereNull('read_at')->update(['read_at' => now()]);
+
+        return back();
+    }
+
     // ── Profile self-edit ─────────────────────────────────────────────────
     public function editProfile(): View
     {

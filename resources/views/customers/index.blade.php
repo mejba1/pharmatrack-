@@ -99,6 +99,13 @@
             <td><span class="badge-status {{ $c->status_badge_class }}">{{ ucfirst($c->status) }}</span></td>
             <td class="text-end">
               <div class="d-inline-flex gap-1">
+                @can('customers.edit')
+                @if($c->status !== 'active')
+                <form method="POST" action="{{ route('customers.approve', $c) }}" @submit="return confirm('Approve {{ addslashes($c->name) }}? They will be activated and emailed.')">
+                  @csrf<button class="btn btn-success btn-sm btn-icon" title="Approve &amp; activate"><i class="bi bi-check2-circle"></i></button>
+                </form>
+                @endif
+                @endcan
                 <button class="btn btn-outline-primary btn-sm btn-icon" title="View" @click="openView({{ $c->id }})"><i class="bi bi-eye"></i></button>
                 @can('customers.edit')<button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ Illuminate\Support\Js::from([
                   'id'=>$c->id,'name'=>$c->name,'type'=>$c->type,'email'=>$c->email,'phone'=>$c->phone,

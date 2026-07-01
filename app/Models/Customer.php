@@ -59,6 +59,13 @@ class Customer extends Authenticatable
     public function soldUnits()  { return $this->hasMany(BatchUnit::class, 'sold_to_id'); }
     public function purchaseOrders() { return $this->hasMany(PurchaseOrder::class, 'buyer_id'); }
     public function documents()      { return $this->hasMany(CustomerDocument::class)->latest(); }
+    public function portalNotifications() { return $this->hasMany(CustomerNotification::class)->latest(); }
+
+    /** Create an in-app portal notification for this customer. */
+    public function notifyPortal(string $type, string $title, ?string $message = null, string $icon = 'bi-bell'): void
+    {
+        $this->portalNotifications()->create(compact('type', 'title', 'message', 'icon'));
+    }
 
     /** Send the customer-portal password-reset email (portal reset URL). */
     public function sendPasswordResetNotification($token): void
