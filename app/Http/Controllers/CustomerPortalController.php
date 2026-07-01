@@ -4,9 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Country;
 use App\Models\Customer;
+use App\Models\Product;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderLine;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -99,6 +104,75 @@ class CustomerPortalController extends Controller
         return view('portal.dashboard', compact('customer', 'orders', 'units', 'invoices', 'documents', 'stats'));
     }
 
+    // ── Place an order (creates a Purchase Order) ─────────────────────────
+    public function createOrder(): View
+    {
+        return view('portal.order', [
+            'customer' => Auth::guard('customer')->user(),
+            'products' => Product::orderBy('name')->get(['id', 'name', 'prn']),
+        ]);
+    }
+
+    public function storeOrder(Request $request): RedirectResponse
+    {
+        $customer = Auth::guard('customer')->user();
+
+        $data = $request->validate([
+            'required_by_date'   => 'nullable|date|after_or_equal:today',
+            'remarks'            => 'nullable|string|max:2000',
+            'items'              => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity'   => 'required|integer|min:1',
+        ]);
+
+        // Attribute to the customer's account manager, else any super admin.
+        $createdBy = $customer->manager_id ?: User::where('role', 'super_admin')->value('id');
+
+        $po = DB::transaction(function () use ($data, $customer, $createdBy) {
+            $po = PurchaseOrder::create([
+                'po_number'        => PurchaseOrder::nextNumber(),
+                'buyer_id'         => $customer->id,
+                'created_by'       => $createdBy,
+                'po_date'          => now()->toDateString(),
+                'required_by_date' => $data['required_by_date'] ?? now()->addDays(30)->toDateString(),
+                'currency'         => 'USD',
+                'payment_terms'    => '30 days net',
+                'status'           => 'sent',   // submitted to us by the customer
+                'freight'          => 0,
+                'remarks'          => $data['remarks'] ?? null,
+                'subtotal'         => 0,
+                'total_value'      => 0,
+            ]);
+
+            foreach (array_values($data['items']) as $n => $item) {
+                PurchaseOrderLine::create([
+                    'purchase_order_id' => $po->id,
+                    'product_id'        => $item['product_id'],
+                    'line_number'       => $n + 1,
+                    'quantity'          => (int) $item['quantity'],
+                    'unit_price'        => 0,   // to be quoted by staff
+                    'line_total'        => 0,
+                ]);
+            }
+
+            return $po;
+        });
+
+        // Notify staff (customer's manager + super admins) and the customer.
+        \App\Models\Notification::pushToAdmins([
+            'type'         => 'customer_order',
+            'severity'     => 'info',
+            'title'        => 'New order from customer',
+            'message'      => "{$customer->name} placed order {$po->po_number} (" . count($data['items']) . ' line item(s)).',
+            'action_url'   => route('orders.po'),
+            'action_label' => 'View',
+        ], array_filter([$customer->manager_id]));
+
+        $customer->notifyPortal('order', 'Order submitted', "Your order {$po->po_number} was received. We'll confirm pricing shortly.", 'bi-cart-check');
+
+        return redirect()->route('portal.dashboard')->with('status', "Order {$po->po_number} placed — we'll be in touch with a quote.");
+    }
+
     // ── In-app notifications ──────────────────────────────────────────────
     public function markNotificationsRead(): RedirectResponse
     {
@@ -177,10 +251,20 @@ class CustomerPortalController extends Controller
             'password'     => ['required', 'confirmed', PasswordRule::min(8)],
         ]);
 
-        Customer::create([
+        $customer = Customer::create([
             ...$data,
             'customer_code' => Customer::nextCode(),
             'status'        => 'pending',   // awaits staff approval before login
+        ]);
+
+        // Alert staff (super admins) that a new customer needs approval.
+        \App\Models\Notification::pushToAdmins([
+            'type'         => 'customer_registration',
+            'severity'     => 'info',
+            'title'        => 'New customer registration',
+            'message'      => "{$customer->name} ({$customer->type_label}) registered and awaits approval.",
+            'action_url'   => route('customers.index', ['status' => 'pending']),
+            'action_label' => 'Review',
         ]);
 
         return redirect()->route('portal.login')

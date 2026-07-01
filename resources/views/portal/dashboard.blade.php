@@ -16,6 +16,7 @@
         @endif
         <div class="lh-1 d-none d-sm-block"><div class="fw-semibold small">{{ $customer->name }}</div><div class="text-muted" style="font-size:11px">{{ $customer->type_label }} · {{ $customer->customer_code }}</div></div>
       </div>
+      <a href="{{ route('portal.order.create') }}" class="btn btn-grad btn-sm rounded-3"><i class="bi bi-cart-plus me-1"></i><span class="d-none d-sm-inline">Place Order</span></a>
       @include('portal._notifications')
       <a href="{{ route('portal.profile') }}" class="btn btn-outline-secondary btn-sm rounded-3"><i class="bi bi-gear me-1"></i><span class="d-none d-sm-inline">Profile</span></a>
       <form method="POST" action="{{ route('portal.logout') }}">@csrf<button class="btn btn-outline-secondary btn-sm rounded-3"><i class="bi bi-box-arrow-right me-1"></i>Sign out</button></form>
@@ -25,6 +26,8 @@
   <div class="container-xl py-4">
     <h4 class="fw-bold mb-1">Welcome back, {{ $customer->name }} 👋</h4>
     <div class="text-muted small mb-4">{{ $customer->country?->flag }} {{ $customer->country?->name }}{{ $customer->city ? ', '.$customer->city : '' }}</div>
+
+    @if(session('status'))<div class="alert alert-success py-2 small"><i class="bi bi-check-circle me-1"></i>{{ session('status') }}</div>@endif
 
     {{-- Stats --}}
     <div class="row g-3 mb-4">
@@ -55,7 +58,10 @@
 
     {{-- Orders --}}
     <div class="card-soft p-3 p-md-4" x-show="tab==='orders'" x-cloak>
-      <div class="fw-semibold mb-3"><i class="bi bi-cart3 me-1" style="color:var(--brand1)"></i>Purchase Orders</div>
+      <div class="d-flex align-items-center mb-3">
+        <div class="fw-semibold"><i class="bi bi-cart3 me-1" style="color:var(--brand1)"></i>Purchase Orders</div>
+        <a href="{{ route('portal.order.create') }}" class="btn btn-grad btn-sm ms-auto"><i class="bi bi-cart-plus me-1"></i>Place Order</a>
+      </div>
       <div class="table-responsive">
         <table class="table table-clean mb-0">
           <thead><tr><th>PO #</th><th>Date</th><th>Items</th><th>Status</th><th class="text-end">Value</th></tr></thead>

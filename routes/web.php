@@ -69,6 +69,8 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/', [$portal, 'dashboard'])->name('dashboard');
         Route::get('/profile', [$portal, 'editProfile'])->name('profile');
         Route::post('/profile', [$portal, 'updateProfile'])->name('profile.update');
+        Route::get('/order', [$portal, 'createOrder'])->name('order.create');
+        Route::post('/order', [$portal, 'storeOrder'])->name('order.store');
         Route::post('/notifications/read', [$portal, 'markNotificationsRead'])->name('notifications.read');
     });
 });
@@ -291,9 +293,10 @@ Route::middleware(['auth', 'module'])->group(function () {
     Route::get('/reports/export/pdf', [\App\Http\Controllers\ReportController::class, 'pdf'])->name('reports.pdf');
 
     // ── Notifications ─────────────────────────────────────────────────────
-    Route::get('/notifications', function () {
-        return view('notifications');
-    })->name('notifications');
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications');
+    Route::post('/notifications/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::post('/notifications/{notification}/read', [\App\Http\Controllers\NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('/notifications/{notification}/dismiss', [\App\Http\Controllers\NotificationController::class, 'dismiss'])->name('notifications.dismiss');
 
     // ── Users & Roles (Spatie role-based access) ──────────────────────────
     // 1) Create Role — name-only CRUD

@@ -30,7 +30,15 @@
 
   <nav class="sidebar-nav">
 
-    @php $can = fn (string $k) => optional(auth()->user())->canModule($k); @endphp
+    @php
+      $can = fn (string $k) => optional(auth()->user())->canModule($k);
+      $bellNotifs = auth()->check()
+        ? \App\Models\Notification::where('user_id', auth()->id())->where('is_dismissed', false)->latest()->limit(12)->get()
+        : collect();
+      $bellUnread = auth()->check()
+        ? \App\Models\Notification::where('user_id', auth()->id())->where('is_dismissed', false)->where('is_read', false)->count()
+        : 0;
+    @endphp
     {{-- Main --}}
     <div class="sidebar-section-label" x-show="!sidebarCollapsed">Main</div>
     <a href="{{ route('dashboard') }}" class="nav-item-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
@@ -312,7 +320,7 @@
     <a href="{{ route('notifications') }}" class="nav-item-link {{ request()->routeIs('notifications') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-bell"></i></span>
       <span x-show="!sidebarCollapsed">Notifications</span>
-      <span class="nav-badge" x-show="!sidebarCollapsed && unreadCount > 0" x-text="unreadCount"></span>
+      @if($bellUnread)<span class="nav-badge" x-show="!sidebarCollapsed">{{ $bellUnread }}</span>@endif
     </a>
     @endif
     @if($can('users'))
@@ -371,31 +379,37 @@
     <div class="position-relative" @click.outside="showNotifPanel=false">
       <button class="topbar-btn" @click="showNotifPanel=!showNotifPanel">
         <i class="bi bi-bell"></i>
-        <span class="badge-dot" x-show="unreadCount>0"></span>
+        @if($bellUnread)<span class="badge-dot"></span>@endif
       </button>
-      <div x-show="showNotifPanel" x-transition
+      <div x-show="showNotifPanel" x-transition x-cloak
            class="position-absolute end-0 mt-2 rounded-3 shadow-lg topbar-dropdown"
-           style="width:320px;z-index:1050;top:100%">
+           style="width:340px;z-index:1050;top:100%">
         <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
           <span class="fw-semibold" style="font-size:14px">
             Notifications
-            <span class="badge bg-danger rounded-pill ms-1" x-text="unreadCount" x-show="unreadCount>0"></span>
+            @if($bellUnread)<span class="badge bg-danger rounded-pill ms-1">{{ $bellUnread }}</span>@endif
           </span>
-          <button class="btn btn-link btn-sm p-0 text-primary" style="font-size:12px" @click="markAllRead()">Mark all read</button>
+          @if($bellUnread)
+          <form method="POST" action="{{ route('notifications.read-all') }}">@csrf<button class="btn btn-link btn-sm p-0 text-primary" style="font-size:12px">Mark all read</button></form>
+          @endif
         </div>
-        <div style="max-height:300px;overflow-y:auto">
-          <template x-for="n in notifications" :key="n.id">
-            <div class="px-3 py-2 border-bottom d-flex gap-2 cursor-pointer"
-                 :class="n.read?'':'bg-light-primary'" @click="n.read=true">
-              <i :class="n.icon" class="mt-1 flex-shrink-0" style="font-size:14px"></i>
+        <div style="max-height:320px;overflow-y:auto">
+          @forelse($bellNotifs as $n)
+            <a href="{{ $n->action_url ? route('notifications.read', $n) : route('notifications') }}"
+               @if($n->action_url) onclick="event.preventDefault(); this.querySelector('form').submit();" @endif
+               class="px-3 py-2 border-bottom d-flex gap-2 text-body text-decoration-none {{ $n->is_read ? '' : 'bg-light-primary' }}">
+              @if($n->action_url)<form method="POST" action="{{ route('notifications.read', $n) }}" class="d-none">@csrf</form>@endif
+              <i class="bi {{ $n->icon }} mt-1 flex-shrink-0" style="font-size:15px"></i>
               <div style="min-width:0">
-                <div style="font-size:12px;line-height:1.4" x-text="n.message"></div>
-                <div style="font-size:11px;color:#adb5bd" x-text="n.time"></div>
+                <div style="font-size:12px;font-weight:600;line-height:1.3">{{ $n->title }}</div>
+                <div style="font-size:12px;line-height:1.4;color:#6c757d">{{ $n->message }}</div>
+                <div style="font-size:11px;color:#adb5bd">{{ $n->created_at->diffForHumans() }}</div>
               </div>
-              <span x-show="!n.read" class="ms-auto mt-1 flex-shrink-0"
-                    style="width:7px;height:7px;background:#0d6efd;border-radius:50%"></span>
-            </div>
-          </template>
+              @unless($n->is_read)<span class="ms-auto mt-1 flex-shrink-0" style="width:7px;height:7px;background:#0d6efd;border-radius:50%"></span>@endunless
+            </a>
+          @empty
+            <div class="px-3 py-5 text-center text-muted" style="font-size:12px"><i class="bi bi-bell-slash d-block mb-2 fs-4"></i>No notifications</div>
+          @endforelse
         </div>
         <div class="text-center p-2 border-top">
           <a href="{{ route('notifications') }}" class="text-primary text-decoration-none" style="font-size:12px">View all notifications</a>
