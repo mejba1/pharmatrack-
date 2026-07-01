@@ -51,6 +51,8 @@ class PurchaseOrder extends Model
             'pi'        => (bool) $pi,
             'ci'        => $ciCount > 0,
             'ci_count'  => $ciCount,
+            'so_id'     => $so?->id,
+            'pi_id'     => $pi?->id,
             'so_status' => $so?->status,
             'pi_status' => $pi?->status,
             'stage'     => $ciCount > 0 ? 'CI' : ($pi ? 'PI' : ($so ? 'SO' : 'PO')),

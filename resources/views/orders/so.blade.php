@@ -84,13 +84,18 @@ function soPage(sos, ackPos, batches){
     form: { purchase_order_id:'', so_date:'{{ now()->format('Y-m-d') }}', incoterms:'', payment_terms:'', estimated_delivery_date:'', status:'confirmed', remarks:'', lines:[] },
 
     init(){
+      const q = new URLSearchParams(location.search);
       // Deep-link from a PO: /sales-orders?po={id} opens the create modal preselected.
-      const po = new URLSearchParams(location.search).get('po');
+      const po = q.get('po');
       if (po && this.ackPos.some(p => String(p.id) === String(po))) {
         this.openCreate();
         this.form.purchase_order_id = po;
         this.onPickPo();
+        return;
       }
+      // Drill-down: /sales-orders?view={id} opens that SO's detail modal.
+      const view = q.get('view');
+      if (view) { const so = this.sos.find(s => String(s.pid) === String(view)); if (so) this.viewSO(so); }
     },
 
     get filtered(){

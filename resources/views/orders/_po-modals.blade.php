@@ -42,6 +42,15 @@
           <div class="text-muted-sm mt-2" x-show="(selectedPO?.chain?.step||1) < 4">
             Next step: <span class="fw-semibold" x-text="({1:'Acknowledge, then create Sales Order',2:'Issue Proforma Invoice',3:'Raise Commercial Invoice'})[selectedPO?.chain?.step] || ''"></span>
           </div>
+          @if(auth()->user()->isSuperAdmin())
+          {{-- Super-admin drill-down to the linked documents --}}
+          <div class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top" x-show="selectedPO?.chain?.so">
+            <span class="text-muted-sm align-self-center">Open:</span>
+            <a :href="'{{ route('orders.so') }}?view=' + selectedPO?.chain?.so_id" class="btn btn-outline-primary btn-sm" x-show="selectedPO?.chain?.so_id"><i class="bi bi-box-arrow-up-right me-1"></i>Sales Order</a>
+            <a :href="'{{ route('orders.pi') }}?view=' + selectedPO?.chain?.pi_id" class="btn btn-outline-primary btn-sm" x-show="selectedPO?.chain?.pi_id"><i class="bi bi-box-arrow-up-right me-1"></i>Proforma Invoice</a>
+            <a href="{{ route('orders.ci') }}" class="btn btn-outline-primary btn-sm" x-show="selectedPO?.chain?.ci"><i class="bi bi-box-arrow-up-right me-1"></i>Commercial Invoices<span x-show="(selectedPO?.chain?.ci_count||0)>1" x-text="' ×'+selectedPO?.chain?.ci_count"></span></a>
+          </div>
+          @endif
         </div>
         <div class="row g-3">
           <div class="col-md-6"><div class="p-3 border rounded-3"><div class="text-muted-sm mb-2 fw-semibold">BUYER</div><div class="fw-semibold" x-text="selectedPO?.buyer"></div><div class="text-muted-sm" x-text="selectedPO?.country"></div></div></div>
