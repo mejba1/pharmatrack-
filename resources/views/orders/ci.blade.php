@@ -75,6 +75,16 @@ function ciPage(cis, approvedPis){
     ciTpl: '{{ url('orders/commercial-invoices') }}/__ID__',
     form: { proforma_invoice_id:'', ci_date:'{{ now()->format('Y-m-d') }}', hs_code:'', country_of_origin:'US', incoterms:'', port_of_loading:'', port_of_discharge:'', freight:'', insurance:'', status:'pending_approval', remarks:'', lines:[] },
 
+    init(){
+      // Deep-link from a PI: /commercial-invoices?pi={id} opens the create modal preselected.
+      const pi = new URLSearchParams(location.search).get('pi');
+      if (pi && this.approvedPis.some(p => String(p.id) === String(pi))) {
+        this.openCreate();
+        this.form.proforma_invoice_id = pi;
+        this.onPickPi();
+      }
+    },
+
     get filtered(){
       return this.cis.filter(c => { const q=this.search.toLowerCase();
         return (!q || c.id.toLowerCase().includes(q) || (c.customer||'').toLowerCase().includes(q)) && (!this.filterStatus || c.status === this.filterStatus); });

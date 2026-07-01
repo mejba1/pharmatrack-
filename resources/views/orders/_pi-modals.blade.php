@@ -53,7 +53,7 @@
         <a :href="pdfUrl(selectedPI)" class="btn btn-outline-danger btn-sm"><i class="bi bi-file-pdf me-1"></i>PDF</a>
         <form method="POST" :action="statusUrl()" x-show="selectedPI?.status==='Draft' || selectedPI?.status==='Rejected'">@csrf<input type="hidden" name="action" value="send"><button class="btn btn-warning btn-sm"><i class="bi bi-send me-1"></i>Send to Finance</button></form>
         <form method="POST" :action="statusUrl()" x-show="selectedPI?.status==='Pending approval'" @submit="return confirm('Approve this PI?')">@csrf<input type="hidden" name="action" value="approve"><button class="btn btn-success btn-sm"><i class="bi bi-check2 me-1"></i>Approve PI</button></form>
-        <a href="{{ route('orders.ci') }}" class="btn btn-primary btn-sm" x-show="selectedPI?.status==='Approved'"><i class="bi bi-file-earmark-check me-1"></i>Raise Commercial Invoice</a>
+        <a :href="'{{ route('orders.ci') }}?pi=' + selectedPI?.pid" class="btn btn-primary btn-sm" x-show="selectedPI?.status==='Approved'"><i class="bi bi-file-earmark-check me-1"></i>Raise Commercial Invoice</a>
       </div>
     </div>
   </div>
