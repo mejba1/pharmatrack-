@@ -31,6 +31,50 @@ class CommercialInvoice extends Model
     public function approver()        { return $this->belongsTo(User::class, 'approved_by'); }
     public function lines()           { return $this->hasMany(CommercialInvoiceLine::class)->orderBy('line_number'); }
     public function documents()       { return $this->morphMany(OrderDocument::class, 'documentable')->where('is_active', true)->latest(); }
+    public function payments()        { return $this->hasMany(InvoicePayment::class)->latest('paid_on'); }
+
+    // ── Accounting: discount / paid / due / status ──────────────────────────
+    /** Sum of per-product discounts on this invoice. */
+    public function getDiscountTotalAttribute(): float
+    {
+        return (float) $this->lines->sum('discount_amount');
+    }
+
+    /** Net amount the customer owes. total_value is already net of product discounts. */
+    public function getPayableAmountAttribute(): float
+    {
+        return max(0, (float) $this->total_value);
+    }
+
+    /** Gross (pre-discount) line subtotal, for display. */
+    public function getGrossSubtotalAttribute(): float
+    {
+        return (float) $this->subtotal;
+    }
+
+    /** Total received against this invoice. */
+    public function getPaidAmountAttribute(): float
+    {
+        return (float) $this->payments->sum('amount');
+    }
+
+    /** Outstanding balance (never below zero). */
+    public function getDueAmountAttribute(): float
+    {
+        return max(0, $this->payable_amount - $this->paid_amount);
+    }
+
+    /** paid | partial | unpaid. */
+    public function getPaymentStatusAttribute(): string
+    {
+        if ($this->payable_amount <= 0 || $this->paid_amount <= 0) return 'unpaid';
+        return $this->paid_amount + 0.001 >= $this->payable_amount ? 'paid' : 'partial';
+    }
+
+    public function getPaymentStatusLabelAttribute(): string
+    {
+        return ucfirst($this->payment_status);
+    }
 
     public function getStatusBadgeClassAttribute(): string
     {

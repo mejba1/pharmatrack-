@@ -8,6 +8,8 @@
       </div>
       <div class="modal-doc-tabs">
         <button :class="{active: viewTab==='details'}" @click="viewTab='details'"><i class="bi bi-file-text"></i>Invoice Details</button>
+        <button :class="{active: viewTab==='payments'}" @click="viewTab='payments'"><i class="bi bi-cash-coin"></i>Payments
+          <span class="badge bg-success rounded-pill py-0 px-1" style="font-size:10px" x-show="(selectedCI?.payments||[]).length>0" x-text="(selectedCI?.payments||[]).length"></span></button>
         <button :class="{active: viewTab==='docs'}" @click="viewTab='docs'"><i class="bi bi-paperclip"></i>Reference Documents
           <span class="badge bg-primary rounded-pill py-0 px-1" style="font-size:10px" x-show="(selectedCI?.docs||[]).length>0" x-text="(selectedCI?.docs||[]).length"></span></button>
       </div>
@@ -18,16 +20,55 @@
           <div class="col-md-4"><div class="p-3 border rounded-3"><div class="text-muted-sm mb-1 fw-semibold">CUSTOMS</div><div style="font-size:13px">HS Code: <span x-text="selectedCI?.hsCode || '—'"></span></div><div class="text-muted-sm">Origin: <span x-text="selectedCI?.origin || '—'"></span> · <span x-text="selectedCI?.incoterms || '—'"></span></div></div></div>
           <div class="col-12">
             <table class="table table-sm border rounded-3 overflow-hidden">
-              <thead class="table-light"><tr><th>#</th><th>Product</th><th>PRN</th><th>Batch</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+              <thead class="table-light"><tr><th>#</th><th>Product</th><th>PRN</th><th>Batch</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Net Total</th></tr></thead>
               <tbody>
                 <template x-for="(line,i) in (selectedCI?.lines||[])" :key="i">
-                  <tr><td x-text="i+1"></td><td class="fw-semibold" style="font-size:13px" x-text="line.product"></td><td class="text-muted-sm" x-text="line.prn"></td><td class="text-muted-sm" x-text="line.batch"></td><td x-text="Number(line.qty).toLocaleString()"></td><td x-text="line.unitPrice"></td><td class="fw-semibold" x-text="line.total"></td></tr>
+                  <tr><td x-text="i+1"></td><td class="fw-semibold" style="font-size:13px" x-text="line.product"></td><td class="text-muted-sm" x-text="line.prn"></td><td class="text-muted-sm" x-text="line.batch"></td><td x-text="Number(line.qty).toLocaleString()"></td><td x-text="line.unitPrice"></td><td class="text-muted-sm" x-text="line.discount"></td><td class="fw-semibold" x-text="line.total"></td></tr>
                 </template>
-                <tr class="table-light"><td colspan="6" class="text-end fw-semibold">Total Value</td><td class="fw-bold text-primary" x-text="selectedCI?.value"></td></tr>
+                <tr class="table-light"><td colspan="7" class="text-end fw-semibold">Total Discount</td><td class="text-danger" x-text="selectedCI?.discountTotal"></td></tr>
+                <tr class="table-light"><td colspan="7" class="text-end fw-semibold">Total Value (net)</td><td class="fw-bold text-primary" x-text="selectedCI?.value"></td></tr>
+                <tr><td colspan="7" class="text-end fw-semibold text-success">Paid</td><td class="text-success" x-text="selectedCI?.paid"></td></tr>
+                <tr><td colspan="7" class="text-end fw-semibold text-danger">Due</td><td class="fw-bold text-danger" x-text="selectedCI?.due"></td></tr>
               </tbody>
             </table>
           </div>
         </div>
+      </div>
+
+      {{-- Payments tab --}}
+      <div class="modal-body" x-show="viewTab==='payments'">
+        <div class="row g-2 mb-3">
+          <div class="col-md-3"><div class="p-3 border rounded-3 text-center"><div class="text-muted-sm">Total (net)</div><div class="fw-bold" x-text="selectedCI?.value"></div></div></div>
+          <div class="col-md-3"><div class="p-3 border rounded-3 text-center"><div class="text-muted-sm">Paid</div><div class="fw-bold text-success" x-text="selectedCI?.paid"></div></div></div>
+          <div class="col-md-3"><div class="p-3 border rounded-3 text-center"><div class="text-muted-sm">Due</div><div class="fw-bold text-danger" x-text="selectedCI?.due"></div></div></div>
+          <div class="col-md-3"><div class="p-3 border rounded-3 text-center"><div class="text-muted-sm">Status</div><div class="fw-bold" x-text="selectedCI?.payStatus"></div></div></div>
+        </div>
+
+        <form method="POST" :action="selectedCI?.payUrl" class="row g-2 align-items-end p-3 border rounded-3 mb-3">@csrf
+          <div class="col-md-2"><label class="form-label">Amount <span class="text-danger">*</span></label><input type="number" min="0.01" step="0.01" name="amount" class="form-control form-control-sm" required></div>
+          <div class="col-md-2"><label class="form-label">Paid on <span class="text-danger">*</span></label><input type="date" name="paid_on" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}" required></div>
+          <div class="col-md-2"><label class="form-label">Method</label>
+            <select name="method" class="form-select form-select-sm">
+              @foreach(\App\Models\InvoicePayment::METHODS as $k => $label)<option value="{{ $k }}">{{ $label }}</option>@endforeach
+            </select>
+          </div>
+          <div class="col-md-3"><label class="form-label">Reference</label><input type="text" name="reference" class="form-control form-control-sm" placeholder="Txn / cheque no."></div>
+          <div class="col-md-3 text-end"><button class="btn btn-success btn-sm w-100"><i class="bi bi-plus-lg me-1"></i>Record payment</button></div>
+        </form>
+
+        <div x-show="!(selectedCI?.payments||[]).length" class="text-center py-4"><i class="bi bi-cash-stack" style="font-size:40px;opacity:.3;display:block;margin-bottom:10px"></i><div class="text-muted-sm">No payments recorded yet.</div></div>
+        <table class="table table-sm" x-show="(selectedCI?.payments||[]).length">
+          <thead class="table-light"><tr><th>Date</th><th>Amount</th><th>Method</th><th>Reference</th><th>Recorded by</th><th></th></tr></thead>
+          <tbody>
+            <template x-for="p in (selectedCI?.payments||[])" :key="p.id">
+              <tr>
+                <td x-text="p.date"></td><td class="fw-semibold text-success" x-text="p.amount"></td>
+                <td x-text="p.method"></td><td class="text-muted-sm" x-text="p.reference || '—'"></td><td class="text-muted-sm" x-text="p.by"></td>
+                <td class="text-end"><form method="POST" :action="p.del" @submit="return confirm('Remove this payment?')">@csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm btn-icon"><i class="bi bi-trash"></i></button></form></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
       </div>
       <div class="modal-body" x-show="viewTab==='docs'">
         <form method="POST" :action="docUrl()" enctype="multipart/form-data" class="d-flex gap-2 align-items-end mb-3">@csrf
@@ -86,7 +127,7 @@
           <div x-show="form.lines.length">
             <label class="form-label fw-semibold">Invoice quantities (partial allowed)</label>
             <table class="table table-sm border rounded-3">
-              <thead class="table-light"><tr><th style="width:30%">Product</th><th>Remaining</th><th>Invoice Qty</th><th>Unit Price</th><th>Net kg</th><th>Gross kg</th><th>Total</th></tr></thead>
+              <thead class="table-light"><tr><th style="width:26%">Product</th><th>Remaining</th><th>Invoice Qty</th><th>Unit Price</th><th>Discount</th><th>Net kg</th><th>Gross kg</th><th>Total</th></tr></thead>
               <tbody>
                 <template x-for="(l,i) in form.lines" :key="i">
                   <tr :class="overLimit(l) ? 'table-danger' : ''">
@@ -96,9 +137,10 @@
                     <td style="max-width:110px"><input type="number" min="0" :max="l.remaining" class="form-control form-control-sm" :name="`lines[${i}][quantity]`" x-model="l.quantity">
                       <div class="text-danger" style="font-size:10px" x-show="overLimit(l)">Max <span x-text="l.remaining"></span></div></td>
                     <td style="max-width:110px"><input type="number" min="0" step="0.01" class="form-control form-control-sm" :name="`lines[${i}][unit_price]`" x-model="l.unit_price"></td>
+                    <td style="max-width:100px"><input type="number" min="0" step="0.01" class="form-control form-control-sm" :name="`lines[${i}][discount_amount]`" x-model="l.discount_amount" placeholder="0.00"></td>
                     <td style="max-width:90px"><input type="number" min="0" step="0.001" class="form-control form-control-sm" :name="`lines[${i}][net_weight_kg]`" x-model="l.net_weight_kg"></td>
                     <td style="max-width:90px"><input type="number" min="0" step="0.001" class="form-control form-control-sm" :name="`lines[${i}][gross_weight_kg]`" x-model="l.gross_weight_kg"></td>
-                    <td class="align-middle text-muted-sm" x-text="(chosenPi?.currency||'USD') + ' ' + ((parseFloat(l.unit_price||0)*parseInt(l.quantity||0)).toFixed(2))"></td>
+                    <td class="align-middle text-muted-sm" x-text="(chosenPi?.currency||'USD') + ' ' + lineNet(l).toFixed(2)"></td>
                   </tr>
                 </template>
               </tbody>

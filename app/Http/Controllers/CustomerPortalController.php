@@ -108,7 +108,7 @@ class CustomerPortalController extends Controller
             ->with('salesOrder.purchaseOrder:id,po_number', 'documents')
             ->latest('pi_date')->get();
         $cis = \App\Models\CommercialInvoice::whereHas('proformaInvoice.salesOrder', fn ($q) => $q->where('customer_id', $cid))
-            ->with('proformaInvoice.salesOrder.purchaseOrder:id,po_number', 'documents')
+            ->with('proformaInvoice.salesOrder.purchaseOrder:id,po_number', 'documents', 'lines.product', 'payments')
             ->latest('ci_date')->get();
 
         $invoices = $pis->map(fn ($p) => [
@@ -126,7 +126,12 @@ class CustomerPortalController extends Controller
             'freight'     => number_format((float) $p->freight, 2),
             'extra_label' => 'Tax',
             'extra'       => number_format((float) $p->tax_amount, 2),
+            'discount'    => number_format(0, 2),
+            'paid'        => '—',
+            'due'         => '—',
+            'payStatus'   => 'n/a',
             'doc_url'     => $p->documents->first()?->url,
+            'pdf_url'     => route('portal.invoice.pdf', ['type' => 'pi', 'id' => $p->id]),
         ])->concat($cis->map(fn ($c) => [
             'type'        => 'Commercial',
             'number'      => $c->ci_number,
@@ -142,8 +147,46 @@ class CustomerPortalController extends Controller
             'freight'     => number_format((float) $c->freight, 2),
             'extra_label' => 'Insurance',
             'extra'       => number_format((float) $c->insurance, 2),
+            'discount'    => number_format($c->discount_total, 2),
+            'paid'        => number_format($c->paid_amount, 2),
+            'due'         => number_format($c->due_amount, 2),
+            'payStatus'   => $c->status === 'cancelled' ? 'n/a' : $c->payment_status,
             'doc_url'     => $c->documents->first()?->url,
+            'pdf_url'     => route('portal.invoice.pdf', ['type' => 'ci', 'id' => $c->id]),
         ]))->values();
+
+        // ── Accounting: financial summary + product-wise breakdown (from CIs) ──
+        $liveCis = $cis->where('status', '!=', 'cancelled');
+        $currency = $liveCis->first()?->currency ?? 'USD';
+
+        $financials = [
+            'currency'  => $currency,
+            'invoiced'  => number_format($inv = (float) $liveCis->sum(fn ($c) => $c->payable_amount), 2),
+            'paid'      => number_format($paid = (float) $liveCis->sum(fn ($c) => $c->paid_amount), 2),
+            'due'       => number_format(max(0, $inv - $paid), 2),
+            'discount'  => number_format((float) $liveCis->sum(fn ($c) => $c->discount_total), 2),
+            'count'     => $liveCis->count(),
+        ];
+
+        $productSummary = $liveCis->flatMap->lines
+            ->groupBy('product_id')
+            ->map(function ($lines) use ($currency) {
+                $first = $lines->first();
+                $gross    = (float) $lines->sum('line_total');
+                $discount = (float) $lines->sum('discount_amount');
+                return [
+                    'product'     => $first->product?->name ?? '—',
+                    'prn'         => $first->product?->prn ?? '',
+                    'qty'         => (int) $lines->sum('quantity'),
+                    'currency'    => $currency,
+                    'grossNum'    => $gross,
+                    'gross'       => number_format($gross, 2),
+                    'discountNum' => $discount,
+                    'discount'    => number_format($discount, 2),
+                    'netNum'      => max(0, $gross - $discount),
+                    'net'         => number_format(max(0, $gross - $discount), 2),
+                ];
+            })->sortByDesc('netNum')->values();
 
         // Documents staff explicitly shared with this customer.
         $documents = $customer->documents()->with('uploader')->get()->map(fn ($d) => [
@@ -162,7 +205,27 @@ class CustomerPortalController extends Controller
         // Ordering button respects the per-customer override, not just the global flag.
         $portal['portal_allow_ordering'] = $customer->canPlaceOrders();
 
-        return view('portal.dashboard', compact('customer', 'ordersData', 'units', 'invoices', 'documents', 'stats', 'portal'));
+        return view('portal.dashboard', compact('customer', 'ordersData', 'units', 'invoices', 'documents', 'stats', 'portal', 'financials', 'productSummary'));
+    }
+
+    // ── Invoice PDF download (ownership-checked) ──────────────────────────
+    public function invoicePdf(string $type, int $id)
+    {
+        $customer = Auth::guard('customer')->user();
+
+        if ($type === 'ci') {
+            $ci = \App\Models\CommercialInvoice::with(['proformaInvoice.salesOrder.customer.country', 'lines.product', 'lines.batch', 'creator'])->findOrFail($id);
+            abort_unless($ci->proformaInvoice?->salesOrder?->customer_id === $customer->id, 404);
+
+            return \Barryvdh\DomPDF\Facade\Pdf::loadView('orders.ci-pdf', ['ci' => $ci])->setPaper('a4')
+                ->download($ci->ci_number . '.pdf');
+        }
+
+        $pi = \App\Models\ProformaInvoice::with(['salesOrder.customer.country', 'lines.product', 'lines.batch', 'creator'])->findOrFail($id);
+        abort_unless($pi->salesOrder?->customer_id === $customer->id, 404);
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('orders.pi-pdf', ['pi' => $pi])->setPaper('a4')
+            ->download($pi->pi_number . '.pdf');
     }
 
     // ── Place an order (creates a Purchase Order) ─────────────────────────

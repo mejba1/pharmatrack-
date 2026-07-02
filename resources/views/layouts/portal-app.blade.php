@@ -8,6 +8,7 @@
   $sections = array_filter([
     $ps['portal_show_orders']    ? ['orders',    'Orders',          'bi-cart3']        : null,
     $ps['portal_show_invoices']  ? ['invoices',  'Invoices',        'bi-receipt']      : null,
+    $ps['portal_show_invoices']  ? ['accounts',  'Accounts',        'bi-wallet2']      : null,
     $ps['portal_show_documents'] ? ['documents', 'Documents',       'bi-folder2-open'] : null,
     $ps['portal_show_units']     ? ['units',     'Traceable Units', 'bi-upc-scan']     : null,
   ]);

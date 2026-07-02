@@ -22,7 +22,7 @@ class CommercialInvoiceController extends Controller
         $uid  = $request->user()->id;
         $own  = fn ($q) => $mine ? $q->where('created_by', $uid) : $q;
 
-        $invoices = $own(CommercialInvoice::with(['proformaInvoice.salesOrder.customer.country', 'lines.product', 'lines.batch', 'documents']))
+        $invoices = $own(CommercialInvoice::with(['proformaInvoice.salesOrder.customer.country', 'lines.product', 'lines.batch', 'documents', 'payments.recorder']))
             ->latest()->limit(300)->get();
 
         $cis = $invoices->map(fn ($ci) => $this->payload($ci))->values();
@@ -81,6 +81,7 @@ class CommercialInvoiceController extends Controller
             'lines.*.pi_line_id'     => 'required|exists:proforma_invoice_lines,id',
             'lines.*.quantity'       => 'required|integer|min:0',
             'lines.*.unit_price'     => 'nullable|numeric|min:0',
+            'lines.*.discount_amount' => 'nullable|numeric|min:0',
             'lines.*.net_weight_kg'  => 'nullable|numeric|min:0',
             'lines.*.gross_weight_kg' => 'nullable|numeric|min:0',
         ]);
@@ -128,12 +129,14 @@ class CommercialInvoiceController extends Controller
                 'remarks'             => $data['remarks'] ?? null,
             ]);
 
-            $subtotal = 0; $n = 0;
+            $subtotal = 0; $discountTotal = 0; $n = 0;
             foreach ($data['lines'] as $line) {
                 $qty = (int) $line['quantity'];
                 if ($qty <= 0) continue;
                 $piLine = $piLines->get($line['pi_line_id']);
                 $price  = $line['unit_price'] !== null && $line['unit_price'] !== '' ? (float) $line['unit_price'] : (float) $piLine->unit_price;
+                $lineTotal = $qty * $price;
+                $discount  = min((float) ($line['discount_amount'] ?? 0), $lineTotal); // never discount below zero
                 $n++;
                 CommercialInvoiceLine::create([
                     'commercial_invoice_id'    => $ci->id,
@@ -144,14 +147,17 @@ class CommercialInvoiceController extends Controller
                     'product_description'      => $piLine->product?->name,
                     'quantity'                 => $qty,
                     'unit_price'               => $price,
-                    'line_total'               => $qty * $price,
+                    'line_total'               => $lineTotal,
+                    'discount_amount'          => $discount,
                     'net_weight_kg'            => $line['net_weight_kg'] ?? null,
                     'gross_weight_kg'          => $line['gross_weight_kg'] ?? null,
                 ]);
-                $subtotal += $qty * $price;
+                $subtotal += $lineTotal;
+                $discountTotal += $discount;
             }
 
-            $total = $subtotal + (float) ($data['freight'] ?? 0) + (float) ($data['insurance'] ?? 0);
+            // Net of product discounts, plus freight & insurance.
+            $total = $subtotal - $discountTotal + (float) ($data['freight'] ?? 0) + (float) ($data['insurance'] ?? 0);
             $ci->update(['subtotal' => $subtotal, 'total_value' => $total]);
             return $ci;
         });
@@ -169,7 +175,7 @@ class CommercialInvoiceController extends Controller
 
     public function show(CommercialInvoice $commercialInvoice): JsonResponse
     {
-        $commercialInvoice->load(['proformaInvoice.salesOrder.customer.country', 'lines.product', 'lines.batch', 'documents.uploader']);
+        $commercialInvoice->load(['proformaInvoice.salesOrder.customer.country', 'lines.product', 'lines.batch', 'documents.uploader', 'payments.recorder']);
         return response()->json($this->payload($commercialInvoice));
     }
 
@@ -190,6 +196,39 @@ class CommercialInvoiceController extends Controller
                 $msg = 'cancelled';
         }
         return back()->with('success', "Commercial Invoice {$commercialInvoice->ci_number} {$msg}.");
+    }
+
+    // ── Payments (accountant) ───────────────────────────────────────────────
+    public function storePayment(Request $request, CommercialInvoice $commercialInvoice): RedirectResponse
+    {
+        $data = $request->validate([
+            'amount'    => 'required|numeric|min:0.01',
+            'paid_on'   => 'required|date',
+            'method'    => 'required|in:' . implode(',', array_keys(\App\Models\InvoicePayment::METHODS)),
+            'reference' => 'nullable|string|max:120',
+            'note'      => 'nullable|string|max:500',
+        ]);
+
+        $commercialInvoice->payments()->create([
+            'customer_id' => $commercialInvoice->proformaInvoice?->salesOrder?->customer_id,
+            'amount'      => $data['amount'],
+            'currency'    => $commercialInvoice->currency,
+            'paid_on'     => $data['paid_on'],
+            'method'      => $data['method'],
+            'reference'   => $data['reference'] ?? null,
+            'note'        => $data['note'] ?? null,
+            'recorded_by' => $request->user()->id,
+        ]);
+
+        return back()->with('success', "Payment recorded against {$commercialInvoice->ci_number}.");
+    }
+
+    public function destroyPayment(\App\Models\InvoicePayment $payment): RedirectResponse
+    {
+        $ci = $payment->commercialInvoice?->ci_number;
+        $payment->delete();
+
+        return back()->with('success', "Payment removed from {$ci}.");
     }
 
     public function storeDoc(Request $request, CommercialInvoice $commercialInvoice): RedirectResponse
@@ -275,10 +314,23 @@ class CommercialInvoiceController extends Controller
             'hsCode'     => $ci->hs_code,
             'origin'     => $ci->country_of_origin,
             'incoterms'  => $ci->incoterms,
+            'discountTotal' => $ci->currency . ' ' . number_format($ci->discount_total, 2),
+            'paid'          => $ci->currency . ' ' . number_format($ci->paid_amount, 2),
+            'due'           => $ci->currency . ' ' . number_format($ci->due_amount, 2),
+            'payStatus'     => $ci->payment_status_label,
+            'payStatusKey'  => $ci->payment_status,
+            'payUrl'        => route('orders.ci.payments.store', $ci->id),
             'lines'      => $ci->lines->map(fn ($l) => [
                 'product' => $l->product?->name, 'prn' => $l->product?->prn, 'batch' => $l->batch?->brn ?? '—',
                 'qty' => $l->quantity, 'unitPrice' => $ci->currency . ' ' . number_format((float) $l->unit_price, 2),
-                'total' => $ci->currency . ' ' . number_format((float) $l->line_total, 2),
+                'discount' => $ci->currency . ' ' . number_format((float) $l->discount_amount, 2),
+                'total' => $ci->currency . ' ' . number_format((float) $l->net_total, 2),
+            ])->values(),
+            'payments'   => $ci->payments->map(fn ($p) => [
+                'id' => $p->id, 'amount' => $p->currency . ' ' . number_format((float) $p->amount, 2),
+                'date' => $p->paid_on?->format('d M Y'), 'method' => $p->method_label,
+                'reference' => $p->reference, 'by' => $p->recorder?->name ?? '—',
+                'del' => route('orders.ci.payments.destroy', $p->id),
             ])->values(),
             'docs'       => $ci->documents->map(fn ($d) => [
                 'id' => $d->id, 'name' => $d->name, 'category' => $d->category, 'size' => $d->size_human,

@@ -83,6 +83,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::put('/orders/{purchaseOrder}', [$portal, 'updateOrder'])->name('order.update');
         Route::post('/orders/{purchaseOrder}/cancel', [$portal, 'cancelOrder'])->name('order.cancel');
         Route::post('/notifications/read', [$portal, 'markNotificationsRead'])->name('notifications.read');
+        Route::get('/invoices/{type}/{id}/pdf', [$portal, 'invoicePdf'])->whereIn('type', ['ci', 'pi'])->name('invoice.pdf');
     });
 });
 
@@ -197,6 +198,9 @@ Route::middleware(['auth', 'module'])->group(function () {
         Route::post('/commercial-invoices/{commercialInvoice}/documents', [CommercialInvoiceController::class, 'storeDoc'])->name('ci.documents.store');
         Route::get('/ci-documents/{document}/download', [CommercialInvoiceController::class, 'downloadDoc'])->name('ci.documents.download');
         Route::delete('/ci-documents/{document}', [CommercialInvoiceController::class, 'destroyDoc'])->name('ci.documents.destroy');
+        // Payments (accountant) against a commercial invoice
+        Route::post('/commercial-invoices/{commercialInvoice}/payments', [CommercialInvoiceController::class, 'storePayment'])->name('ci.payments.store');
+        Route::delete('/invoice-payments/{payment}', [CommercialInvoiceController::class, 'destroyPayment'])->name('ci.payments.destroy');
     });
 
     // ── Shipments / Consignments (parent aggregation over master cartons) ──

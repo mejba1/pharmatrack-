@@ -99,9 +99,10 @@ function ciPage(cis, approvedPis){
     onPickPi(){
       const pi = this.chosenPi;
       this.form.incoterms = pi?.incoterms || '';
-      this.form.lines = (pi?.lines || []).map(l => ({ pi_line_id:l.pi_line_id, product:l.product, prn:l.prn, remaining:l.remaining, ordered:l.ordered, quantity:l.remaining, unit_price:l.unit_price, net_weight_kg:'', gross_weight_kg:'' }));
+      this.form.lines = (pi?.lines || []).map(l => ({ pi_line_id:l.pi_line_id, product:l.product, prn:l.prn, remaining:l.remaining, ordered:l.ordered, quantity:l.remaining, unit_price:l.unit_price, discount_amount:0, net_weight_kg:'', gross_weight_kg:'' }));
     },
-    get grandTotal(){ return (this.form.lines.reduce((s,l)=> s + (parseFloat(l.unit_price||0)*parseInt(l.quantity||0)),0) + parseFloat(this.form.freight||0) + parseFloat(this.form.insurance||0)).toFixed(2); },
+    lineNet(l){ return Math.max(0, parseFloat(l.unit_price||0)*parseInt(l.quantity||0) - parseFloat(l.discount_amount||0)); },
+    get grandTotal(){ return (this.form.lines.reduce((s,l)=> s + this.lineNet(l),0) + parseFloat(this.form.freight||0) + parseFloat(this.form.insurance||0)).toFixed(2); },
     overLimit(l){ return parseInt(l.quantity||0) > l.remaining; },
     get anyOver(){ return this.form.lines.some(l => this.overLimit(l)); },
     submitForm(status){ if(this.anyOver) return; this.form.status = status; this.$nextTick(()=> this.$refs.ciForm.submit()); },

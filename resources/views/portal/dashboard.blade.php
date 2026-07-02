@@ -46,6 +46,7 @@
     <div class="d-flex gap-2 mb-3 flex-wrap">
       @if($portal['portal_show_orders'])<span class="pill" :class="{active: tab==='orders'}" @click="tab='orders'; location.hash='orders'"><i class="bi bi-cart3 me-1"></i>Orders</span>@endif
       @if($portal['portal_show_invoices'])<span class="pill" :class="{active: tab==='invoices'}" @click="tab='invoices'; location.hash='invoices'"><i class="bi bi-receipt me-1"></i>Invoices</span>@endif
+      @if($portal['portal_show_invoices'])<span class="pill" :class="{active: tab==='accounts'}" @click="tab='accounts'; location.hash='accounts'"><i class="bi bi-wallet2 me-1"></i>Accounts</span>@endif
       @if($portal['portal_show_documents'])<span class="pill" :class="{active: tab==='documents'}" @click="tab='documents'; location.hash='documents'"><i class="bi bi-folder2-open me-1"></i>Documents</span>@endif
       @if($portal['portal_show_units'])<span class="pill" :class="{active: tab==='units'}" @click="tab='units'; location.hash='units'"><i class="bi bi-upc-scan me-1"></i>Traceable Units</span>@endif
       <span class="pill" :class="{active: tab==='profile'}" @click="tab='profile'; location.hash='profile'"><i class="bi bi-person-badge me-1"></i>Profile</span>
@@ -100,9 +101,20 @@
 
     {{-- Invoices --}}
     <div class="card-soft p-3 p-md-4" x-show="tab==='invoices' && {{ $portal['portal_show_invoices'] ? '1' : '0' }}" x-cloak
-         x-data="portalTable(@js($invoices), { searchFields:['number','type','status','reference'], defaultSort:'dateISO' })"
+         x-data="portalTable(@js($invoices), { searchFields:['number','type','status','reference'], defaultSort:'dateISO', statusField:'payStatus' })"
          x-effect="if (page > pages) page = pages">
-      <div class="fw-semibold mb-3"><i class="bi bi-receipt me-1" style="color:var(--brand1)"></i>Invoices</div>
+      <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+        <div class="fw-semibold"><i class="bi bi-receipt me-1" style="color:var(--brand1)"></i>Invoices</div>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <span class="text-muted small">Payment</span>
+          <select class="form-select form-select-sm" style="width:auto" x-model="statusFilter" @change="page=1">
+            <option value="">All</option>
+            <option value="paid">Paid</option>
+            <option value="partial">Partial</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+        </div>
+      </div>
 
       @include('portal._table-toolbar', ['placeholder' => 'Search number, type, PO…'])
 
@@ -113,8 +125,10 @@
             <th role="button" @click="sortBy('number')">Number <span x-html="caret('number')"></span></th>
             <th role="button" @click="sortBy('reference')">Order <span x-html="caret('reference')"></span></th>
             <th role="button" @click="sortBy('dateISO')">Date <span x-html="caret('dateISO')"></span></th>
-            <th role="button" @click="sortBy('status')">Status <span x-html="caret('status')"></span></th>
             <th class="text-end" role="button" @click="sortBy('totalNum')">Total <span x-html="caret('totalNum')"></span></th>
+            <th class="text-end">Paid</th>
+            <th class="text-end">Due</th>
+            <th>Payment</th>
             <th class="text-end">Actions</th>
           </tr></thead>
           <tbody>
@@ -124,15 +138,18 @@
                 <td class="font-monospace fw-semibold" x-text="inv.number"></td>
                 <td class="font-monospace small text-muted" x-text="inv.reference || '—'"></td>
                 <td x-text="inv.date"></td>
-                <td class="small text-capitalize" x-text="inv.status"></td>
                 <td class="text-end fw-semibold"><span x-text="inv.currency"></span> <span x-text="inv.total"></span></td>
+                <td class="text-end text-success"><span x-show="inv.paid!=='—'" x-text="inv.currency + ' ' + inv.paid"></span><span x-show="inv.paid==='—'" class="text-muted">—</span></td>
+                <td class="text-end fw-semibold text-danger"><span x-show="inv.due!=='—'" x-text="inv.currency + ' ' + inv.due"></span><span x-show="inv.due==='—'" class="text-muted">—</span></td>
+                <td><span class="chip text-capitalize" x-show="inv.payStatus!=='n/a'" :style="payStyle(inv.payStatus)" x-text="inv.payStatus"></span><span x-show="inv.payStatus==='n/a'" class="text-muted small">—</span></td>
                 <td class="text-end text-nowrap">
                   <button type="button" class="btn btn-outline-secondary btn-sm btn-icon" title="View" @click="open(inv)"><i class="bi bi-eye"></i></button>
-                  <template x-if="inv.doc_url"><a :href="inv.doc_url" target="_blank" class="btn btn-outline-primary btn-sm btn-icon" title="Download"><i class="bi bi-download"></i></a></template>
+                  <a :href="inv.pdf_url" class="btn btn-outline-danger btn-sm btn-icon" title="Download PDF"><i class="bi bi-file-pdf"></i></a>
+                  <template x-if="inv.doc_url"><a :href="inv.doc_url" target="_blank" class="btn btn-outline-primary btn-sm btn-icon" title="Attached document"><i class="bi bi-paperclip"></i></a></template>
                 </td>
               </tr>
             </template>
-            <tr x-show="!paged.length"><td colspan="7" class="text-center text-muted py-4" x-text="rows.length ? 'No invoices match your filters.' : 'No invoices yet.'"></td></tr>
+            <tr x-show="!paged.length"><td colspan="9" class="text-center text-muted py-4" x-text="rows.length ? 'No invoices match your filters.' : 'No invoices yet.'"></td></tr>
           </tbody>
         </table>
       </div>
@@ -157,17 +174,78 @@
                 <tr><th>Subtotal</th><td><span x-text="selected?.currency"></span> <span x-text="selected?.subtotal"></span></td></tr>
                 <tr><th>Freight</th><td><span x-text="selected?.currency"></span> <span x-text="selected?.freight"></span></td></tr>
                 <tr><th x-text="selected?.extra_label"></th><td><span x-text="selected?.currency"></span> <span x-text="selected?.extra"></span></td></tr>
+                <tr x-show="selected?.discount && selected?.discount!=='0.00'"><th>Discount</th><td class="text-danger">− <span x-text="selected?.currency"></span> <span x-text="selected?.discount"></span></td></tr>
                 <tr><th>Total</th><td class="fw-bold"><span x-text="selected?.currency"></span> <span x-text="selected?.total"></span></td></tr>
+                <tr x-show="selected?.payStatus!=='n/a'"><th>Paid</th><td class="text-success"><span x-text="selected?.currency"></span> <span x-text="selected?.paid"></span></td></tr>
+                <tr x-show="selected?.payStatus!=='n/a'"><th>Due</th><td class="fw-bold text-danger"><span x-text="selected?.currency"></span> <span x-text="selected?.due"></span></td></tr>
+                <tr x-show="selected?.payStatus!=='n/a'"><th>Payment status</th><td><span class="chip text-capitalize" :style="payStyle(selected?.payStatus)" x-text="selected?.payStatus"></span></td></tr>
               </table>
             </div>
             <div class="modal-footer">
-              <template x-if="selected?.doc_url"><a :href="selected?.doc_url" target="_blank" class="btn btn-grad btn-sm"><i class="bi bi-download me-1"></i>Download document</a></template>
+              <a :href="selected?.pdf_url" class="btn btn-grad btn-sm"><i class="bi bi-file-pdf me-1"></i>Download PDF</a>
+              <template x-if="selected?.doc_url"><a :href="selected?.doc_url" target="_blank" class="btn btn-outline-primary btn-sm"><i class="bi bi-paperclip me-1"></i>Attached doc</a></template>
               <button type="button" class="btn btn-outline-secondary btn-sm" @click="close()">Close</button>
             </div>
           </div>
         </div>
       </div>
       <div class="modal-backdrop fade show" x-show="showModal" @click="close()" x-cloak></div>
+    </div>
+
+    {{-- Accounts --}}
+    <div class="card-soft p-3 p-md-4" x-show="tab==='accounts' && {{ $portal['portal_show_invoices'] ? '1' : '0' }}" x-cloak
+         x-data="portalTable(@js($productSummary), { searchFields:['product','prn'], defaultSort:'netNum' })"
+         x-effect="if (page > pages) page = pages">
+      <div class="fw-semibold mb-3"><i class="bi bi-wallet2 me-1" style="color:var(--brand1)"></i>Accounts &amp; Payments</div>
+
+      {{-- Financial summary --}}
+      <div class="row g-3 mb-4">
+        @php $fcards = [
+          ['Total Invoiced', $financials['currency'].' '.$financials['invoiced'], 'bi-receipt-cutoff', 'linear-gradient(135deg,#4f46e5,#6366f1)'],
+          ['Total Paid',     $financials['currency'].' '.$financials['paid'],     'bi-cash-coin',      'linear-gradient(135deg,#10b981,#34d399)'],
+          ['Total Dues',     $financials['currency'].' '.$financials['due'],      'bi-exclamation-circle', 'linear-gradient(135deg,#f43f5e,#fb7185)'],
+          ['Total Discount', $financials['currency'].' '.$financials['discount'], 'bi-percent',        'linear-gradient(135deg,#f59e0b,#fbbf24)'],
+        ]; @endphp
+        @foreach($fcards as [$label,$value,$icon,$grad])
+          <div class="col-6 col-lg-3"><div class="stat d-flex align-items-center gap-3">
+            <div class="ic text-white" style="background:{{ $grad }}"><i class="bi {{ $icon }}"></i></div>
+            <div class="min-w-0"><div class="v text-truncate" style="font-size:17px">{{ $value }}</div><div class="l">{{ $label }}</div></div>
+          </div></div>
+        @endforeach
+      </div>
+
+      {{-- Product-wise order value --}}
+      <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+        <div class="fw-semibold"><i class="bi bi-box-seam me-1" style="color:var(--brand1)"></i>Product-wise order value</div>
+        <div class="input-group input-group-sm ms-auto" style="width:240px">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="search" class="form-control" placeholder="Search product…" x-model="q" @input="page=1">
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-clean mb-0 align-middle">
+          <thead><tr>
+            <th role="button" @click="sortBy('product')">Product <span x-html="caret('product')"></span></th>
+            <th class="text-end" role="button" @click="sortBy('qty')">Qty <span x-html="caret('qty')"></span></th>
+            <th class="text-end" role="button" @click="sortBy('grossNum')">Order value <span x-html="caret('grossNum')"></span></th>
+            <th class="text-end" role="button" @click="sortBy('discountNum')">Discount <span x-html="caret('discountNum')"></span></th>
+            <th class="text-end" role="button" @click="sortBy('netNum')">Net <span x-html="caret('netNum')"></span></th>
+          </tr></thead>
+          <tbody>
+            <template x-for="(p, i) in paged" :key="i">
+              <tr>
+                <td><span class="fw-semibold" x-text="p.product"></span> <span class="text-muted small font-monospace" x-text="p.prn"></span></td>
+                <td class="text-end" x-text="Number(p.qty).toLocaleString()"></td>
+                <td class="text-end"><span x-text="p.currency"></span> <span x-text="p.gross"></span></td>
+                <td class="text-end text-danger" x-text="p.discount"></td>
+                <td class="text-end fw-semibold"><span x-text="p.currency"></span> <span x-text="p.net"></span></td>
+              </tr>
+            </template>
+            <tr x-show="!paged.length"><td colspan="5" class="text-center text-muted py-4" x-text="rows.length ? 'No products match.' : 'No invoiced products yet.'"></td></tr>
+          </tbody>
+        </table>
+      </div>
+      @include('portal._table-footer')
     </div>
 
     {{-- Documents --}}
@@ -243,7 +321,7 @@ function portalTable(rows, config){
   config = config || {};
   return {
     rows: rows || [],
-    q: '', from: '', to: '',
+    q: '', from: '', to: '', statusFilter: '',
     sortKey: config.defaultSort || 'dateISO',
     sortDir: 'desc',
     page: 1,
@@ -258,6 +336,7 @@ function portalTable(rows, config){
         if (q && !fields.some(f => String(row[f] ?? '').toLowerCase().includes(q))) return false;
         if (this.from && row.dateISO && row.dateISO < this.from) return false;
         if (this.to   && row.dateISO && row.dateISO > this.to)   return false;
+        if (config.statusField && this.statusFilter && String(row[config.statusField]) !== this.statusFilter) return false;
         return true;
       });
       const dir = this.sortDir === 'asc' ? 1 : -1;
@@ -283,9 +362,10 @@ function portalTable(rows, config){
         ? '<i class="bi bi-caret-up-fill" style="font-size:11px"></i>'
         : '<i class="bi bi-caret-down-fill" style="font-size:11px"></i>';
     },
-    reset(){ this.q = ''; this.from = ''; this.to = ''; this.page = 1; },
+    reset(){ this.q = ''; this.from = ''; this.to = ''; this.statusFilter = ''; this.page = 1; },
     open(row){ this.selected = row; this.showModal = true; },
     close(){ this.showModal = false; },
+    payStyle(s){ return ({paid:'background:#ecfdf5;color:#047857', partial:'background:#fffbeb;color:#b45309', unpaid:'background:#fef2f2;color:#b91c1c'})[s] || 'background:#f1f5f9;color:#64748b'; },
 
     // PO → SO → PI → CI progress chain markup for a row.
     chainHtml(o){
