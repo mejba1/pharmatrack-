@@ -12,7 +12,8 @@ class PromoCode extends Model
 
     protected $fillable = [
         'code', 'description', 'scope', 'discount_type', 'discount_value',
-        'product_id', 'min_order_value', 'max_discount', 'usage_limit',
+        'product_id', 'customer_ids', 'country_ids', 'product_ids',
+        'min_order_value', 'max_discount', 'usage_limit',
         'used_count', 'starts_at', 'ends_at', 'is_active',
     ];
 
@@ -25,6 +26,9 @@ class PromoCode extends Model
         'starts_at'       => 'date',
         'ends_at'         => 'date',
         'is_active'       => 'boolean',
+        'customer_ids'    => 'array',
+        'country_ids'     => 'array',
+        'product_ids'     => 'array',
     ];
 
     public const SCOPES = [
@@ -92,6 +96,48 @@ class PromoCode extends Model
     public function isUsable(?float $orderValue = null): bool
     {
         return $this->invalidReason($orderValue) === null;
+    }
+
+    /**
+     * Whether a specific customer (and their order's products) may use this code.
+     * Returns a human-readable reason it can't be used, or null when eligible.
+     * Empty allowlists mean "no restriction".
+     */
+    public function eligibilityError(Customer $customer, array $orderProductIds = []): ?string
+    {
+        $ids = fn ($a) => collect($a ?? [])->map(fn ($v) => (int) $v)->all();
+
+        if ($this->customer_ids && ! in_array((int) $customer->id, $ids($this->customer_ids), true)) {
+            return 'This promo code is not available for your account.';
+        }
+        if ($this->country_ids && ! in_array((int) $customer->country_id, $ids($this->country_ids), true)) {
+            return 'This promo code is not available in your country.';
+        }
+        if ($this->product_ids) {
+            $ordered = $ids($orderProductIds);
+            if (empty(array_intersect($ids($this->product_ids), $ordered))) {
+                return 'Your order does not include a product this code applies to.';
+            }
+        }
+
+        return null;
+    }
+
+    /** True when the code carries any customer/country/product targeting. */
+    public function getIsTargetedAttribute(): bool
+    {
+        return ! empty($this->customer_ids) || ! empty($this->country_ids) || ! empty($this->product_ids);
+    }
+
+    /** Short human summary of who the code targets, for the admin list. */
+    public function getTargetSummaryAttribute(): string
+    {
+        $parts = [];
+        if ($this->customer_ids) $parts[] = count($this->customer_ids) . ' customer' . (count($this->customer_ids) === 1 ? '' : 's');
+        if ($this->country_ids)  $parts[] = count($this->country_ids) . ' countr' . (count($this->country_ids) === 1 ? 'y' : 'ies');
+        if ($this->product_ids)  $parts[] = count($this->product_ids) . ' product' . (count($this->product_ids) === 1 ? '' : 's');
+
+        return $parts ? implode(', ', $parts) : 'Everyone';
     }
 
     /** Discount applied to a given base amount, honouring type and cap. */

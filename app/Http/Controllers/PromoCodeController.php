@@ -24,7 +24,9 @@ class PromoCodeController extends Controller
         $this->authorizeManage($request);
 
         $codes = PromoCode::with('product')->latest()->get();
-        $products = Product::orderBy('name')->get(['id', 'name', 'prn']);
+        $products  = Product::orderBy('name')->get(['id', 'name', 'prn']);
+        $customers = \App\Models\Customer::orderBy('name')->get(['id', 'name', 'customer_code']);
+        $countries = \App\Models\Country::orderBy('name')->get(['id', 'name', 'flag']);
 
         $stats = [
             'total'    => $codes->count(),
@@ -32,7 +34,7 @@ class PromoCodeController extends Controller
             'redeemed' => (int) $codes->sum('used_count'),
         ];
 
-        return view('promo-codes.index', compact('codes', 'products', 'stats'));
+        return view('promo-codes.index', compact('codes', 'products', 'customers', 'countries', 'stats'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -96,10 +98,21 @@ class PromoCodeController extends Controller
             'usage_limit'     => 'nullable|integer|min:1',
             'starts_at'       => 'nullable|date',
             'ends_at'         => 'nullable|date|after_or_equal:starts_at',
+            'customer_ids'    => 'nullable|array',
+            'customer_ids.*'  => 'integer|exists:customers,id',
+            'country_ids'     => 'nullable|array',
+            'country_ids.*'   => 'integer|exists:countries,id',
+            'product_ids'     => 'nullable|array',
+            'product_ids.*'   => 'integer|exists:products,id',
         ], ['product_id.required_if' => 'Select the product these codes discount.']);
 
         if ($data['scope'] === 'none')      $data['discount_value'] = 0;
         if ($data['scope'] !== 'product')   $data['product_id'] = null;
+
+        $targets = [];
+        foreach (['customer_ids', 'country_ids', 'product_ids'] as $key) {
+            $targets[$key] = empty($data[$key]) ? null : json_encode(array_values(array_map('intval', $data[$key])));
+        }
 
         $now = now();
         $used = [];
@@ -114,6 +127,9 @@ class PromoCodeController extends Controller
                 'discount_type'   => $data['discount_type'],
                 'discount_value'  => $data['discount_value'],
                 'product_id'      => $data['product_id'],
+                'customer_ids'    => $targets['customer_ids'],
+                'country_ids'     => $targets['country_ids'],
+                'product_ids'     => $targets['product_ids'],
                 'min_order_value' => $data['min_order_value'] ?? null,
                 'max_discount'    => $data['max_discount'] ?? null,
                 'usage_limit'     => $data['usage_limit'] ?? null,
@@ -144,6 +160,12 @@ class PromoCodeController extends Controller
             'usage_limit'     => 'nullable|integer|min:1',
             'starts_at'       => 'nullable|date',
             'ends_at'         => 'nullable|date|after_or_equal:starts_at',
+            'customer_ids'    => 'nullable|array',
+            'customer_ids.*'  => 'integer|exists:customers,id',
+            'country_ids'     => 'nullable|array',
+            'country_ids.*'   => 'integer|exists:countries,id',
+            'product_ids'     => 'nullable|array',
+            'product_ids.*'   => 'integer|exists:products,id',
         ], [
             'product_id.required_if' => 'Select the product this code discounts.',
         ]);
@@ -156,6 +178,11 @@ class PromoCodeController extends Controller
             $data['product_id'] = null;
         }
         $data['is_active'] = $request->boolean('is_active', true);
+
+        // Empty allowlists mean "no restriction" — store NULL, not [].
+        foreach (['customer_ids', 'country_ids', 'product_ids'] as $key) {
+            $data[$key] = empty($data[$key]) ? null : array_values(array_map('intval', $data[$key]));
+        }
 
         return $data;
     }

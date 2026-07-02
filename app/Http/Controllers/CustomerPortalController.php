@@ -263,6 +263,11 @@ class CustomerPortalController extends Controller
                     'promo_code' => $promo?->invalidReason() ?? 'That promo code is not valid.',
                 ]);
             }
+            // Targeting: customer / country / product eligibility.
+            $orderProductIds = collect($data['items'])->pluck('product_id')->map(fn ($v) => (int) $v)->all();
+            if ($reason = $promo->eligibilityError($customer, $orderProductIds)) {
+                return back()->withInput()->withErrors(['promo_code' => $reason]);
+            }
         }
 
         // Attribute to the customer's account manager, else any super admin.

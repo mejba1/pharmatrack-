@@ -37,7 +37,7 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
-          <tr><th>Code</th><th>Scope</th><th>Discount</th><th>Validity</th><th>Usage</th><th>Status</th><th class="text-end">Actions</th></tr>
+          <tr><th>Code</th><th>Scope</th><th>Discount</th><th>Targets</th><th>Validity</th><th>Usage</th><th>Status</th><th class="text-end">Actions</th></tr>
         </thead>
         <tbody>
           @forelse($codes as $c)
@@ -47,11 +47,18 @@
               'product_id' => $c->product_id, 'min_order_value' => $c->min_order_value ? (float) $c->min_order_value : null,
               'max_discount' => $c->max_discount ? (float) $c->max_discount : null, 'usage_limit' => $c->usage_limit,
               'starts_at' => $c->starts_at?->format('Y-m-d'), 'ends_at' => $c->ends_at?->format('Y-m-d'), 'is_active' => $c->is_active,
+              'customer_ids' => array_map('strval', $c->customer_ids ?? []),
+              'country_ids'  => array_map('strval', $c->country_ids ?? []),
+              'product_ids'  => array_map('strval', $c->product_ids ?? []),
             ]); @endphp
             <tr>
               <td><span class="fw-bold font-monospace">{{ $c->code }}</span>@if($c->description)<div class="text-muted small">{{ $c->description }}</div>@endif</td>
               <td><span class="badge bg-primary-subtle text-primary">{{ $c->scope_label }}</span>@if($c->scope==='product' && $c->product)<div class="text-muted small">{{ $c->product->name }}</div>@endif</td>
               <td>{{ $c->label }}@if($c->max_discount)<div class="text-muted small">max {{ number_format((float)$c->max_discount,2) }}</div>@endif</td>
+              <td class="small">
+                @if($c->is_targeted)<span class="badge bg-info-subtle text-info-emphasis"><i class="bi bi-bullseye me-1"></i>{{ $c->target_summary }}</span>
+                @else<span class="text-muted">Everyone</span>@endif
+              </td>
               <td class="small">
                 {{ $c->starts_at?->format('d M Y') ?? '—' }} → {{ $c->ends_at?->format('d M Y') ?? '—' }}
                 @if($c->min_order_value)<div class="text-muted">min order {{ number_format((float)$c->min_order_value,2) }}</div>@endif
@@ -70,7 +77,7 @@
               </td>
             </tr>
           @empty
-            <tr><td colspan="7" class="text-center text-muted py-4">No promo codes yet. Create one to offer customers a discount at checkout.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-4">No promo codes yet. Create one to offer customers a discount at checkout.</td></tr>
           @endforelse
         </tbody>
       </table>
@@ -133,6 +140,8 @@
               <div class="col-md-4"><label class="form-label">Usage limit</label><input type="number" min="1" name="usage_limit" class="form-control form-control-sm" x-model="form.usage_limit" placeholder="unlimited"></div>
               <div class="col-md-2"><label class="form-label">Starts</label><input type="date" name="starts_at" class="form-control form-control-sm" x-model="form.starts_at"></div>
               <div class="col-md-2"><label class="form-label">Ends</label><input type="date" name="ends_at" class="form-control form-control-sm" x-model="form.ends_at"></div>
+
+              @include('promo-codes._targeting', ['m' => 'form'])
 
               <div class="col-12">
                 <div class="form-check form-switch">
@@ -202,6 +211,8 @@
               <div class="col-md-4"><label class="form-label">Usage limit / code</label><input type="number" min="1" name="usage_limit" class="form-control form-control-sm" x-model="bulk.usage_limit" placeholder="e.g. 1 for single-use"></div>
               <div class="col-md-2"><label class="form-label">Starts</label><input type="date" name="starts_at" class="form-control form-control-sm" x-model="bulk.starts_at"></div>
               <div class="col-md-2"><label class="form-label">Ends</label><input type="date" name="ends_at" class="form-control form-control-sm" x-model="bulk.ends_at"></div>
+
+              @include('promo-codes._targeting', ['m' => 'bulk'])
             </div>
           </div>
           <div class="modal-footer">
@@ -223,12 +234,12 @@ function promoApp(){
     showBulk:false,
     generating:false,
     form:{},
-    bulk:{ count:20, prefix:'', description:'', scope:'total', discount_type:'percent', discount_value:'', product_id:'', min_order_value:'', max_discount:'', usage_limit:1, starts_at:'', ends_at:'' },
+    bulk:{ count:20, prefix:'', description:'', scope:'total', discount_type:'percent', discount_value:'', product_id:'', min_order_value:'', max_discount:'', usage_limit:1, starts_at:'', ends_at:'', customer_ids:[], country_ids:[], product_ids:[] },
     updateTpl:'{{ url('promo-codes') }}/__ID__',
     get updateAction(){ return this.updateTpl.replace('__ID__', this.form.id); },
-    blank(){ return { id:null, code:'', description:'', scope:'total', discount_type:'percent', discount_value:'', product_id:'', min_order_value:'', max_discount:'', usage_limit:'', starts_at:'', ends_at:'', is_active:true }; },
+    blank(){ return { id:null, code:'', description:'', scope:'total', discount_type:'percent', discount_value:'', product_id:'', min_order_value:'', max_discount:'', usage_limit:'', starts_at:'', ends_at:'', is_active:true, customer_ids:[], country_ids:[], product_ids:[] }; },
     openAdd(){ this.form = this.blank(); this.showModal = true; },
-    openEdit(c){ this.form = { ...this.blank(), ...c, product_id: c.product_id ?? '', min_order_value: c.min_order_value ?? '', max_discount: c.max_discount ?? '', usage_limit: c.usage_limit ?? '', starts_at: c.starts_at ?? '', ends_at: c.ends_at ?? '' }; this.showModal = true; },
+    openEdit(c){ this.form = { ...this.blank(), ...c, product_id: c.product_id ?? '', min_order_value: c.min_order_value ?? '', max_discount: c.max_discount ?? '', usage_limit: c.usage_limit ?? '', starts_at: c.starts_at ?? '', ends_at: c.ends_at ?? '', customer_ids: c.customer_ids ?? [], country_ids: c.country_ids ?? [], product_ids: c.product_ids ?? [] }; this.showModal = true; },
     openBulk(){ this.showBulk = true; },
     async generate(){
       this.generating = true;
