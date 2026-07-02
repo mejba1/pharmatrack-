@@ -203,6 +203,13 @@ Route::middleware(['auth', 'module'])->group(function () {
         Route::delete('/invoice-payments/{payment}', [CommercialInvoiceController::class, 'destroyPayment'])->name('ci.payments.destroy');
     });
 
+    // ── Promo Codes (sales discounts applied at order placement) ──────────────
+    Route::get('/promo-codes', [\App\Http\Controllers\PromoCodeController::class, 'index'])->name('promo-codes.index');
+    Route::post('/promo-codes', [\App\Http\Controllers\PromoCodeController::class, 'store'])->name('promo-codes.store');
+    Route::put('/promo-codes/{promoCode}', [\App\Http\Controllers\PromoCodeController::class, 'update'])->name('promo-codes.update');
+    Route::post('/promo-codes/{promoCode}/toggle', [\App\Http\Controllers\PromoCodeController::class, 'toggle'])->name('promo-codes.toggle');
+    Route::delete('/promo-codes/{promoCode}', [\App\Http\Controllers\PromoCodeController::class, 'destroy'])->name('promo-codes.destroy');
+
     // ── Shipments / Consignments (parent aggregation over master cartons) ──
     Route::get('/shipments', [ConsignmentController::class, 'index'])->name('shipments');
     Route::get('/shipments/receiving', [ConsignmentController::class, 'receiving'])->name('shipments.receiving');

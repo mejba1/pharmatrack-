@@ -20,6 +20,13 @@
   </div>
   <div class="text-muted small mb-4">Placed {{ $order->po_date?->format('d M Y') }} · Required by {{ $order->required_by_date?->format('d M Y') ?? '—' }}</div>
 
+  @if($order->promo_label)
+    <div class="card-soft p-3 mb-3 d-flex align-items-center gap-2" style="border-left:4px solid var(--brand1)">
+      <i class="bi bi-ticket-perforated-fill" style="color:var(--brand1)"></i>
+      <div class="small"><span class="fw-semibold">Promo applied:</span> {{ $order->promo_label }}<div class="text-muted">The discount is applied when your order is quoted &amp; invoiced.</div></div>
+    </div>
+  @endif
+
   {{-- Progress chain --}}
   <div class="card-soft p-3 p-md-4 mb-3">
     <div class="fw-semibold mb-3"><i class="bi bi-diagram-3 me-1" style="color:var(--brand1)"></i>Progress</div>

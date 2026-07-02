@@ -14,6 +14,7 @@ class PurchaseOrder extends Model
         'currency', 'payment_terms', 'incoterms', 'port_of_loading', 'port_of_discharge',
         'subtotal', 'freight', 'total_value', 'status',
         'acknowledged_date', 'acknowledged_by', 'remarks',
+        'promo_code_id', 'promo_code', 'discount_scope', 'discount_type', 'discount_value', 'discount_product_id',
     ];
 
     protected $casts = [
@@ -32,6 +33,24 @@ class PurchaseOrder extends Model
     public function lines()    { return $this->hasMany(PurchaseOrderLine::class)->orderBy('line_number'); }
     public function salesOrder() { return $this->hasOne(SalesOrder::class); }
     public function documents() { return $this->morphMany(OrderDocument::class, 'documentable')->where('is_active', true)->latest(); }
+    public function promoCode() { return $this->belongsTo(PromoCode::class); }
+    public function discountProduct() { return $this->belongsTo(Product::class, 'discount_product_id'); }
+
+    /** Human-readable promo summary, or null when no code was applied. */
+    public function getPromoLabelAttribute(): ?string
+    {
+        if (! $this->promo_code) return null;
+        if ($this->discount_scope === 'none') return "{$this->promo_code} · no discount";
+
+        $val = $this->discount_type === 'percent'
+            ? rtrim(rtrim(number_format((float) $this->discount_value, 2), '0'), '.') . '%'
+            : number_format((float) $this->discount_value, 2);
+        $where = $this->discount_scope === 'product'
+            ? ($this->discountProduct?->name ?? 'a product')
+            : 'order total';
+
+        return "{$this->promo_code} · {$val} off {$where}";
+    }
 
     /**
      * Progress through the document chain PO → SO → PI → CI. Uses already-loaded

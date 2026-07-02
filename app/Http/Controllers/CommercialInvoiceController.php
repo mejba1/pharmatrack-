@@ -181,7 +181,7 @@ class CommercialInvoiceController extends Controller
 
     public function updateStatus(Request $request, CommercialInvoice $commercialInvoice): RedirectResponse
     {
-        $data = $request->validate(['action' => 'required|in:send,approve,cancel']);
+        $data = $request->validate(['action' => 'required|in:send,approve,cancel,mark_paid,mark_unpaid']);
         switch ($data['action']) {
             case 'send':
                 if ($commercialInvoice->status === 'draft') $commercialInvoice->update(['status' => 'pending_approval']);
@@ -190,6 +190,27 @@ class CommercialInvoiceController extends Controller
             case 'approve':
                 $commercialInvoice->update(['status' => 'approved', 'approved_by' => $commercialInvoice->created_by, 'approved_at' => now()]);
                 $msg = 'approved';
+                break;
+            case 'mark_paid':
+                // Settle the outstanding balance with a single "marked paid" entry.
+                $commercialInvoice->load('payments', 'lines');
+                $due = $commercialInvoice->due_amount;
+                if ($due > 0) {
+                    $commercialInvoice->payments()->create([
+                        'customer_id' => $commercialInvoice->proformaInvoice?->salesOrder?->customer_id,
+                        'amount'      => $due,
+                        'currency'    => $commercialInvoice->currency,
+                        'paid_on'     => now()->toDateString(),
+                        'method'      => 'other',
+                        'reference'   => 'Marked as paid',
+                        'recorded_by' => $request->user()->id,
+                    ]);
+                }
+                $msg = 'marked as fully paid';
+                break;
+            case 'mark_unpaid':
+                $commercialInvoice->payments()->delete();
+                $msg = 'marked as unpaid (payments cleared)';
                 break;
             default:
                 $commercialInvoice->update(['status' => 'cancelled']);

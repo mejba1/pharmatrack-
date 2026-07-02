@@ -248,15 +248,27 @@ class CustomerPortalController extends Controller
         $data = $request->validate([
             'required_by_date'   => 'nullable|date|after_or_equal:today',
             'remarks'            => 'nullable|string|max:2000',
+            'promo_code'         => 'nullable|string|max:40',
             'items'              => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity'   => 'required|integer|min:1',
         ]);
 
+        // Validate an optional promo code up-front (order value unknown until quoted).
+        $promo = null;
+        if (! empty($data['promo_code'])) {
+            $promo = \App\Models\PromoCode::findUsable($data['promo_code']);
+            if (! $promo || ! $promo->isUsable()) {
+                return back()->withInput()->withErrors([
+                    'promo_code' => $promo?->invalidReason() ?? 'That promo code is not valid.',
+                ]);
+            }
+        }
+
         // Attribute to the customer's account manager, else any super admin.
         $createdBy = $customer->manager_id ?: User::where('role', 'super_admin')->value('id');
 
-        $po = DB::transaction(function () use ($data, $customer, $createdBy) {
+        $po = DB::transaction(function () use ($data, $customer, $createdBy, $promo) {
             $po = PurchaseOrder::create([
                 'po_number'        => PurchaseOrder::nextNumber(),
                 'buyer_id'         => $customer->id,
@@ -270,7 +282,18 @@ class CustomerPortalController extends Controller
                 'remarks'          => $data['remarks'] ?? null,
                 'subtotal'         => 0,
                 'total_value'      => 0,
+                // Promo snapshot — realised as a discount when the order is invoiced.
+                'promo_code_id'       => $promo?->id,
+                'promo_code'          => $promo?->code,
+                'discount_scope'      => $promo?->scope,
+                'discount_type'       => $promo?->discount_type,
+                'discount_value'      => $promo?->discount_value,
+                'discount_product_id' => $promo?->product_id,
             ]);
+
+            if ($promo) {
+                $promo->increment('used_count');
+            }
 
             foreach (array_values($data['items']) as $n => $item) {
                 PurchaseOrderLine::create([
@@ -298,7 +321,9 @@ class CustomerPortalController extends Controller
 
         $customer->notifyPortal('order', 'Order submitted', "Your order {$po->po_number} was received. We'll confirm pricing shortly.", 'bi-cart-check');
 
-        return redirect()->route('portal.dashboard')->with('status', "Order {$po->po_number} placed — we'll be in touch with a quote.");
+        $promoNote = $promo ? " Promo {$promo->code} applied — {$promo->label}." : '';
+
+        return redirect()->route('portal.dashboard')->with('status', "Order {$po->po_number} placed — we'll be in touch with a quote.{$promoNote}");
     }
 
     // ── View a single order ───────────────────────────────────────────────

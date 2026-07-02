@@ -296,6 +296,12 @@
       </div>
     </div>
     @endif
+    @if($can('promocodes'))
+    <a href="{{ route('promo-codes.index') }}" class="nav-item-link {{ request()->routeIs('promo-codes.*') ? 'active' : '' }}">
+      <span class="nav-icon"><i class="bi bi-ticket-perforated"></i></span>
+      <span x-show="!sidebarCollapsed">Promo Codes</span>
+    </a>
+    @endif
     @if($can('country_managers'))
     <a href="{{ route('country-managers.index') }}" class="nav-item-link {{ request()->routeIs('country-managers.*') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-person-gear"></i></span>

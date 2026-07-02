@@ -27,6 +27,16 @@
           <input type="date" name="required_by_date" class="form-control" min="{{ now()->toDateString() }}"
                  value="{{ old('required_by_date', $editing ? $order->required_by_date?->toDateString() : now()->addDays(30)->toDateString()) }}">
         </div>
+        @unless($editing)
+        <div class="col-md-5">
+          <label class="form-label small fw-semibold">Promo code <span class="text-muted fw-normal">(optional)</span></label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-ticket-perforated"></i></span>
+            <input type="text" name="promo_code" class="form-control text-uppercase" value="{{ old('promo_code') }}" placeholder="Have a code? Enter it here">
+          </div>
+          <div class="text-muted" style="font-size:12px">We'll apply the discount when we quote your order.</div>
+        </div>
+        @endunless
       </div>
 
       <div class="d-flex align-items-center mb-2">

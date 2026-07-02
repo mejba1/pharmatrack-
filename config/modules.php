@@ -24,6 +24,7 @@ return [
     'anti_counterfeit' => ['label' => 'Anti-Counterfeit',    'prefixes' => ['anticounterfeit.']],
     'vault'            => ['label' => 'Document Vault',       'prefixes' => ['vault']],
     'customers'        => ['label' => 'Customers & Sales',   'prefixes' => ['customers.']],
+    'promocodes'       => ['label' => 'Promo Codes',          'prefixes' => ['promo-codes.', 'promo-codes']],
     'country_managers' => ['label' => 'Country Managers',     'prefixes' => ['country-managers.']],
     'patients'         => ['label' => 'Patient Portal',       'prefixes' => ['patients']],
     'reports'          => ['label' => 'Reports',             'prefixes' => ['reports']],

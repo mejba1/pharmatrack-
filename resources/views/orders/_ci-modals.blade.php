@@ -44,6 +44,18 @@
           <div class="col-md-3"><div class="p-3 border rounded-3 text-center"><div class="text-muted-sm">Status</div><div class="fw-bold" x-text="selectedCI?.payStatus"></div></div></div>
         </div>
 
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <form method="POST" :action="statusUrl()" @submit="return confirm('Mark this invoice as fully paid?')">@csrf<input type="hidden" name="action" value="mark_paid">
+            <button class="btn btn-success btn-sm" :disabled="selectedCI?.payStatusKey==='paid'"><i class="bi bi-check-circle me-1"></i>Mark Paid</button>
+          </form>
+          <form method="POST" :action="statusUrl()" @submit="return confirm('Clear all payments and mark as unpaid?')">@csrf<input type="hidden" name="action" value="mark_unpaid">
+            <button class="btn btn-outline-warning btn-sm" :disabled="!(selectedCI?.payments||[]).length"><i class="bi bi-arrow-counterclockwise me-1"></i>Mark Unpaid</button>
+          </form>
+          <form method="POST" :action="statusUrl()" @submit="return confirm('Cancel this commercial invoice?')" x-show="selectedCI?.status!=='Cancelled'">@csrf<input type="hidden" name="action" value="cancel">
+            <button class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle me-1"></i>Cancel Invoice</button>
+          </form>
+        </div>
+
         <form method="POST" :action="selectedCI?.payUrl" class="row g-2 align-items-end p-3 border rounded-3 mb-3">@csrf
           <div class="col-md-2"><label class="form-label">Amount <span class="text-danger">*</span></label><input type="number" min="0.01" step="0.01" name="amount" class="form-control form-control-sm" required></div>
           <div class="col-md-2"><label class="form-label">Paid on <span class="text-danger">*</span></label><input type="date" name="paid_on" class="form-control form-control-sm" value="{{ now()->format('Y-m-d') }}" required></div>
