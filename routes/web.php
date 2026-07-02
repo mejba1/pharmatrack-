@@ -206,6 +206,7 @@ Route::middleware(['auth', 'module'])->group(function () {
     // ── Promo Codes (sales discounts applied at order placement) ──────────────
     Route::get('/promo-codes', [\App\Http\Controllers\PromoCodeController::class, 'index'])->name('promo-codes.index');
     Route::get('/promo-codes/generate', [\App\Http\Controllers\PromoCodeController::class, 'generate'])->name('promo-codes.generate');
+    Route::get('/promo-codes/search', [\App\Http\Controllers\PromoCodeController::class, 'search'])->name('promo-codes.search');
     Route::post('/promo-codes/bulk', [\App\Http\Controllers\PromoCodeController::class, 'bulkStore'])->name('promo-codes.bulk');
     Route::post('/promo-codes', [\App\Http\Controllers\PromoCodeController::class, 'store'])->name('promo-codes.store');
     Route::put('/promo-codes/{promoCode}', [\App\Http\Controllers\PromoCodeController::class, 'update'])->name('promo-codes.update');

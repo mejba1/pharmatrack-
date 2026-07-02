@@ -1,6 +1,11 @@
 @extends('layouts.app')
 @section('title', 'Promo Codes')
 
+@push('styles')
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<style>.ts-wrapper.form-select-sm .ts-control{ min-height:calc(1.5em + .5rem + 2px); font-size:.875rem; }</style>
+@endpush
+
 @section('content')
 <div x-data="promoApp()">
 
@@ -110,10 +115,7 @@
               </div>
               <div class="col-md-4" x-show="form.scope==='product'">
                 <label class="form-label">Product <span class="text-danger">*</span></label>
-                <select name="product_id" class="form-select form-select-sm" x-model="form.product_id" :required="form.scope==='product'">
-                  <option value="">Select product…</option>
-                  @foreach($products as $p)<option value="{{ $p->id }}">{{ $p->name }} ({{ $p->prn }})</option>@endforeach
-                </select>
+                <select id="form_product_id" name="product_id" class="form-select form-select-sm" placeholder="Search product…" autocomplete="off"></select>
               </div>
               <template x-if="form.scope!=='none'">
                 <div class="col-md-4">
@@ -183,10 +185,7 @@
               </div>
               <div class="col-md-4" x-show="bulk.scope==='product'">
                 <label class="form-label">Product <span class="text-danger">*</span></label>
-                <select name="product_id" class="form-select form-select-sm" x-model="bulk.product_id" :required="bulk.scope==='product'">
-                  <option value="">Select product…</option>
-                  @foreach($products as $p)<option value="{{ $p->id }}">{{ $p->name }} ({{ $p->prn }})</option>@endforeach
-                </select>
+                <select id="bulk_product_id" name="product_id" class="form-select form-select-sm" placeholder="Search product…" autocomplete="off"></select>
               </div>
               <template x-if="bulk.scope!=='none'">
                 <div class="col-md-4"><label class="form-label">Discount type</label>
@@ -227,7 +226,61 @@
 </div>
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script>
+// ── Searchable customer / country / product pickers (server-side typeahead) ──
+(function(){
+  const SEARCH = '{{ route('promo-codes.search') }}';
+  const ts = {};
+  function init(id, type, multi){
+    const el = document.getElementById(id);
+    if (!el || !window.TomSelect) return;
+    ts[id] = new TomSelect(el, {
+      plugins: multi ? ['remove_button'] : [],
+      maxItems: multi ? null : 1,
+      valueField: 'id', labelField: 'text', searchField: 'text',
+      maxOptions: 50, preload: 'focus',
+      load: (q, cb) => {
+        fetch(SEARCH + '?type=' + type + '&q=' + encodeURIComponent(q), { headers:{ 'Accept':'application/json' } })
+          .then(r => r.json()).then(cb).catch(() => cb());
+      },
+    });
+  }
+  // Populate a picker with already-selected ids (resolves their labels on the fly).
+  function fill(id, type, ids){
+    const inst = ts[id]; if (!inst) return;
+    ids = (ids || []).map(String).filter(Boolean);
+    inst.clear(true); inst.clearOptions();
+    if (!ids.length) return;
+    const p = new URLSearchParams({ type });
+    ids.forEach(v => p.append('ids[]', v));
+    fetch(SEARCH + '?' + p.toString(), { headers:{ 'Accept':'application/json' } })
+      .then(r => r.json()).then(rows => {
+        rows.forEach(o => inst.addOption({ id: String(o.id), text: o.text }));
+        inst.setValue(ids, true);
+      });
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    ['form','bulk'].forEach(m => {
+      init(m + '_customer_ids', 'customers', true);
+      init(m + '_country_ids',  'countries', true);
+      init(m + '_product_ids',  'products',  true);
+      init(m + '_product_id',   'products',  false);
+    });
+  });
+  window.promoTargets = {
+    set(m, c){
+      fill(m + '_customer_ids', 'customers', c.customer_ids);
+      fill(m + '_country_ids',  'countries', c.country_ids);
+      fill(m + '_product_ids',  'products',  c.product_ids);
+      fill(m + '_product_id',   'products',  c.product_id ? [c.product_id] : []);
+    },
+    clear(m){
+      [m+'_customer_ids', m+'_country_ids', m+'_product_ids', m+'_product_id'].forEach(id => ts[id] && ts[id].clear(true));
+    },
+  };
+})();
+
 function promoApp(){
   return {
     showModal:false,
@@ -238,9 +291,9 @@ function promoApp(){
     updateTpl:'{{ url('promo-codes') }}/__ID__',
     get updateAction(){ return this.updateTpl.replace('__ID__', this.form.id); },
     blank(){ return { id:null, code:'', description:'', scope:'total', discount_type:'percent', discount_value:'', product_id:'', min_order_value:'', max_discount:'', usage_limit:'', starts_at:'', ends_at:'', is_active:true, customer_ids:[], country_ids:[], product_ids:[] }; },
-    openAdd(){ this.form = this.blank(); this.showModal = true; },
-    openEdit(c){ this.form = { ...this.blank(), ...c, product_id: c.product_id ?? '', min_order_value: c.min_order_value ?? '', max_discount: c.max_discount ?? '', usage_limit: c.usage_limit ?? '', starts_at: c.starts_at ?? '', ends_at: c.ends_at ?? '', customer_ids: c.customer_ids ?? [], country_ids: c.country_ids ?? [], product_ids: c.product_ids ?? [] }; this.showModal = true; },
-    openBulk(){ this.showBulk = true; },
+    openAdd(){ this.form = this.blank(); this.showModal = true; this.$nextTick(() => window.promoTargets?.clear('form')); },
+    openEdit(c){ this.form = { ...this.blank(), ...c, product_id: c.product_id ?? '', min_order_value: c.min_order_value ?? '', max_discount: c.max_discount ?? '', usage_limit: c.usage_limit ?? '', starts_at: c.starts_at ?? '', ends_at: c.ends_at ?? '' }; this.showModal = true; this.$nextTick(() => window.promoTargets?.set('form', c)); },
+    openBulk(){ this.showBulk = true; this.$nextTick(() => window.promoTargets?.clear('bulk')); },
     async generate(){
       this.generating = true;
       try {

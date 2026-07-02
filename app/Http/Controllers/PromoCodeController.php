@@ -23,10 +23,9 @@ class PromoCodeController extends Controller
     {
         $this->authorizeManage($request);
 
+        // Targeting pickers load on demand (typeahead), so we never render huge
+        // customer/product/country option lists — this scales to 10k+ rows.
         $codes = PromoCode::with('product')->latest()->get();
-        $products  = Product::orderBy('name')->get(['id', 'name', 'prn']);
-        $customers = \App\Models\Customer::orderBy('name')->get(['id', 'name', 'customer_code']);
-        $countries = \App\Models\Country::orderBy('name')->get(['id', 'name', 'flag']);
 
         $stats = [
             'total'    => $codes->count(),
@@ -34,7 +33,7 @@ class PromoCodeController extends Controller
             'redeemed' => (int) $codes->sum('used_count'),
         ];
 
-        return view('promo-codes.index', compact('codes', 'products', 'customers', 'countries', 'stats'));
+        return view('promo-codes.index', compact('codes', 'stats'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -78,6 +77,44 @@ class PromoCodeController extends Controller
         $this->authorizeManage($request);
 
         return response()->json(['code' => PromoCode::generateCode((string) $request->query('prefix', ''))]);
+    }
+
+    /**
+     * Typeahead search for the targeting comboboxes. Returns [{id, text}] so the
+     * customer/country/product pickers scale to very large datasets.
+     */
+    public function search(Request $request): JsonResponse
+    {
+        $this->authorizeManage($request);
+
+        $q     = trim((string) $request->query('q', ''));
+        $type  = (string) $request->query('type', '');
+        $ids   = array_filter(array_map('intval', (array) $request->query('ids', []))); // resolve selected labels
+        $limit = 20;
+
+        $rows = match ($type) {
+            'customers' => \App\Models\Customer::query()
+                ->when($ids, fn ($x) => $x->whereIn('id', $ids))
+                ->when(! $ids && $q !== '', fn ($x) => $x->where(fn ($w) => $w->where('name', 'like', "%{$q}%")->orWhere('customer_code', 'like', "%{$q}%")))
+                ->orderBy('name')->limit($limit)->get()
+                ->map(fn ($c) => ['id' => $c->id, 'text' => $c->name . ' (' . $c->customer_code . ')']),
+
+            'countries' => \App\Models\Country::query()
+                ->when($ids, fn ($x) => $x->whereIn('id', $ids))
+                ->when(! $ids && $q !== '', fn ($x) => $x->where('name', 'like', "%{$q}%"))
+                ->orderBy('name')->limit($limit)->get()
+                ->map(fn ($c) => ['id' => $c->id, 'text' => trim(($c->flag ? $c->flag . ' ' : '') . $c->name)]),
+
+            'products' => \App\Models\Product::query()
+                ->when($ids, fn ($x) => $x->whereIn('id', $ids))
+                ->when(! $ids && $q !== '', fn ($x) => $x->where(fn ($w) => $w->where('name', 'like', "%{$q}%")->orWhere('prn', 'like', "%{$q}%")))
+                ->orderBy('name')->limit($limit)->get()
+                ->map(fn ($p) => ['id' => $p->id, 'text' => $p->name . ' (' . $p->prn . ')']),
+
+            default => collect(),
+        };
+
+        return response()->json($rows->values());
     }
 
     /** Generate a batch of unique codes sharing one discount configuration. */
