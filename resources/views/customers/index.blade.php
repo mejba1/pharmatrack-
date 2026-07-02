@@ -1,6 +1,36 @@
 @extends('layouts.app')
 @section('title', 'Customers & Sales')
 
+@push('styles')
+<style>
+/* ── Scrollable modal with a <form> wrapping body + footer ───────────────── */
+/* These modals are opened by toggling display:block via Alpine (not the     */
+/* Bootstrap JS), so Bootstrap's percentage height chain never resolves and  */
+/* the footer (Save / Update button) gets clipped out of view. Bound the     */
+/* height with a viewport unit so the body scrolls and the footer stays      */
+/* pinned and visible — independent of the parent height chain.              */
+.modal-dialog-scrollable > .modal-content {
+  max-height: calc(100vh - 3.5rem);
+  overflow: hidden;
+}
+.modal-content > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.modal-content > form > .modal-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+.modal-content > form > .modal-footer {
+  flex-shrink: 0;
+}
+</style>
+@endpush
+
 @section('content')
 @php
   $batchesJs = $batches->map(fn ($b) => ['id' => $b->id, 'product_id' => $b->product_id, 'label' => $b->brn . ($b->batch_number ? ' · ' . $b->batch_number : '')])->values();
