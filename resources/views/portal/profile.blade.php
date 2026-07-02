@@ -12,6 +12,7 @@
 </nav>
 
 <div class="container-xl py-4" style="max-width:900px">
+  <a href="{{ route('portal.dashboard') }}" class="btn btn-outline-secondary btn-sm rounded-3 mb-3"><i class="bi bi-arrow-left me-1"></i>Back to dashboard</a>
   <h4 class="fw-bold mb-1">My Profile</h4>
   <div class="text-muted small mb-4">Update your details and password.</div>
 

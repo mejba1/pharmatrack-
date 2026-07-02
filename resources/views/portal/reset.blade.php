@@ -26,6 +26,6 @@
     <button class="btn btn-grad w-100 py-2"><i class="bi bi-shield-lock me-1"></i>Reset password</button>
   </form>
 
-  <div class="text-center small text-muted mt-4"><a href="{{ route('portal.login') }}" class="fw-semibold" style="color:var(--brand1)">Back to sign in</a></div>
+  <div class="text-center small text-muted mt-4"><a href="{{ route('portal.login') }}" class="fw-semibold" style="color:var(--brand1)"><i class="bi bi-arrow-left me-1"></i>Back to sign in</a></div>
 </div>
 @endsection

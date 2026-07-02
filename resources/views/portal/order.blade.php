@@ -18,6 +18,7 @@
 @endphp
 
 <div class="container-xl py-4" style="max-width:900px" x-data="orderForm({{ Illuminate\Support\Js::from($lineData) }})">
+  <a href="{{ $editing ? route('portal.order.show', $order) : route('portal.dashboard') }}" class="btn btn-outline-secondary btn-sm rounded-3 mb-3"><i class="bi bi-arrow-left me-1"></i>{{ $editing ? 'Back to order' : 'Back to dashboard' }}</a>
   <h4 class="fw-bold mb-1">{{ $editing ? 'Edit Order '.$order->po_number : 'Place an Order' }}</h4>
   <div class="text-muted small mb-4">Select products and quantities. We'll confirm pricing and send you a quote.</div>
 
