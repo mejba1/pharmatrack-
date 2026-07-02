@@ -52,74 +52,122 @@
     </div>
 
     {{-- Orders --}}
-    <div class="card-soft p-3 p-md-4" x-show="tab==='orders' && {{ $portal['portal_show_orders'] ? '1' : '0' }}" x-cloak>
+    <div class="card-soft p-3 p-md-4" x-show="tab==='orders' && {{ $portal['portal_show_orders'] ? '1' : '0' }}" x-cloak
+         x-data="portalTable(@js($ordersData), { searchFields:['po_number','status','date'], defaultSort:'dateISO' })"
+         x-effect="if (page > pages) page = pages">
       <div class="d-flex align-items-center mb-3">
         <div class="fw-semibold"><i class="bi bi-cart3 me-1" style="color:var(--brand1)"></i>Purchase Orders</div>
         @if($portal['portal_allow_ordering'])<a href="{{ route('portal.order.create') }}" class="btn btn-grad btn-sm ms-auto"><i class="bi bi-cart-plus me-1"></i>Place Order</a>@endif
       </div>
+
+      @include('portal._table-toolbar', ['placeholder' => 'Search PO # or status…'])
+
       <div class="table-responsive">
-        <table class="table table-clean mb-0">
-          <thead><tr><th>PO #</th><th>Date</th><th>Items</th><th style="min-width:170px">Progress</th><th>Status</th><th class="text-end">Value</th><th class="text-end">Actions</th></tr></thead>
+        <table class="table table-clean mb-0 align-middle">
+          <thead><tr>
+            <th role="button" @click="sortBy('po_number')">PO # <span x-html="caret('po_number')"></span></th>
+            <th role="button" @click="sortBy('dateISO')">Date <span x-html="caret('dateISO')"></span></th>
+            <th role="button" @click="sortBy('items')">Items <span x-html="caret('items')"></span></th>
+            <th style="min-width:170px">Progress</th>
+            <th role="button" @click="sortBy('status')">Status <span x-html="caret('status')"></span></th>
+            <th class="text-end" role="button" @click="sortBy('totalNum')">Value <span x-html="caret('totalNum')"></span></th>
+            <th class="text-end">Actions</th>
+          </tr></thead>
           <tbody>
-            @forelse($orders as $po)
-              @php $chain = $po->chainStages(); $canEdit = $po->isEditableByCustomer(); @endphp
+            <template x-for="o in paged" :key="o.id">
               <tr>
-                <td class="font-monospace fw-semibold"><a href="{{ route('portal.order.show', $po) }}" class="text-decoration-none" style="color:var(--brand1)">{{ $po->po_number }}</a></td>
-                <td>{{ $po->po_date?->format('d M Y') }}</td>
-                <td>{{ $po->lines->count() }} SKU{{ $po->lines->count() === 1 ? '' : 's' }}</td>
-                <td>
-                  <div class="d-flex align-items-center">
-                    @foreach(['PO','SO','PI','CI'] as $i => $label)
-                      @php $n = $i + 1; $done = $chain['step'] >= $n; @endphp
-                      <div class="text-center" style="width:38px">
-                        <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center"
-                             style="width:24px;height:24px;font-size:9px;font-weight:700;{{ $done ? 'background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff' : 'background:#fff;border:1px solid #e2e8f0;color:#94a3b8' }}">
-                          @if($done)<i class="bi bi-check-lg"></i>@else{{ $label }}@endif
-                        </div>
-                        <div style="font-size:9px;{{ $done ? 'color:#16a34a;font-weight:600' : 'color:#94a3b8' }}">{{ $label }}@if($label==='CI' && $chain['ci_count'] > 1) ×{{ $chain['ci_count'] }}@endif</div>
-                      </div>
-                      @if($i < 3)<div class="flex-fill" style="height:2px;{{ $chain['step'] > $n ? 'background:#16a34a' : 'background:#e2e8f0' }}"></div>@endif
-                    @endforeach
-                  </div>
-                </td>
-                <td><span class="chip" style="background:#eef2ff;color:#4f46e5">{{ $po->status_label ?? $po->status }}</span></td>
-                <td class="text-end fw-semibold">{{ $po->currency }} {{ number_format((float) $po->total_value, 2) }}</td>
+                <td class="font-monospace fw-semibold"><a :href="o.show_url" class="text-decoration-none" style="color:var(--brand1)" x-text="o.po_number"></a></td>
+                <td x-text="o.date"></td>
+                <td><span x-text="o.items"></span> <span x-text="o.items===1?'SKU':'SKUs'"></span></td>
+                <td x-html="chainHtml(o)"></td>
+                <td><span class="chip" style="background:#eef2ff;color:#4f46e5" x-text="o.status"></span></td>
+                <td class="text-end fw-semibold"><span x-text="o.currency"></span> <span x-text="o.total"></span></td>
                 <td class="text-end text-nowrap">
-                  <a href="{{ route('portal.order.show', $po) }}" class="btn btn-outline-secondary btn-sm btn-icon" title="View"><i class="bi bi-eye"></i></a>
-                  @if($canEdit && $portal['portal_allow_ordering'])
-                    <a href="{{ route('portal.order.edit', $po) }}" class="btn btn-outline-primary btn-sm btn-icon" title="Edit"><i class="bi bi-pencil"></i></a>
+                  <a :href="o.show_url" class="btn btn-outline-secondary btn-sm btn-icon" title="View"><i class="bi bi-eye"></i></a>
+                  @if($portal['portal_allow_ordering'])
+                    <a :href="o.edit_url" x-show="o.editable" class="btn btn-outline-primary btn-sm btn-icon" title="Edit"><i class="bi bi-pencil"></i></a>
                   @endif
                 </td>
               </tr>
-            @empty
-              <tr><td colspan="7" class="text-center text-muted py-4">No purchase orders yet.</td></tr>
-            @endforelse
+            </template>
+            <tr x-show="!paged.length"><td colspan="7" class="text-center text-muted py-4" x-text="rows.length ? 'No orders match your filters.' : 'No purchase orders yet.'"></td></tr>
           </tbody>
         </table>
       </div>
+
+      @include('portal._table-footer')
     </div>
 
     {{-- Invoices --}}
-    <div class="card-soft p-3 p-md-4" x-show="tab==='invoices' && {{ $portal['portal_show_invoices'] ? '1' : '0' }}" x-cloak>
+    <div class="card-soft p-3 p-md-4" x-show="tab==='invoices' && {{ $portal['portal_show_invoices'] ? '1' : '0' }}" x-cloak
+         x-data="portalTable(@js($invoices), { searchFields:['number','type','status','reference'], defaultSort:'dateISO' })"
+         x-effect="if (page > pages) page = pages">
       <div class="fw-semibold mb-3"><i class="bi bi-receipt me-1" style="color:var(--brand1)"></i>Invoices</div>
+
+      @include('portal._table-toolbar', ['placeholder' => 'Search number, type, PO…'])
+
       <div class="table-responsive">
-        <table class="table table-clean mb-0">
-          <thead><tr><th>Type</th><th>Number</th><th>Date</th><th>Status</th><th class="text-end">Total</th></tr></thead>
+        <table class="table table-clean mb-0 align-middle">
+          <thead><tr>
+            <th role="button" @click="sortBy('type')">Type <span x-html="caret('type')"></span></th>
+            <th role="button" @click="sortBy('number')">Number <span x-html="caret('number')"></span></th>
+            <th role="button" @click="sortBy('reference')">Order <span x-html="caret('reference')"></span></th>
+            <th role="button" @click="sortBy('dateISO')">Date <span x-html="caret('dateISO')"></span></th>
+            <th role="button" @click="sortBy('status')">Status <span x-html="caret('status')"></span></th>
+            <th class="text-end" role="button" @click="sortBy('totalNum')">Total <span x-html="caret('totalNum')"></span></th>
+            <th class="text-end">Actions</th>
+          </tr></thead>
           <tbody>
-            @forelse($invoices as $inv)
+            <template x-for="(inv, i) in paged" :key="i">
               <tr>
-                <td><span class="chip" style="background:{{ $inv['type']==='Proforma' ? '#fff7ed;color:#c2410c' : '#ecfdf5;color:#047857' }}">{{ $inv['type'] }}</span></td>
-                <td class="font-monospace fw-semibold">{{ $inv['number'] }}</td>
-                <td>{{ $inv['date'] }}</td>
-                <td class="small text-capitalize">{{ $inv['status'] }}</td>
-                <td class="text-end fw-semibold">{{ $inv['currency'] }} {{ number_format($inv['total'], 2) }}</td>
+                <td><span class="chip" :style="inv.type==='Proforma' ? 'background:#fff7ed;color:#c2410c' : 'background:#ecfdf5;color:#047857'" x-text="inv.type"></span></td>
+                <td class="font-monospace fw-semibold" x-text="inv.number"></td>
+                <td class="font-monospace small text-muted" x-text="inv.reference || '—'"></td>
+                <td x-text="inv.date"></td>
+                <td class="small text-capitalize" x-text="inv.status"></td>
+                <td class="text-end fw-semibold"><span x-text="inv.currency"></span> <span x-text="inv.total"></span></td>
+                <td class="text-end text-nowrap">
+                  <button type="button" class="btn btn-outline-secondary btn-sm btn-icon" title="View" @click="open(inv)"><i class="bi bi-eye"></i></button>
+                  <template x-if="inv.doc_url"><a :href="inv.doc_url" target="_blank" class="btn btn-outline-primary btn-sm btn-icon" title="Download"><i class="bi bi-download"></i></a></template>
+                </td>
               </tr>
-            @empty
-              <tr><td colspan="5" class="text-center text-muted py-4">No invoices yet.</td></tr>
-            @endforelse
+            </template>
+            <tr x-show="!paged.length"><td colspan="7" class="text-center text-muted py-4" x-text="rows.length ? 'No invoices match your filters.' : 'No invoices yet.'"></td></tr>
           </tbody>
         </table>
       </div>
+
+      @include('portal._table-footer')
+
+      {{-- Invoice detail modal --}}
+      <div class="modal fade" :class="{show:showModal}" :style="showModal?'display:block':''" tabindex="-1" x-cloak>
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content" x-show="selected">
+            <div class="modal-header">
+              <h5 class="modal-title"><i class="bi bi-receipt me-2" style="color:var(--brand1)"></i><span x-text="selected?.type + ' Invoice'"></span></h5>
+              <button type="button" class="btn-close" @click="close()"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table table-clean mb-0">
+                <tr><th style="width:150px">Number</th><td class="font-monospace fw-semibold" x-text="selected?.number"></td></tr>
+                <tr><th>Order</th><td class="font-monospace" x-text="selected?.reference || '—'"></td></tr>
+                <tr><th>Status</th><td class="text-capitalize" x-text="selected?.status"></td></tr>
+                <tr><th>Date</th><td x-text="selected?.date"></td></tr>
+                <tr x-show="selected?.valid_until"><th>Valid until</th><td x-text="selected?.valid_until"></td></tr>
+                <tr><th>Subtotal</th><td><span x-text="selected?.currency"></span> <span x-text="selected?.subtotal"></span></td></tr>
+                <tr><th>Freight</th><td><span x-text="selected?.currency"></span> <span x-text="selected?.freight"></span></td></tr>
+                <tr><th x-text="selected?.extra_label"></th><td><span x-text="selected?.currency"></span> <span x-text="selected?.extra"></span></td></tr>
+                <tr><th>Total</th><td class="fw-bold"><span x-text="selected?.currency"></span> <span x-text="selected?.total"></span></td></tr>
+              </table>
+            </div>
+            <div class="modal-footer">
+              <template x-if="selected?.doc_url"><a :href="selected?.doc_url" target="_blank" class="btn btn-grad btn-sm"><i class="bi bi-download me-1"></i>Download document</a></template>
+              <button type="button" class="btn btn-outline-secondary btn-sm" @click="close()">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-backdrop fade show" x-show="showModal" @click="close()" x-cloak></div>
     </div>
 
     {{-- Documents --}}
@@ -188,4 +236,75 @@
 
   </div>
 </div>
+
+<script>
+// Client-side data table: search, date-range filter, column sort, pagination.
+function portalTable(rows, config){
+  config = config || {};
+  return {
+    rows: rows || [],
+    q: '', from: '', to: '',
+    sortKey: config.defaultSort || 'dateISO',
+    sortDir: 'desc',
+    page: 1,
+    perPage: 10,
+    showModal: false,
+    selected: null,
+
+    get filtered(){
+      const q = this.q.trim().toLowerCase();
+      const fields = config.searchFields || [];
+      const r = this.rows.filter(row => {
+        if (q && !fields.some(f => String(row[f] ?? '').toLowerCase().includes(q))) return false;
+        if (this.from && row.dateISO && row.dateISO < this.from) return false;
+        if (this.to   && row.dateISO && row.dateISO > this.to)   return false;
+        return true;
+      });
+      const dir = this.sortDir === 'asc' ? 1 : -1;
+      const key = this.sortKey;
+      return r.slice().sort((a, b) => {
+        const av = a[key], bv = b[key];
+        if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+        return String(av ?? '').localeCompare(String(bv ?? '')) * dir;
+      });
+    },
+    get total(){ return this.filtered.length; },
+    get pages(){ return Math.max(1, Math.ceil(this.total / this.perPage)); },
+    get paged(){ const s = (this.page - 1) * this.perPage; return this.filtered.slice(s, s + this.perPage); },
+
+    sortBy(k){
+      if (this.sortKey === k) { this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc'; }
+      else { this.sortKey = k; this.sortDir = 'asc'; }
+      this.page = 1;
+    },
+    caret(k){
+      if (this.sortKey !== k) return '<i class="bi bi-arrow-down-up" style="opacity:.35;font-size:11px"></i>';
+      return this.sortDir === 'asc'
+        ? '<i class="bi bi-caret-up-fill" style="font-size:11px"></i>'
+        : '<i class="bi bi-caret-down-fill" style="font-size:11px"></i>';
+    },
+    reset(){ this.q = ''; this.from = ''; this.to = ''; this.page = 1; },
+    open(row){ this.selected = row; this.showModal = true; },
+    close(){ this.showModal = false; },
+
+    // PO → SO → PI → CI progress chain markup for a row.
+    chainHtml(o){
+      const labels = ['PO','SO','PI','CI'];
+      let h = '<div class="d-flex align-items-center">';
+      labels.forEach((label, i) => {
+        const done = o.step >= (i + 1);
+        h += '<div class="text-center" style="width:38px">'
+          + '<div class="rounded-circle mx-auto d-flex align-items-center justify-content-center" style="width:24px;height:24px;font-size:9px;font-weight:700;'
+          + (done ? 'background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff' : 'background:#fff;border:1px solid #e2e8f0;color:#94a3b8') + '">'
+          + (done ? '<i class="bi bi-check-lg"></i>' : label) + '</div>'
+          + '<div style="font-size:9px;' + (done ? 'color:#16a34a;font-weight:600' : 'color:#94a3b8') + '">' + label
+          + ((label === 'CI' && o.ci_count > 1) ? ('&times;' + o.ci_count) : '') + '</div>'
+          + '</div>';
+        if (i < 3) h += '<div class="flex-fill" style="height:2px;' + (o.step > (i + 1) ? 'background:#16a34a' : 'background:#e2e8f0') + '"></div>';
+      });
+      return h + '</div>';
+    },
+  };
+}
+</script>
 @endsection

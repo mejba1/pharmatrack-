@@ -78,21 +78,71 @@ class CustomerPortalController extends Controller
 
         $orders = $customer->purchaseOrders()
             ->with('lines.product', 'documents', 'salesOrder.proformaInvoice.commercialInvoices:id,proforma_invoice_id')
-            ->latest()->limit(20)->get();
+            ->latest()->get();
         $units  = $customer->soldUnits()->with('batch.product')->latest('sold_at')->limit(50)->get();
+
+        // Orders as a JS-ready dataset for the client-side data table.
+        $ordersData = $orders->map(function ($po) {
+            $chain = $po->chainStages();
+
+            return [
+                'id'        => $po->id,
+                'po_number' => $po->po_number,
+                'date'      => $po->po_date?->format('d M Y'),
+                'dateISO'   => $po->po_date?->format('Y-m-d'),
+                'items'     => $po->lines->count(),
+                'step'      => $chain['step'],
+                'ci_count'  => $chain['ci_count'],
+                'status'    => $po->status_label ?? ucfirst((string) $po->status),
+                'currency'  => $po->currency,
+                'totalNum'  => (float) $po->total_value,
+                'total'     => number_format((float) $po->total_value, 2),
+                'editable'  => $po->isEditableByCustomer(),
+                'show_url'  => route('portal.order.show', $po),
+                'edit_url'  => route('portal.order.edit', $po),
+            ];
+        })->values();
 
         // Invoices raised against this customer's sales orders.
         $pis = \App\Models\ProformaInvoice::whereHas('salesOrder', fn ($q) => $q->where('customer_id', $cid))
+            ->with('salesOrder.purchaseOrder:id,po_number', 'documents')
             ->latest('pi_date')->get();
         $cis = \App\Models\CommercialInvoice::whereHas('proformaInvoice.salesOrder', fn ($q) => $q->where('customer_id', $cid))
+            ->with('proformaInvoice.salesOrder.purchaseOrder:id,po_number', 'documents')
             ->latest('ci_date')->get();
 
         $invoices = $pis->map(fn ($p) => [
-            'type' => 'Proforma', 'number' => $p->pi_number, 'date' => $p->pi_date?->format('d M Y'),
-            'currency' => $p->currency, 'total' => (float) $p->total_value, 'status' => $p->status_label ?? ucfirst((string) $p->status),
+            'type'        => 'Proforma',
+            'number'      => $p->pi_number,
+            'date'        => $p->pi_date?->format('d M Y'),
+            'dateISO'     => $p->pi_date?->format('Y-m-d'),
+            'currency'    => $p->currency,
+            'totalNum'    => (float) $p->total_value,
+            'total'       => number_format((float) $p->total_value, 2),
+            'status'      => $p->status_label ?? ucfirst((string) $p->status),
+            'reference'   => $p->salesOrder?->purchaseOrder?->po_number,
+            'valid_until' => $p->valid_until?->format('d M Y'),
+            'subtotal'    => number_format((float) $p->subtotal, 2),
+            'freight'     => number_format((float) $p->freight, 2),
+            'extra_label' => 'Tax',
+            'extra'       => number_format((float) $p->tax_amount, 2),
+            'doc_url'     => $p->documents->first()?->url,
         ])->concat($cis->map(fn ($c) => [
-            'type' => 'Commercial', 'number' => $c->ci_number, 'date' => $c->ci_date?->format('d M Y'),
-            'currency' => $c->currency, 'total' => (float) ($c->total_value ?? 0), 'status' => ucfirst((string) $c->status),
+            'type'        => 'Commercial',
+            'number'      => $c->ci_number,
+            'date'        => $c->ci_date?->format('d M Y'),
+            'dateISO'     => $c->ci_date?->format('Y-m-d'),
+            'currency'    => $c->currency,
+            'totalNum'    => (float) ($c->total_value ?? 0),
+            'total'       => number_format((float) ($c->total_value ?? 0), 2),
+            'status'      => $c->status_label ?? ucfirst((string) $c->status),
+            'reference'   => $c->proformaInvoice?->salesOrder?->purchaseOrder?->po_number,
+            'valid_until' => null,
+            'subtotal'    => number_format((float) $c->subtotal, 2),
+            'freight'     => number_format((float) $c->freight, 2),
+            'extra_label' => 'Insurance',
+            'extra'       => number_format((float) $c->insurance, 2),
+            'doc_url'     => $c->documents->first()?->url,
         ]))->values();
 
         // Documents staff explicitly shared with this customer.
@@ -112,7 +162,7 @@ class CustomerPortalController extends Controller
         // Ordering button respects the per-customer override, not just the global flag.
         $portal['portal_allow_ordering'] = $customer->canPlaceOrders();
 
-        return view('portal.dashboard', compact('customer', 'orders', 'units', 'invoices', 'documents', 'stats', 'portal'));
+        return view('portal.dashboard', compact('customer', 'ordersData', 'units', 'invoices', 'documents', 'stats', 'portal'));
     }
 
     // ── Place an order (creates a Purchase Order) ─────────────────────────
