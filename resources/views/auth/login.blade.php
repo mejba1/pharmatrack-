@@ -13,6 +13,9 @@
     </div>
 
     <!-- Alert -->
+    @if(session('status'))
+      <div class="alert alert-success py-2 px-3 mb-3" style="font-size:13px">{{ session('status') }}</div>
+    @endif
     @if($errors->any())
       <div class="alert alert-danger py-2 px-3 mb-3" style="font-size:13px">{{ $errors->first() }}</div>
     @endif
@@ -45,7 +48,7 @@
           <input class="form-check-input" type="checkbox" id="remember" name="remember" x-model="form.remember">
           <label class="form-check-label" for="remember" style="font-size:13px">Remember me</label>
         </div>
-        <a href="#" style="font-size:13px" class="text-primary text-decoration-none">Forgot password?</a>
+        <a href="{{ route('password.request') }}" style="font-size:13px" class="text-primary text-decoration-none">Forgot password?</a>
       </div>
 
       <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">Sign In</button>

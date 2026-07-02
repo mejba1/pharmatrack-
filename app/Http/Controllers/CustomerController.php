@@ -132,6 +132,20 @@ class CustomerController extends Controller
         return back()->with('success', "Customer '{$customer->name}' updated.");
     }
 
+    /** Email the customer a portal password-reset link. */
+    public function sendResetLink(Request $request, Customer $customer): RedirectResponse
+    {
+        abort_unless($request->user()->can('customers.edit'), 403);
+
+        if (! $customer->email) {
+            return back()->with('error', 'This customer has no email address on file.');
+        }
+
+        \Illuminate\Support\Facades\Password::broker('customers')->sendResetLink(['email' => $customer->email]);
+
+        return back()->with('success', "Password reset link sent to {$customer->email}.");
+    }
+
     /** One-click approve: activate a pending customer and notify them. */
     public function approve(Request $request, Customer $customer): RedirectResponse
     {
@@ -249,6 +263,8 @@ class CustomerController extends Controller
             'id_type_label' => $customer->id_type_label,
             'logo_url'      => $customer->logo_url,
             'has_login'     => ! empty($customer->password) && ! empty($customer->email),
+            'portal_access' => $customer->canUsePortal(),
+            'can_order'     => $customer->canPlaceOrders(),
             'country_name'  => $customer->country?->name,
             'manager_name'  => $customer->manager?->name,
             'documents'     => $customer->documents->map(fn ($d) => [

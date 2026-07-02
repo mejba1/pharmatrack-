@@ -57,6 +57,8 @@
               <tr><td class="text-muted">Referenced by</td><td x-text="view?.referenced_by ?? '—'"></td></tr>
               <tr><td class="text-muted">Account Manager</td><td x-text="view?.manager_name ?? '—'"></td></tr>
               <tr><td class="text-muted">Portal login</td><td><span x-show="view?.has_login" class="badge bg-success-subtle text-success">Enabled</span><span x-show="!view?.has_login" class="text-muted">Not set</span></td></tr>
+              <tr><td class="text-muted">Portal access</td><td><span x-show="view?.portal_access" class="badge bg-success-subtle text-success">Allowed</span><span x-show="!view?.portal_access" class="badge bg-danger-subtle text-danger">Blocked</span></td></tr>
+              <tr><td class="text-muted">Ordering</td><td><span x-show="view?.can_order" class="badge bg-success-subtle text-success">Allowed</span><span x-show="!view?.can_order" class="badge bg-secondary-subtle text-secondary-emphasis">Off</span></td></tr>
             </table>
           </div></div>
           <div class="col-md-6"><div class="perm-box">
@@ -130,7 +132,11 @@
       </div>
       <div class="modal-body text-center text-muted py-5" x-show="!view"><div class="spinner-border text-primary"></div></div>
       <div class="modal-footer">
-        <form method="POST" :action="editAction" x-show="false"></form>
+        @can('customers.edit')
+        <form method="POST" :action="'{{ url('customers') }}/' + view?.id + '/reset-password'" x-show="view && !view.error && view?.email" @submit="return confirm('Email a password reset link to ' + view?.email + '?')">
+          @csrf<button class="btn btn-outline-warning btn-sm"><i class="bi bi-key me-1"></i>Send reset link</button>
+        </form>
+        @endcan
         <button type="button" class="btn btn-outline-success btn-sm" @click="showView=false; openSale(view?.id)" x-show="view && !view.error"><i class="bi bi-receipt me-1"></i>Record sale</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" @click="showView=false">Close</button>
       </div>

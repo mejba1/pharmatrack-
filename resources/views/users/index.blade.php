@@ -58,6 +58,9 @@
                 ]); @endphp
                 <button class="btn btn-outline-primary btn-sm btn-icon" title="Set permissions" @click="openPermissions({{ $payload }})"><i class="bi bi-shield-lock"></i></button>
                 <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit" @click="openEdit({{ $payload }})"><i class="bi bi-pencil"></i></button>
+                <form method="POST" action="{{ route('users.reset-password', $u) }}" @submit="return confirm('Email a password reset link to {{ addslashes($u->email) }}?')">
+                  @csrf<button class="btn btn-outline-warning btn-sm btn-icon" title="Send reset link"><i class="bi bi-key"></i></button>
+                </form>
                 @if($u->id !== auth()->id())
                 <form method="POST" action="{{ route('users.destroy', $u) }}" @submit="return confirm('Remove {{ addslashes($u->name) }}?')">
                   @csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm btn-icon" title="Delete"><i class="bi bi-trash"></i></button>

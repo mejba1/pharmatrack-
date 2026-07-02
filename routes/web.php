@@ -35,6 +35,12 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1')->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// Staff password reset
+Route::get('/forgot-password', [AuthController::class, 'showForgot'])->name('password.request');
+Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->middleware('throttle:6,1')->name('password.email');
+Route::get('/reset-password/{token}', [AuthController::class, 'showReset'])->name('password.reset');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1')->name('password.update');
+
 // ── Public product verification (reached from a unit's QR code) ────────────
 Route::get('/verify/{code}', [BatchController::class, 'verify'])->name('verify');
 Route::post('/verify/{code}/report', [BatchController::class, 'report'])->name('verify.report');
@@ -277,6 +283,7 @@ Route::middleware(['auth', 'module'])->group(function () {
         // Bulk actions + one-click approve
         Route::post('/bulk', [CustomerController::class, 'bulkAction'])->name('bulk');
         Route::post('/{customer}/approve', [CustomerController::class, 'approve'])->name('approve');
+        Route::post('/{customer}/reset-password', [CustomerController::class, 'sendResetLink'])->name('reset-password');
         // Shared documents (staff → customer portal)
         Route::post('/{customer}/documents', [CustomerController::class, 'uploadDocument'])->name('documents.store');
         Route::delete('/documents/{document}', [CustomerController::class, 'destroyDocument'])->name('documents.destroy');
@@ -316,6 +323,7 @@ Route::middleware(['auth', 'module'])->group(function () {
     Route::get('/users', [UserController::class, 'index'])->name('users');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::post('/users/{user}/reset-password', [UserController::class, 'sendResetLink'])->name('users.reset-password');
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
 });

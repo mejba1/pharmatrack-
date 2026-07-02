@@ -101,6 +101,18 @@ class UserController extends Controller
         return back()->with('success', "User '{$user->name}' updated.");
     }
 
+    /** Email a staff user a password-reset link. */
+    public function sendResetLink(User $user): RedirectResponse
+    {
+        if (! $user->email) {
+            return back()->with('error', 'This user has no email address.');
+        }
+
+        \Illuminate\Support\Facades\Password::sendResetLink(['email' => $user->email]);
+
+        return back()->with('success', "Password reset link sent to {$user->email}.");
+    }
+
     public function destroy(User $user): RedirectResponse
     {
         if ($user->id === Auth::id()) {
