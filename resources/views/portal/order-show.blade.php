@@ -12,6 +12,8 @@
 
 <div class="container-xl py-4" style="max-width:900px">
 
+  <a href="{{ route('portal.dashboard') }}" class="btn btn-outline-secondary btn-sm rounded-3 mb-3"><i class="bi bi-arrow-left me-1"></i>Back to orders</a>
+
   @if(session('status'))<div class="alert alert-success py-2 small"><i class="bi bi-check-circle me-1"></i>{{ session('status') }}</div>@endif
 
   <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
