@@ -77,6 +77,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/profile', [$portal, 'updateProfile'])->name('profile.update');
         Route::get('/order', [$portal, 'createOrder'])->name('order.create');
         Route::post('/order', [$portal, 'storeOrder'])->name('order.store');
+        // View / edit / cancel an existing order (edit gated by PO status)
+        Route::get('/orders/{purchaseOrder}', [$portal, 'showOrder'])->name('order.show');
+        Route::get('/orders/{purchaseOrder}/edit', [$portal, 'editOrder'])->name('order.edit');
+        Route::put('/orders/{purchaseOrder}', [$portal, 'updateOrder'])->name('order.update');
+        Route::post('/orders/{purchaseOrder}/cancel', [$portal, 'cancelOrder'])->name('order.cancel');
         Route::post('/notifications/read', [$portal, 'markNotificationsRead'])->name('notifications.read');
     });
 });

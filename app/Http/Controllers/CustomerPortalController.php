@@ -123,6 +123,7 @@ class CustomerPortalController extends Controller
         return view('portal.order', [
             'customer' => Auth::guard('customer')->user(),
             'products' => Product::orderBy('name')->get(['id', 'name', 'prn']),
+            'order'    => null,
         ]);
     }
 
@@ -185,6 +186,118 @@ class CustomerPortalController extends Controller
         $customer->notifyPortal('order', 'Order submitted', "Your order {$po->po_number} was received. We'll confirm pricing shortly.", 'bi-cart-check');
 
         return redirect()->route('portal.dashboard')->with('status', "Order {$po->po_number} placed — we'll be in touch with a quote.");
+    }
+
+    // ── View a single order ───────────────────────────────────────────────
+    public function showOrder(PurchaseOrder $purchaseOrder): View
+    {
+        $order = $this->ownedOrder($purchaseOrder);
+        $order->load('lines.product', 'documents', 'creator', 'salesOrder.proformaInvoice.commercialInvoices:id,proforma_invoice_id');
+
+        return view('portal.order-show', [
+            'customer' => Auth::guard('customer')->user(),
+            'order'    => $order,
+            'chain'    => $order->chainStages(),
+            'editable' => $order->isEditableByCustomer(),
+            'portal'   => PortalSettings::all(),
+        ]);
+    }
+
+    // ── Edit an order (only while still editable) ─────────────────────────
+    public function editOrder(PurchaseOrder $purchaseOrder): View|RedirectResponse
+    {
+        $order = $this->ownedOrder($purchaseOrder);
+
+        if (! $order->isEditableByCustomer()) {
+            return redirect()->route('portal.order.show', $order)
+                ->with('status', "Order {$order->po_number} can no longer be edited — it's already being processed.");
+        }
+
+        $order->load('lines');
+
+        return view('portal.order', [
+            'customer' => Auth::guard('customer')->user(),
+            'products' => Product::orderBy('name')->get(['id', 'name', 'prn']),
+            'order'    => $order,
+        ]);
+    }
+
+    public function updateOrder(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        $order = $this->ownedOrder($purchaseOrder);
+        abort_unless($order->isEditableByCustomer(), 403, 'This order can no longer be edited.');
+
+        $data = $request->validate([
+            'required_by_date'   => 'nullable|date|after_or_equal:today',
+            'remarks'            => 'nullable|string|max:2000',
+            'items'              => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity'   => 'required|integer|min:1',
+        ]);
+
+        DB::transaction(function () use ($data, $order) {
+            $order->update([
+                'required_by_date' => $data['required_by_date'] ?? $order->required_by_date,
+                'remarks'          => $data['remarks'] ?? null,
+            ]);
+
+            // Replace the lines — pricing is (re)quoted by staff, so reset to 0.
+            $order->lines()->delete();
+            foreach (array_values($data['items']) as $n => $item) {
+                PurchaseOrderLine::create([
+                    'purchase_order_id' => $order->id,
+                    'product_id'        => $item['product_id'],
+                    'line_number'       => $n + 1,
+                    'quantity'          => (int) $item['quantity'],
+                    'unit_price'        => 0,
+                    'line_total'        => 0,
+                ]);
+            }
+        });
+
+        $customer = Auth::guard('customer')->user();
+
+        \App\Models\Notification::pushToAdmins([
+            'type'         => 'customer_order',
+            'severity'     => 'info',
+            'title'        => 'Order updated by customer',
+            'message'      => "{$customer->name} updated order {$order->po_number} (" . count($data['items']) . ' line item(s)).',
+            'action_url'   => route('orders.po'),
+            'action_label' => 'View',
+        ], array_filter([$customer->manager_id]));
+
+        return redirect()->route('portal.order.show', $order)
+            ->with('status', "Order {$order->po_number} updated.");
+    }
+
+    public function cancelOrder(PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        $order = $this->ownedOrder($purchaseOrder);
+        abort_unless($order->isEditableByCustomer(), 403, 'This order can no longer be cancelled.');
+
+        $order->update(['status' => 'cancelled']);
+
+        $customer = Auth::guard('customer')->user();
+
+        \App\Models\Notification::pushToAdmins([
+            'type'         => 'customer_order',
+            'severity'     => 'warning',
+            'title'        => 'Order cancelled by customer',
+            'message'      => "{$customer->name} cancelled order {$order->po_number}.",
+            'action_url'   => route('orders.po'),
+            'action_label' => 'View',
+        ], array_filter([$customer->manager_id]));
+
+        return redirect()->route('portal.dashboard')
+            ->with('status', "Order {$order->po_number} has been cancelled.");
+    }
+
+    /** Ensure the order belongs to the signed-in customer (404 otherwise). */
+    private function ownedOrder(PurchaseOrder $po): PurchaseOrder
+    {
+        abort_unless($po->buyer_id === Auth::guard('customer')->id(), 404);
+
+        return $po;
     }
 
     // ── In-app notifications ──────────────────────────────────────────────

@@ -76,12 +76,12 @@
       </div>
       <div class="table-responsive">
         <table class="table table-clean mb-0">
-          <thead><tr><th>PO #</th><th>Date</th><th>Items</th><th style="min-width:170px">Progress</th><th>Status</th><th class="text-end">Value</th></tr></thead>
+          <thead><tr><th>PO #</th><th>Date</th><th>Items</th><th style="min-width:170px">Progress</th><th>Status</th><th class="text-end">Value</th><th class="text-end">Actions</th></tr></thead>
           <tbody>
             @forelse($orders as $po)
-              @php $chain = $po->chainStages(); @endphp
+              @php $chain = $po->chainStages(); $canEdit = $po->isEditableByCustomer(); @endphp
               <tr>
-                <td class="font-monospace fw-semibold">{{ $po->po_number }}</td>
+                <td class="font-monospace fw-semibold"><a href="{{ route('portal.order.show', $po) }}" class="text-decoration-none" style="color:var(--brand1)">{{ $po->po_number }}</a></td>
                 <td>{{ $po->po_date?->format('d M Y') }}</td>
                 <td>{{ $po->lines->count() }} SKU{{ $po->lines->count() === 1 ? '' : 's' }}</td>
                 <td>
@@ -101,9 +101,15 @@
                 </td>
                 <td><span class="chip" style="background:#eef2ff;color:#4f46e5">{{ $po->status_label ?? $po->status }}</span></td>
                 <td class="text-end fw-semibold">{{ $po->currency }} {{ number_format((float) $po->total_value, 2) }}</td>
+                <td class="text-end text-nowrap">
+                  <a href="{{ route('portal.order.show', $po) }}" class="btn btn-outline-secondary btn-sm btn-icon" title="View"><i class="bi bi-eye"></i></a>
+                  @if($canEdit && $portal['portal_allow_ordering'])
+                    <a href="{{ route('portal.order.edit', $po) }}" class="btn btn-outline-primary btn-sm btn-icon" title="Edit"><i class="bi bi-pencil"></i></a>
+                  @endif
+                </td>
               </tr>
             @empty
-              <tr><td colspan="6" class="text-center text-muted py-4">No purchase orders yet.</td></tr>
+              <tr><td colspan="7" class="text-center text-muted py-4">No purchase orders yet.</td></tr>
             @endforelse
           </tbody>
         </table>

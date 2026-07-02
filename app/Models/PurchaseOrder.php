@@ -60,6 +60,25 @@ class PurchaseOrder extends Model
         ];
     }
 
+    /**
+     * May the buying customer still change this order from the portal?
+     * Only while it's an unprocessed request: still "sent"/"draft" and not yet
+     * converted to a Sales Order. Once staff acknowledge it or push it down the
+     * chain (SO/PI/CI) it becomes read-only for the customer.
+     *
+     * Uses the already-loaded salesOrder relation when present to avoid a query.
+     */
+    public function isEditableByCustomer(): bool
+    {
+        if (! in_array($this->status, ['sent', 'draft'], true)) {
+            return false;
+        }
+
+        return $this->relationLoaded('salesOrder')
+            ? ! $this->salesOrder
+            : ! $this->salesOrder()->exists();
+    }
+
     // ── Accessors ──────────────────────────────────────────────────────────
     public function getStatusBadgeClassAttribute(): string
     {
