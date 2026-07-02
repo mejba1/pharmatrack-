@@ -14,6 +14,7 @@
       <div class="page-breadcrumb">Sales / Promo Codes &amp; Discounts</div>
     </div>
     <div class="d-flex gap-2">
+      <button class="btn btn-outline-primary btn-sm" @click="openBulk()"><i class="bi bi-stars me-1"></i>Bulk Generate</button>
       <button class="btn btn-primary btn-sm" @click="openAdd()"><i class="bi bi-plus-lg me-1"></i>New Promo Code</button>
     </div>
   </div>
@@ -86,7 +87,12 @@
           <div class="modal-header"><h5 class="modal-title"><i class="bi bi-ticket-perforated me-2 text-primary"></i><span x-text="form.id ? 'Edit Promo Code' : 'New Promo Code'"></span></h5><button type="button" class="btn-close" @click="showModal=false"></button></div>
           <div class="modal-body">
             <div class="row g-3">
-              <div class="col-md-6"><label class="form-label">Code <span class="text-danger">*</span></label><input type="text" name="code" class="form-control form-control-sm text-uppercase" x-model="form.code" placeholder="SAVE10" required></div>
+              <div class="col-md-6"><label class="form-label">Code <span class="text-danger">*</span></label>
+                <div class="input-group input-group-sm">
+                  <input type="text" name="code" class="form-control text-uppercase" x-model="form.code" placeholder="SAVE10" required>
+                  <button type="button" class="btn btn-outline-secondary" @click="generate()" :disabled="generating" title="Generate a random code"><i class="bi" :class="generating ? 'bi-arrow-repeat' : 'bi-magic'"></i></button>
+                </div>
+              </div>
               <div class="col-md-6"><label class="form-label">Description</label><input type="text" name="description" class="form-control form-control-sm" x-model="form.description" placeholder="Spring promotion"></div>
 
               <div class="col-md-4">
@@ -146,6 +152,67 @@
     </div>
   </div>
   <div class="modal-backdrop fade show" x-show="showModal" @click="showModal=false" x-cloak></div>
+
+  {{-- Bulk generate modal --}}
+  <div class="modal fade" :class="{show:showBulk}" :style="showBulk?'display:block':''" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <form method="POST" action="{{ route('promo-codes.bulk') }}">@csrf
+          <div class="modal-header"><h5 class="modal-title"><i class="bi bi-stars me-2 text-primary"></i>Bulk Generate Promo Codes</h5><button type="button" class="btn-close" @click="showBulk=false"></button></div>
+          <div class="modal-body">
+            <div class="alert alert-info py-2 small"><i class="bi bi-info-circle me-1"></i>Generates many unique codes sharing one discount — ideal for single-use campaign codes (set a usage limit of 1).</div>
+            <div class="row g-3">
+              <div class="col-md-3"><label class="form-label">How many <span class="text-danger">*</span></label><input type="number" min="1" max="500" name="count" class="form-control form-control-sm" x-model="bulk.count" required></div>
+              <div class="col-md-3"><label class="form-label">Code prefix</label><input type="text" name="prefix" class="form-control form-control-sm text-uppercase" x-model="bulk.prefix" placeholder="EID25" maxlength="12"></div>
+              <div class="col-md-6"><label class="form-label">Description</label><input type="text" name="description" class="form-control form-control-sm" x-model="bulk.description" placeholder="Eid campaign"></div>
+
+              <div class="col-md-4">
+                <label class="form-label">Applies to <span class="text-danger">*</span></label>
+                <select name="scope" class="form-select form-select-sm" x-model="bulk.scope" required>
+                  @foreach(\App\Models\PromoCode::SCOPES as $k => $label)<option value="{{ $k }}">{{ $label }}</option>@endforeach
+                </select>
+              </div>
+              <div class="col-md-4" x-show="bulk.scope==='product'">
+                <label class="form-label">Product <span class="text-danger">*</span></label>
+                <select name="product_id" class="form-select form-select-sm" x-model="bulk.product_id" :required="bulk.scope==='product'">
+                  <option value="">Select product…</option>
+                  @foreach($products as $p)<option value="{{ $p->id }}">{{ $p->name }} ({{ $p->prn }})</option>@endforeach
+                </select>
+              </div>
+              <template x-if="bulk.scope!=='none'">
+                <div class="col-md-4"><label class="form-label">Discount type</label>
+                  <select name="discount_type" class="form-select form-select-sm" x-model="bulk.discount_type">
+                    @foreach(\App\Models\PromoCode::TYPES as $k => $label)<option value="{{ $k }}">{{ $label }}</option>@endforeach
+                  </select>
+                </div>
+              </template>
+              <template x-if="bulk.scope!=='none'">
+                <div class="col-md-4"><label class="form-label">Value <span class="text-danger">*</span></label>
+                  <div class="input-group input-group-sm">
+                    <input type="number" min="0" step="0.01" name="discount_value" class="form-control" x-model="bulk.discount_value" required>
+                    <span class="input-group-text" x-text="bulk.discount_type==='percent' ? '%' : 'amt'"></span>
+                  </div>
+                </div>
+              </template>
+              <template x-if="bulk.scope!=='none'">
+                <div class="col-md-4"><label class="form-label">Max discount (cap)</label><input type="number" min="0" step="0.01" name="max_discount" class="form-control form-control-sm" x-model="bulk.max_discount" placeholder="optional"></div>
+              </template>
+
+              <div class="col-md-4"><label class="form-label">Min order value</label><input type="number" min="0" step="0.01" name="min_order_value" class="form-control form-control-sm" x-model="bulk.min_order_value" placeholder="optional"></div>
+              <div class="col-md-4"><label class="form-label">Usage limit / code</label><input type="number" min="1" name="usage_limit" class="form-control form-control-sm" x-model="bulk.usage_limit" placeholder="e.g. 1 for single-use"></div>
+              <div class="col-md-2"><label class="form-label">Starts</label><input type="date" name="starts_at" class="form-control form-control-sm" x-model="bulk.starts_at"></div>
+              <div class="col-md-2"><label class="form-label">Ends</label><input type="date" name="ends_at" class="form-control form-control-sm" x-model="bulk.ends_at"></div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary btn-sm" @click="showBulk=false">Cancel</button>
+            <button class="btn btn-primary btn-sm"><i class="bi bi-stars me-1"></i>Generate <span x-text="bulk.count"></span> codes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="modal-backdrop fade show" x-show="showBulk" @click="showBulk=false" x-cloak></div>
 </div>
 
 @push('scripts')
@@ -153,12 +220,26 @@
 function promoApp(){
   return {
     showModal:false,
+    showBulk:false,
+    generating:false,
     form:{},
+    bulk:{ count:20, prefix:'', description:'', scope:'total', discount_type:'percent', discount_value:'', product_id:'', min_order_value:'', max_discount:'', usage_limit:1, starts_at:'', ends_at:'' },
     updateTpl:'{{ url('promo-codes') }}/__ID__',
     get updateAction(){ return this.updateTpl.replace('__ID__', this.form.id); },
     blank(){ return { id:null, code:'', description:'', scope:'total', discount_type:'percent', discount_value:'', product_id:'', min_order_value:'', max_discount:'', usage_limit:'', starts_at:'', ends_at:'', is_active:true }; },
     openAdd(){ this.form = this.blank(); this.showModal = true; },
     openEdit(c){ this.form = { ...this.blank(), ...c, product_id: c.product_id ?? '', min_order_value: c.min_order_value ?? '', max_discount: c.max_discount ?? '', usage_limit: c.usage_limit ?? '', starts_at: c.starts_at ?? '', ends_at: c.ends_at ?? '' }; this.showModal = true; },
+    openBulk(){ this.showBulk = true; },
+    async generate(){
+      this.generating = true;
+      try {
+        const url = '{{ route('promo-codes.generate') }}?prefix=' + encodeURIComponent(this.form.code || '');
+        const res = await fetch(url, { headers: { 'Accept':'application/json' } });
+        const data = await res.json();
+        if (data.code) this.form.code = data.code;
+      } catch (e) { /* noop */ }
+      this.generating = false;
+    },
   };
 }
 </script>

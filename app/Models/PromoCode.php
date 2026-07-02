@@ -53,6 +53,26 @@ class PromoCode extends Model
     }
 
     /**
+     * Generate a random, unique promo code. Uses an unambiguous alphabet
+     * (no 0/O/1/I/L). $exclude avoids collisions within a not-yet-persisted batch.
+     */
+    public static function generateCode(string $prefix = '', array $exclude = [], int $length = 8): string
+    {
+        $alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        $prefix = preg_replace('/[^A-Z0-9]/', '', strtoupper(trim($prefix)));
+
+        do {
+            $rand = '';
+            for ($i = 0; $i < $length; $i++) {
+                $rand .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+            }
+            $code = $prefix !== '' ? "{$prefix}-{$rand}" : $rand;
+        } while (in_array($code, $exclude, true) || static::withTrashed()->where('code', $code)->exists());
+
+        return $code;
+    }
+
+    /**
      * Why this code cannot be used right now, or null when it's valid.
      * $orderValue lets us enforce the minimum-order rule when a value is known.
      */
