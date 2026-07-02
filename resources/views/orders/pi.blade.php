@@ -2,7 +2,7 @@
 @section('title', 'Proforma Invoices')
 
 @section('content')
-<div x-data="piPage(@js($pis), @js($confirmedSos), @js($managers))">
+<div x-data="piPage(@js($pis), @js($confirmedSos), @js($managers), @js($bankAccounts))">
 
   @foreach(['success' => 'success', 'warning' => 'warning', 'error' => 'danger'] as $key => $tone)
     @if(session($key))<div x-data x-init="$nextTick(() => $store.toast.show(@js(session($key)), '{{ $tone }}'))"></div>@endif
@@ -69,9 +69,10 @@
 
 @push('scripts')
 <script>
-function piPage(pis, confirmedSos, managers){
+function piPage(pis, confirmedSos, managers, banks){
   return {
-    pis: pis || [], confirmedSos: confirmedSos || [], managers: managers || [],
+    pis: pis || [], confirmedSos: confirmedSos || [], managers: managers || [], banks: banks || [],
+    selectedBank:'',
     search:'', filterStatus:'', showViewModal:false, showAddModal:false, selectedPI:null, viewTab:'details',
     piTpl: '{{ url('orders/proforma-invoices') }}/__ID__',
     form: { sales_order_id:'', pi_date:'{{ now()->format('Y-m-d') }}', valid_until:'{{ now()->addDays(30)->format('Y-m-d') }}', currency:'USD', incoterms:'', payment_terms:'', port_of_loading:'', bank_name:'', bank_account_number:'', bank_swift_code:'', bank_iban:'', freight:'', status:'draft', remarks:'' },
@@ -99,9 +100,22 @@ function piPage(pis, confirmedSos, managers){
     statusUrl(){ return this.piTpl.replace('__ID__', this.selectedPI?.pid) + '/status'; },
     docUrl(){ return this.piTpl.replace('__ID__', this.selectedPI?.pid) + '/documents'; },
     viewPI(pi){ this.selectedPI = pi; this.viewTab='details'; this.showViewModal=true; },
-    openCreate(){ this.form = { sales_order_id:'', pi_date:'{{ now()->format('Y-m-d') }}', valid_until:'{{ now()->addDays(30)->format('Y-m-d') }}', currency:'USD', incoterms:'', payment_terms:'', port_of_loading:'', bank_name:'', bank_account_number:'', bank_swift_code:'', bank_iban:'', freight:'', status:'draft', remarks:'' }; this.showAddModal=true; },
+    openCreate(){ this.form = { sales_order_id:'', pi_date:'{{ now()->format('Y-m-d') }}', valid_until:'{{ now()->addDays(30)->format('Y-m-d') }}', currency:'USD', incoterms:'', payment_terms:'', port_of_loading:'', bank_name:'', bank_account_number:'', bank_swift_code:'', bank_iban:'', freight:'', status:'draft', remarks:'' }; this.selectedBank=''; this.preselectDefaultBank(); this.showAddModal=true; },
     get chosenSo(){ return this.confirmedSos.find(s => String(s.id)===String(this.form.sales_order_id)); },
     onPickSo(){ const so=this.chosenSo; if(so){ this.form.currency=so.currency||'USD'; this.form.incoterms=so.incoterms||''; this.form.payment_terms=so.payment||''; } },
+    // Selecting a saved bank auto-fills the invoice bank fields.
+    pickBank(){
+      const b = this.banks.find(x => String(x.id) === String(this.selectedBank));
+      if (!b) return;
+      this.form.bank_name = b.bank_name || '';
+      this.form.bank_account_number = b.account_number || '';
+      this.form.bank_swift_code = b.swift_code || '';
+      this.form.bank_iban = b.iban || '';
+    },
+    preselectDefaultBank(){
+      const d = this.banks.find(x => x.is_default);
+      if (d) { this.selectedBank = String(d.id); this.pickBank(); }
+    },
     submitForm(status){ this.form.status = status; this.$nextTick(()=> this.$refs.piForm.submit()); },
   };
 }

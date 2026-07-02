@@ -16,7 +16,7 @@ return [
     'products'         => ['label' => 'Products',            'prefixes' => ['products.']],
     'batches'          => ['label' => 'Batches',             'prefixes' => ['batches.', 'batches', 'partial-batches', 'batch-downloads']],
     'master_cartons'   => ['label' => 'Master Cartons',      'prefixes' => ['master-cartons.', 'master-cartons']],
-    'master_data'      => ['label' => 'Master Data',         'prefixes' => ['master.countries.', 'master.tclasses.']],
+    'master_data'      => ['label' => 'Master Data',         'prefixes' => ['master.countries.', 'master.tclasses.', 'master.banks.']],
     'orders'           => ['label' => 'Purchase & Sales Orders', 'prefixes' => ['orders.po', 'orders.so']],
     'invoices'         => ['label' => 'Invoices (PI / CI)',      'prefixes' => ['orders.pi', 'orders.ci']],
     'logistics'        => ['label' => 'Logistics & Shipments', 'prefixes' => ['shipments.', 'shipments', 'distribution']],

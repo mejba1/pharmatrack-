@@ -52,7 +52,12 @@ class ProformaInvoiceController extends Controller
 
         $managers = User::orderBy('name')->get(['id', 'name', 'role']);
 
-        return view('orders.pi', compact('pis', 'stats', 'confirmedSos', 'managers'));
+        // Saved bank accounts for the invoice bank picker (auto-fills bank fields).
+        $bankAccounts = \App\Models\BankAccount::where('is_active', true)
+            ->orderByDesc('is_default')->orderBy('bank_name')
+            ->get(['id', 'bank_name', 'account_name', 'account_number', 'swift_code', 'iban', 'branch', 'address', 'currency', 'is_default']);
+
+        return view('orders.pi', compact('pis', 'stats', 'confirmedSos', 'managers', 'bankAccounts'));
     }
 
     public function store(Request $request): RedirectResponse

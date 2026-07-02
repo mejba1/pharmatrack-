@@ -154,6 +154,11 @@ Route::middleware(['auth', 'module'])->group(function () {
         Route::post('therapeutic-classes', [TherapeuticClassController::class, 'store'])->name('tclasses.store');
         Route::put('therapeutic-classes/{therapeuticClass}', [TherapeuticClassController::class, 'update'])->name('tclasses.update');
         Route::delete('therapeutic-classes/{therapeuticClass}', [TherapeuticClassController::class, 'destroy'])->name('tclasses.destroy');
+
+        Route::get('bank-accounts', [\App\Http\Controllers\BankAccountController::class, 'index'])->name('banks.index');
+        Route::post('bank-accounts', [\App\Http\Controllers\BankAccountController::class, 'store'])->name('banks.store');
+        Route::put('bank-accounts/{bankAccount}', [\App\Http\Controllers\BankAccountController::class, 'update'])->name('banks.update');
+        Route::delete('bank-accounts/{bankAccount}', [\App\Http\Controllers\BankAccountController::class, 'destroy'])->name('banks.destroy');
     });
 
     // ── Orders ────────────────────────────────────────────────────────────

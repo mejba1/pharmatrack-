@@ -89,10 +89,20 @@
             <div class="col-md-3"><label class="form-label">Freight</label><input type="number" min="0" step="0.01" name="freight" class="form-control form-control-sm" x-model="form.freight" placeholder="0.00"></div>
 
             <div class="col-12"><div class="text-muted-sm text-uppercase fw-bold" style="font-size:11px"><i class="bi bi-bank me-1"></i>Banking (for the invoice)</div></div>
+            <div class="col-md-6">
+              <label class="form-label">Select saved bank</label>
+              <select class="form-select form-select-sm" x-model="selectedBank" @change="pickBank()">
+                <option value="">— Choose a bank to auto-fill —</option>
+                @foreach($bankAccounts as $bank)
+                  <option value="{{ $bank->id }}">{{ $bank->bank_name }}{{ $bank->account_number ? ' — ••••'.substr($bank->account_number, -4) : '' }}{{ $bank->currency ? ' ('.$bank->currency.')' : '' }}{{ $bank->is_default ? ' · default' : '' }}</option>
+                @endforeach
+              </select>
+              @if($bankAccounts->isEmpty())<div class="text-muted-sm mt-1"><i class="bi bi-info-circle me-1"></i>No saved banks — add them in <a href="{{ route('master.banks.index') }}" target="_blank">Master Data → Banking Information</a>.</div>@endif
+            </div>
             <div class="col-md-6"><label class="form-label">Bank name</label><input type="text" name="bank_name" class="form-control form-control-sm" x-model="form.bank_name"></div>
             <div class="col-md-3"><label class="form-label">SWIFT</label><input type="text" name="bank_swift_code" class="form-control form-control-sm" x-model="form.bank_swift_code"></div>
             <div class="col-md-3"><label class="form-label">Account no.</label><input type="text" name="bank_account_number" class="form-control form-control-sm" x-model="form.bank_account_number"></div>
-            <div class="col-md-6"><label class="form-label">IBAN</label><input type="text" name="bank_iban" class="form-control form-control-sm" x-model="form.bank_iban"></div>
+            <div class="col-md-3"><label class="form-label">IBAN</label><input type="text" name="bank_iban" class="form-control form-control-sm" x-model="form.bank_iban"></div>
             <div class="col-md-6"><label class="form-label">Port of loading</label><input type="text" name="port_of_loading" class="form-control form-control-sm" x-model="form.port_of_loading"></div>
             <div class="col-12"><label class="form-label">Remarks</label><textarea name="remarks" class="form-control form-control-sm" rows="2" x-model="form.remarks"></textarea></div>
           </div>

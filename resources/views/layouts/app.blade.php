@@ -109,6 +109,10 @@
       <span class="nav-icon"><i class="bi bi-tags"></i></span>
       <span x-show="!sidebarCollapsed">Therapeutic Classes</span>
     </a>
+    <a href="{{ route('master.banks.index') }}" class="nav-item-link {{ request()->routeIs('master.banks.*') ? 'active' : '' }}">
+      <span class="nav-icon"><i class="bi bi-bank"></i></span>
+      <span x-show="!sidebarCollapsed">Banking Information</span>
+    </a>
     @endif
 
     {{-- Order Documents --}}
