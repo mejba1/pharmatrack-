@@ -1,16 +1,9 @@
-@extends('layouts.portal')
+@extends('layouts.portal-app')
 @section('title', 'Order '.$order->po_number)
+@section('heading', 'Order '.$order->po_number)
 
-@section('body')
-<nav class="navbar bg-white border-bottom px-3 px-md-4 py-2 sticky-top">
-  <a href="{{ route('portal.dashboard') }}" class="text-decoration-none d-inline-flex align-items-center">@include('portal._brand') <span class="text-muted fs-6 fw-normal ms-2">Portal</span></a>
-  <div class="ms-auto d-flex align-items-center gap-2">
-    @include('portal._notifications')
-    <a href="{{ route('portal.dashboard') }}" class="btn btn-outline-secondary btn-sm rounded-3"><i class="bi bi-arrow-left me-1"></i>Dashboard</a>
-  </div>
-</nav>
-
-<div class="container-xl py-4" style="max-width:900px">
+@section('content')
+<div class="container-xl px-0" style="max-width:900px">
 
   <a href="{{ route('portal.dashboard') }}" class="btn btn-outline-secondary btn-sm rounded-3 mb-3"><i class="bi bi-arrow-left me-1"></i>Back to orders</a>
 

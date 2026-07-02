@@ -1,16 +1,9 @@
-@extends('layouts.portal')
+@extends('layouts.portal-app')
 @php $editing = isset($order) && $order; @endphp
 @section('title', $editing ? 'Edit Order' : 'Place an Order')
+@section('heading', $editing ? 'Edit Order' : 'Place an Order')
 
-@section('body')
-<nav class="navbar bg-white border-bottom px-3 px-md-4 py-2 sticky-top">
-  <a href="{{ route('portal.dashboard') }}" class="text-decoration-none d-inline-flex align-items-center">@include('portal._brand') <span class="text-muted fs-6 fw-normal ms-2">Portal</span></a>
-  <div class="ms-auto d-flex align-items-center gap-2">
-    @include('portal._notifications')
-    <a href="{{ $editing ? route('portal.order.show', $order) : route('portal.dashboard') }}" class="btn btn-outline-secondary btn-sm rounded-3"><i class="bi bi-arrow-left me-1"></i>{{ $editing ? 'Back to order' : 'Dashboard' }}</a>
-  </div>
-</nav>
-
+@section('content')
 @php
   $lineData = $editing
     ? $order->lines->map(fn ($l) => ['product_id' => (string) $l->product_id, 'quantity' => (int) $l->quantity])->values()
