@@ -145,11 +145,12 @@
             </div>
             <div class="col-md-9">
               <label class="form-label">Buyer / Distributor <span class="text-danger">*</span></label>
-              <select name="buyer_id" class="form-select form-select-sm" x-model="form.buyer_id" required>
+              <select name="buyer_id" class="form-select form-select-sm" x-model="form.buyer_id" @change="onPickCustomer()" required>
                 <option value="">Select customer…</option>
-                <template x-for="c in filteredCustomers" :key="c.id"><option :value="c.id" x-text="c.name + (c.code ? ' (' + c.code + ')' : '') + (c.country ? ' — ' + c.country : '')"></option></template>
+                <template x-for="c in filteredCustomers" :key="c.id"><option :value="c.id" :disabled="restrictPo && c.has_po" x-text="c.name + (c.code ? ' (' + c.code + ')' : '') + (restrictPo && c.has_po ? ' — already has a PO' : (c.country ? ' — ' + c.country : ''))"></option></template>
               </select>
               <div class="text-muted-sm mt-1" x-show="!filteredCustomers.length"><i class="bi bi-exclamation-circle me-1"></i>No customers assigned to you yet.</div>
+              <div class="text-muted-sm mt-1" x-show="restrictPo"><i class="bi bi-info-circle me-1"></i>One PO per customer — customers that already have one are disabled; process the existing PO into an SO.</div>
             </div>
 
             <div class="col-md-3"><label class="form-label">PO Date</label><input type="date" name="po_date" class="form-control form-control-sm" x-model="form.po_date"></div>

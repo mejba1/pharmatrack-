@@ -45,15 +45,20 @@ class PurchaseOrderController extends Controller
             'cancelled'    => $own(PurchaseOrder::where('status', 'cancelled'))->count(),
         ];
 
+        // Customers that already have a live (non-cancelled) PO — a country
+        // manager may only open a new PO for a customer that has none yet.
+        $withPo = PurchaseOrder::where('status', '!=', 'cancelled')->distinct()->pluck('buyer_id')->map(fn ($i) => (int) $i)->all();
+
         // Managers can only raise POs for their own customers.
         $customers = Customer::with('country')
             ->when($mine, fn ($q) => $q->whereIn('id', $ownIds ?: [0]))
             ->orderBy('name')->get(['id', 'name', 'type', 'customer_code', 'country_id'])
-            ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'type' => $c->type, 'code' => $c->customer_code, 'country_id' => $c->country_id, 'country' => $c->country?->name]);
-        $types     = Customer::TYPES;
-        $products  = Product::orderBy('name')->get(['id', 'name', 'prn']);
+            ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'type' => $c->type, 'code' => $c->customer_code, 'country_id' => $c->country_id, 'country' => $c->country?->name, 'has_po' => in_array((int) $c->id, $withPo, true)]);
+        $types      = Customer::TYPES;
+        $products   = Product::orderBy('name')->get(['id', 'name', 'prn']);
+        $restrictPo = $request->user()->role === 'country_manager';   // one PO per customer for managers
 
-        return view('orders.po', compact('pos', 'stats', 'customers', 'types', 'products'));
+        return view('orders.po', compact('pos', 'stats', 'customers', 'types', 'products', 'restrictPo'));
     }
 
     // ── Create ─────────────────────────────────────────────────────────────
@@ -76,6 +81,13 @@ class PurchaseOrderController extends Controller
             'items.*.quantity'   => 'required|integer|min:1',
             'items.*.unit_price' => 'nullable|numeric|min:0',
         ]);
+
+        // A country manager may open only one PO per customer — if the customer
+        // already has a live PO (their own or a manager's), work with that one.
+        if ($request->user()->role === 'country_manager'
+            && PurchaseOrder::where('buyer_id', $data['buyer_id'])->where('status', '!=', 'cancelled')->exists()) {
+            return back()->with('error', 'This customer already has a purchase order — process the existing one into a Sales Order instead of creating another.');
+        }
 
         $po = DB::transaction(function () use ($data, $request) {
             $po = PurchaseOrder::create([

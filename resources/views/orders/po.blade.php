@@ -6,7 +6,7 @@
   $customersJs = $customers; // [{id,name,type,code,country}]
 @endphp
 <style>.cm-opt:hover{background:#f1f5f9}</style>
-<div x-data="poPage(@js($pos), @js($customersJs), @js($products))">
+<div x-data="poPage(@js($pos), @js($customersJs), @js($products), @js($restrictPo))">
 
   {{-- Flash → toast --}}
   @foreach(['success' => 'success', 'warning' => 'warning', 'error' => 'danger'] as $key => $tone)
@@ -104,9 +104,9 @@
 
 @push('scripts')
 <script>
-function poPage(pos, customers, products){
+function poPage(pos, customers, products, restrictPo){
   return {
-    pos: pos || [], customers: customers || [], products: products || [],
+    pos: pos || [], customers: customers || [], products: products || [], restrictPo: !!restrictPo,
     search:'', filterStatus:'', showViewModal:false, showAddModal:false, selectedPO:null, viewTab:'details', dragging:false,
     storeUrl: '{{ route('orders.po.store') }}',
     poTpl: '{{ url('orders/purchase-orders') }}/__ID__',
@@ -133,6 +133,8 @@ function poPage(pos, customers, products){
     },
     get filteredCustomers(){ return this.form.buyer_type ? this.customers.filter(c => c.type === this.form.buyer_type) : this.customers; },
     onType(){ if(this.form.buyer_id && !this.filteredCustomers.some(c => String(c.id)===String(this.form.buyer_id))) this.form.buyer_id=''; },
+    // Selecting a customer shows their type by default.
+    onPickCustomer(){ const c = this.customers.find(x => String(x.id) === String(this.form.buyer_id)); if (c) this.form.buyer_type = c.type; },
     addItem(){ this.form.items.push({product_id:'', quantity:1, unit_price:''}); },
     removeItem(i){ this.form.items.splice(i,1); if(!this.form.items.length) this.addItem(); },
     get grandTotal(){ return (this.form.items.reduce((s,it)=> s + (parseFloat(it.unit_price||0)*parseInt(it.quantity||0)),0) + parseFloat(this.form.freight||0)).toFixed(2); },
