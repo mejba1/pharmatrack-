@@ -33,11 +33,13 @@ class CustomerController extends Controller
         ];
         $perPage = in_array($filters['per_page'], [15, 30, 50, 100], true) ? $filters['per_page'] : 15;
 
-        // Per-manager scope: a manager sees only the customers assigned to them.
+        // Per-manager scope: a manager sees only their customers — the ones
+        // assigned to them plus everyone in the countries they manage.
         $isAdmin = $request->user()->canViewAll('customers');
         $mine    = !$isAdmin;
         $uid     = $request->user()->id;
-        $scoped = fn ($q) => $mine ? $q->where('manager_id', $uid) : $q;
+        $ownIds  = $request->user()->ownedCustomerIds();
+        $scoped  = fn ($q) => $mine ? $q->whereIn('id', $ownIds ?: [0]) : $q;
 
         $query = $scoped(Customer::query()->with(['country', 'manager'])
             ->withCount('sales')
@@ -71,9 +73,9 @@ class CustomerController extends Controller
             'customers'  => $scoped(Customer::query())->count(),
             'active'     => $scoped(Customer::where('status', 'active'))->count(),
             'pending'    => $scoped(Customer::where('status', 'pending'))->count(),
-            'sales'      => CustomerSale::when($mine, fn ($q) => $q->whereHas('customer', fn ($c) => $c->where('manager_id', $uid)))->count(),
+            'sales'      => CustomerSale::when($mine, fn ($q) => $q->whereIn('customer_id', $ownIds ?: [0]))->count(),
             'units_sold' => BatchUnit::whereNotNull('sold_to_id')
-                ->when($mine, fn ($q) => $q->whereHas('soldTo', fn ($c) => $c->where('manager_id', $uid)))->count(),
+                ->when($mine, fn ($q) => $q->whereIn('sold_to_id', $ownIds ?: [0]))->count(),
         ];
 
         $countries = Country::orderBy('name')->get(['id', 'name', 'flag']);

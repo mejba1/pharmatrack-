@@ -19,6 +19,7 @@ return [
     'master_data'      => ['label' => 'Master Data',         'prefixes' => ['master.countries.', 'master.tclasses.', 'master.banks.']],
     'orders'           => ['label' => 'Purchase & Sales Orders', 'prefixes' => ['orders.po', 'orders.so']],
     'invoices'         => ['label' => 'Invoices (PI / CI)',      'prefixes' => ['orders.pi', 'orders.ci']],
+    'ledger'           => ['label' => 'Customer Ledger',        'prefixes' => ['ledger.', 'ledger']],
     'logistics'        => ['label' => 'Logistics & Shipments', 'prefixes' => ['shipments.', 'shipments', 'distribution']],
     'compliance'       => ['label' => 'Compliance (Country Reg.)', 'prefixes' => ['countries']],
     'anti_counterfeit' => ['label' => 'Anti-Counterfeit',    'prefixes' => ['anticounterfeit.']],

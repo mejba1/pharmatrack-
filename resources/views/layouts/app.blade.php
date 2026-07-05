@@ -306,6 +306,12 @@
       </div>
     </div>
     @endif
+    @if($can('ledger'))
+    <a href="{{ route('ledger.index') }}" class="nav-item-link {{ request()->routeIs('ledger.*') ? 'active' : '' }}">
+      <span class="nav-icon"><i class="bi bi-journal-text"></i></span>
+      <span x-show="!sidebarCollapsed">Customer Ledger</span>
+    </a>
+    @endif
     @if($can('promocodes'))
     <a href="{{ route('promo-codes.index') }}" class="nav-item-link {{ request()->routeIs('promo-codes.*') ? 'active' : '' }}">
       <span class="nav-icon"><i class="bi bi-ticket-perforated"></i></span>

@@ -18,24 +18,27 @@ class CommercialInvoiceController extends Controller
 {
     public function index(Request $request): View
     {
-        $mine = !$request->user()->canViewAll('invoices');
-        $uid  = $request->user()->id;
-        $own  = fn ($q) => $mine ? $q->where('created_by', $uid) : $q;
+        $mine   = !$request->user()->canViewAll('invoices');
+        $uid    = $request->user()->id;
+        $ownIds = $request->user()->ownedCustomerIds();
+        // Scoped users see invoices they created OR raised for their customers.
+        $ciOwn = fn ($q) => $mine ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereHas('proformaInvoice.salesOrder', fn ($s) => $s->whereIn('customer_id', $ownIds ?: [0]))) : $q;
+        $piOwn = fn ($q) => $mine ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereHas('salesOrder', fn ($s) => $s->whereIn('customer_id', $ownIds ?: [0]))) : $q;
 
-        $invoices = $own(CommercialInvoice::with(['proformaInvoice.salesOrder.customer.country', 'lines.product', 'lines.batch', 'documents', 'payments.recorder']))
+        $invoices = $ciOwn(CommercialInvoice::with(['proformaInvoice.salesOrder.customer.country', 'lines.product', 'lines.batch', 'documents', 'payments.recorder']))
             ->latest()->limit(300)->get();
 
         $cis = $invoices->map(fn ($ci) => $this->payload($ci))->values();
 
         $stats = [
-            'total'    => $own(CommercialInvoice::query())->count(),
-            'pending'  => $own(CommercialInvoice::where('status', 'pending_approval'))->count(),
-            'approved' => $own(CommercialInvoice::whereIn('status', ['approved', 'shipment_created']))->count(),
-            'partial'  => $this->partiallyInvoicedPiCount($own),
+            'total'    => $ciOwn(CommercialInvoice::query())->count(),
+            'pending'  => $ciOwn(CommercialInvoice::where('status', 'pending_approval'))->count(),
+            'approved' => $ciOwn(CommercialInvoice::whereIn('status', ['approved', 'shipment_created']))->count(),
+            'partial'  => $this->partiallyInvoicedPiCount($piOwn),
         ];
 
-        // Approved PIs with quantity still left to invoice — source for "Raise CI" (own PIs).
-        $approvedPis = $own(ProformaInvoice::with(['salesOrder.customer', 'lines.product', 'commercialInvoices.lines']))
+        // Approved PIs with quantity still left to invoice — source for "Raise CI".
+        $approvedPis = $piOwn(ProformaInvoice::with(['salesOrder.customer', 'lines.product', 'commercialInvoices.lines']))
             ->where('status', 'approved')->latest()->get()
             ->map(function ($pi) {
                 $remaining = $this->remainingByLine($pi);

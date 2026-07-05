@@ -23,9 +23,13 @@ class PurchaseOrderController extends Controller
     // ── List ───────────────────────────────────────────────────────────────
     public function index(Request $request): View
     {
-        $mine = !$request->user()->canViewAll('orders');
-        $uid  = $request->user()->id;
-        $own  = fn ($q) => $mine ? $q->where('created_by', $uid) : $q;
+        $mine    = !$request->user()->canViewAll('orders');
+        $uid     = $request->user()->id;
+        $ownIds  = $request->user()->ownedCustomerIds();
+        // A scoped user sees POs they created OR that belong to their customers.
+        $own = fn ($q) => $mine
+            ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereIn('buyer_id', $ownIds ?: [0]))
+            : $q;
 
         $orders = $own(PurchaseOrder::with([
             'buyer.country', 'lines.product', 'documents',
@@ -41,9 +45,9 @@ class PurchaseOrderController extends Controller
             'cancelled'    => $own(PurchaseOrder::where('status', 'cancelled'))->count(),
         ];
 
-        // Managers can only raise POs for customers assigned to them.
+        // Managers can only raise POs for their own customers.
         $customers = Customer::with('country')
-            ->when($mine, fn ($q) => $q->where('manager_id', $uid))
+            ->when($mine, fn ($q) => $q->whereIn('id', $ownIds ?: [0]))
             ->orderBy('name')->get(['id', 'name', 'type', 'customer_code', 'country_id'])
             ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'type' => $c->type, 'code' => $c->customer_code, 'country_id' => $c->country_id, 'country' => $c->country?->name]);
         $types     = Customer::TYPES;

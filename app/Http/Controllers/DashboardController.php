@@ -30,27 +30,30 @@ class DashboardController extends Controller
         $custMine   = !$user->canViewAll('customers');
         $mine       = !$user->seesAllData();           // generic flag for the view label
 
-        // created_by scope for orders (PO/SO) and invoices (PI/CI).
-        $own  = fn ($q) => $ordersMine ? $q->where('created_by', $uid) : $q;
-        $ownI = fn ($q) => $invMine ? $q->where('created_by', $uid) : $q;
-        // assignment scope for customers (assigned account manager).
-        $cust = fn ($q) => $custMine ? $q->where('manager_id', $uid) : $q;
+        // A scoped user sees records they created OR that belong to their
+        // customers (assigned account manager + managed countries).
+        $ownIds = $user->ownedCustomerIds();
+        $ownPo = fn ($q) => $ordersMine ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereIn('buyer_id', $ownIds ?: [0])) : $q;
+        $ownSo = fn ($q) => $ordersMine ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereIn('customer_id', $ownIds ?: [0])) : $q;
+        $ownPi = fn ($q) => $invMine ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereHas('salesOrder', fn ($s) => $s->whereIn('customer_id', $ownIds ?: [0]))) : $q;
+        $ownCi = fn ($q) => $invMine ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereHas('proformaInvoice.salesOrder', fn ($s) => $s->whereIn('customer_id', $ownIds ?: [0]))) : $q;
+        $cust  = fn ($q) => $custMine ? $q->whereIn('id', $ownIds ?: [0]) : $q;
 
         $stats = [
-            'po_total'        => $own(PurchaseOrder::query())->count(),
-            'po_pending'      => $own(PurchaseOrder::where('status', 'sent'))->count(),
-            'po_acknowledged' => $own(PurchaseOrder::where('status', 'acknowledged'))->count(),
-            'so_total'        => $own(SalesOrder::query())->count(),
-            'so_confirmed'    => $own(SalesOrder::where('status', 'confirmed'))->count(),
-            'pi_total'        => $ownI(ProformaInvoice::query())->count(),
-            'pi_pending'      => $ownI(ProformaInvoice::whereIn('status', ['sent', 'pending_approval']))->count(),
-            'pi_approved'     => $ownI(ProformaInvoice::where('status', 'approved'))->count(),
-            'ci_total'        => $ownI(CommercialInvoice::query())->count(),
+            'po_total'        => $ownPo(PurchaseOrder::query())->count(),
+            'po_pending'      => $ownPo(PurchaseOrder::where('status', 'sent'))->count(),
+            'po_acknowledged' => $ownPo(PurchaseOrder::where('status', 'acknowledged'))->count(),
+            'so_total'        => $ownSo(SalesOrder::query())->count(),
+            'so_confirmed'    => $ownSo(SalesOrder::where('status', 'confirmed'))->count(),
+            'pi_total'        => $ownPi(ProformaInvoice::query())->count(),
+            'pi_pending'      => $ownPi(ProformaInvoice::whereIn('status', ['sent', 'pending_approval']))->count(),
+            'pi_approved'     => $ownPi(ProformaInvoice::where('status', 'approved'))->count(),
+            'ci_total'        => $ownCi(CommercialInvoice::query())->count(),
             'customers'       => $cust(Customer::query())->count(),
         ];
 
         // Total order value the user is responsible for (their POs).
-        $stats['order_value'] = (float) $own(PurchaseOrder::query())->sum('total_value');
+        $stats['order_value'] = (float) $ownPo(PurchaseOrder::query())->sum('total_value');
 
         // Pipeline funnel (their / global counts).
         $funnel = [
@@ -60,8 +63,8 @@ class DashboardController extends Controller
             ['label' => 'Commercial Invoices','count' => $stats['ci_total'],'icon' => 'bi-file-earmark-check','tone' => 'success', 'route' => route('orders.ci')],
         ];
 
-        $recentPos = $own(PurchaseOrder::with('buyer'))->latest()->limit(6)->get();
-        $recentSos = $own(SalesOrder::with('customer'))->latest()->limit(6)->get();
+        $recentPos = $ownPo(PurchaseOrder::with('buyer'))->latest()->limit(6)->get();
+        $recentSos = $ownSo(SalesOrder::with('customer'))->latest()->limit(6)->get();
         $recentCustomers = $cust(Customer::with('country'))->latest()->limit(6)->get();
 
         return view('dashboard', compact('user', 'mine', 'stats', 'funnel', 'recentPos', 'recentSos', 'recentCustomers'));

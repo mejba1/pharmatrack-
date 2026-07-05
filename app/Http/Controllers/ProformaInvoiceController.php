@@ -19,9 +19,13 @@ class ProformaInvoiceController extends Controller
 {
     public function index(Request $request): View
     {
-        $mine = !$request->user()->canViewAll('invoices');
-        $uid  = $request->user()->id;
-        $own  = fn ($q) => $mine ? $q->where('created_by', $uid) : $q;
+        $mine   = !$request->user()->canViewAll('invoices');
+        $uid    = $request->user()->id;
+        $ownIds = $request->user()->ownedCustomerIds();
+        // Scoped users see PIs they created OR raised against their customers.
+        $own = fn ($q) => $mine
+            ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereHas('salesOrder', fn ($s) => $s->whereIn('customer_id', $ownIds ?: [0])))
+            : $q;
 
         $invoices = $own(ProformaInvoice::with(['salesOrder.customer.country', 'lines.product', 'lines.batch', 'documents']))
             ->latest()->limit(300)->get();
@@ -36,7 +40,8 @@ class ProformaInvoiceController extends Controller
         ];
 
         // Confirmed SOs not yet invoiced — source for "Issue PI" (own SOs only).
-        $confirmedSos = $own(SalesOrder::with(['customer', 'lines.product']))
+        $soOwn = fn ($q) => $mine ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereIn('customer_id', $ownIds ?: [0])) : $q;
+        $confirmedSos = $soOwn(SalesOrder::with(['customer', 'lines.product']))
             ->where('status', 'confirmed')->whereDoesntHave('proformaInvoice')
             ->latest()->get()->map(fn ($so) => [
                 'id'       => $so->id,

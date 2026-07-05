@@ -208,6 +208,10 @@ Route::middleware(['auth', 'module'])->group(function () {
         Route::delete('/invoice-payments/{payment}', [CommercialInvoiceController::class, 'destroyPayment'])->name('ci.payments.destroy');
     });
 
+    // ── Customer Ledger (invoiced / paid / due, scoped to your customers) ─────
+    Route::get('/ledger', [\App\Http\Controllers\LedgerController::class, 'index'])->name('ledger.index');
+    Route::get('/ledger/{customer}', [\App\Http\Controllers\LedgerController::class, 'show'])->name('ledger.show');
+
     // ── Promo Codes (sales discounts applied at order placement) ──────────────
     Route::get('/promo-codes', [\App\Http\Controllers\PromoCodeController::class, 'index'])->name('promo-codes.index');
     Route::get('/promo-codes/generate', [\App\Http\Controllers\PromoCodeController::class, 'generate'])->name('promo-codes.generate');

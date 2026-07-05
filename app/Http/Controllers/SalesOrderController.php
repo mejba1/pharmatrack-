@@ -21,9 +21,12 @@ class SalesOrderController extends Controller
     // ── List ───────────────────────────────────────────────────────────────
     public function index(Request $request): View
     {
-        $mine = !$request->user()->canViewAll('orders');
-        $uid  = $request->user()->id;
-        $own  = fn ($q) => $mine ? $q->where('created_by', $uid) : $q;
+        $mine   = !$request->user()->canViewAll('orders');
+        $uid    = $request->user()->id;
+        $ownIds = $request->user()->ownedCustomerIds();
+        // Scoped users see records they created OR that belong to their customers.
+        $own   = fn ($q) => $mine ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereIn('customer_id', $ownIds ?: [0])) : $q;
+        $poOwn = fn ($q) => $mine ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereIn('buyer_id', $ownIds ?: [0])) : $q;
 
         $orders = $own(SalesOrder::with(['customer.country', 'purchaseOrder', 'lines.product', 'lines.batch', 'proformaInvoice.commercialInvoices', 'documents']))
             ->latest()->limit(300)->get();
@@ -38,8 +41,8 @@ class SalesOrderController extends Controller
         ];
 
         // Acknowledged POs not yet converted to an SO — source for "Create SO"
-        // (a manager only converts their own POs).
-        $acknowledgedPos = $own(PurchaseOrder::with(['buyer', 'lines.product', 'lines.batch']))
+        // (a manager only converts POs that belong to their customers).
+        $acknowledgedPos = $poOwn(PurchaseOrder::with(['buyer', 'lines.product', 'lines.batch']))
             ->where('status', 'acknowledged')
             ->whereDoesntHave('salesOrder')
             ->latest()->get()

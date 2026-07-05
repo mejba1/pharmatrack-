@@ -107,6 +107,32 @@ class User extends Authenticatable
         return $this->countries()->pluck('countries.id')->all();
     }
 
+    protected ?array $ownedCustomerIdsMemo = null;
+
+    /**
+     * The set of customers this user is responsible for — the single source of
+     * truth for account-manager / country-manager scoping. It is the union of
+     * customers directly assigned to them (customers.manager_id) and customers
+     * located in the countries they manage. Memoised for the request.
+     *
+     * @return array<int>
+     */
+    public function ownedCustomerIds(): array
+    {
+        if ($this->ownedCustomerIdsMemo !== null) {
+            return $this->ownedCustomerIdsMemo;
+        }
+
+        $countryIds = $this->managedCountryIds();
+
+        $ids = \App\Models\Customer::query()
+            ->where('manager_id', $this->id)
+            ->when($countryIds, fn ($q) => $q->orWhereIn('country_id', $countryIds))
+            ->pluck('id')->map(fn ($i) => (int) $i)->all();
+
+        return $this->ownedCustomerIdsMemo = $ids;
+    }
+
     /** Resolve a route name to its module key via config/modules.php (or null). */
     public static function moduleForRoute(?string $routeName): ?string
     {
