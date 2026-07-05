@@ -283,6 +283,12 @@
           <span x-show="!sidebarCollapsed">Customer Directory</span>
           @if($pendingCustomers)<span class="nav-badge nav-badge-danger" x-show="!sidebarCollapsed">{{ $pendingCustomers }}</span>@endif
         </a>
+        @can('customers.create')
+        <a href="{{ route('customers.index', ['new' => 1]) }}" class="nav-item-link">
+          <span class="nav-icon"><i class="bi bi-person-plus"></i></span>
+          <span x-show="!sidebarCollapsed">Add Customer</span>
+        </a>
+        @endcan
         <a href="{{ route('customers.trace') }}" class="nav-item-link {{ request()->routeIs('customers.trace') ? 'active' : '' }}">
           <span class="nav-icon"><i class="bi bi-upc-scan"></i></span>
           <span x-show="!sidebarCollapsed">Trace a Purchase</span>

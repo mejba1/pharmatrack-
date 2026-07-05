@@ -198,6 +198,7 @@
       allIds: @js($customers->pluck('id')->map(fn ($i) => (string) $i)->values()),
       get allSelected(){ return this.allIds.length > 0 && this.selected.length === this.allIds.length; },
       toggleAll(checked){ this.selected = checked ? [...this.allIds] : []; },
+      init(){ if (new URLSearchParams(location.search).get('new')) this.$nextTick(() => this.openAdd()); },
       showAdd:false, showEdit:false, showView:false, showSale:false,
       addUrl: '{{ route('customers.store') }}',
       saleUrl: '{{ route('customers.sales.store') }}',
