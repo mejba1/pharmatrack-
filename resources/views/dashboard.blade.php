@@ -26,28 +26,28 @@
 {{-- Headline stats --}}
 <div class="row g-3 mb-3">
   <div class="col-6 col-lg-3">
-    <div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-cart3"></i></div>
+    <a href="{{ route('orders.po') }}" class="stat-card stat-primary text-decoration-none text-body"><div class="stat-icon"><i class="bi bi-cart3"></i></div>
       <div><div class="stat-value">{{ $stats['po_total'] }}</div><div class="stat-label">{{ $mine ? 'My' : 'Total' }} Purchase Orders</div>
         <div class="text-muted-sm">{{ $stats['po_pending'] }} pending · {{ $stats['po_acknowledged'] }} acknowledged</div></div>
-    </div>
+    </a>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="stat-card stat-info"><div class="stat-icon"><i class="bi bi-bag-check"></i></div>
+    <a href="{{ route('orders.so') }}" class="stat-card stat-info text-decoration-none text-body"><div class="stat-icon"><i class="bi bi-bag-check"></i></div>
       <div><div class="stat-value">{{ $stats['so_total'] }}</div><div class="stat-label">{{ $mine ? 'My' : 'Total' }} Sales Orders</div>
         <div class="text-muted-sm">{{ $stats['so_confirmed'] }} confirmed</div></div>
-    </div>
+    </a>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-receipt"></i></div>
+    <a href="{{ route('orders.pi') }}" class="stat-card stat-warning text-decoration-none text-body"><div class="stat-icon"><i class="bi bi-receipt"></i></div>
       <div><div class="stat-value">{{ $stats['pi_total'] }}</div><div class="stat-label">Proforma Invoices</div>
         <div class="text-muted-sm">{{ $stats['pi_pending'] }} pending · {{ $stats['pi_approved'] }} approved</div></div>
-    </div>
+    </a>
   </div>
   <div class="col-6 col-lg-3">
-    <div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+    <a href="{{ route('customers.index') }}" class="stat-card stat-success text-decoration-none text-body"><div class="stat-icon"><i class="bi bi-people-fill"></i></div>
       <div><div class="stat-value">{{ $stats['customers'] }}</div><div class="stat-label">{{ $mine ? 'My' : 'Total' }} Customers</div>
         <div class="text-muted-sm">{{ $stats['ci_total'] }} commercial invoices</div></div>
-    </div>
+    </a>
   </div>
 </div>
 

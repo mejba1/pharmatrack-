@@ -17,16 +17,28 @@
   {{-- Filter bar --}}
   <div class="card mb-3"><div class="card-body py-2">
     <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-3"><label class="form-label">Customer</label>
+        <select name="customer_id" class="form-select form-select-sm">
+          <option value="">All customers</option>
+          @foreach($customers as $c)<option value="{{ $c->id }}" @selected($customerId==$c->id)>{{ $c->name }} ({{ $c->customer_code }})</option>@endforeach
+        </select>
+      </div>
+      <div class="col-md-3"><label class="form-label">Product</label>
+        <select name="product_id" class="form-select form-select-sm">
+          <option value="">All products</option>
+          @foreach($products as $p)<option value="{{ $p->id }}" @selected($productId==$p->id)>{{ $p->name }} ({{ $p->prn }})</option>@endforeach
+        </select>
+      </div>
       <div class="col-md-2"><label class="form-label">Trend year</label>
         <select name="year" class="form-select form-select-sm">
           @foreach($years as $y)<option value="{{ $y }}" @selected($year==$y)>{{ $y }}</option>@endforeach
         </select>
       </div>
-      <div class="col-md-3"><label class="form-label">From</label><input type="date" name="from" value="{{ $from }}" class="form-control form-control-sm"></div>
-      <div class="col-md-3"><label class="form-label">To</label><input type="date" name="to" value="{{ $to }}" class="form-control form-control-sm"></div>
-      <div class="col-md-2 d-flex gap-1">
-        <button class="btn btn-primary btn-sm flex-fill"><i class="bi bi-funnel me-1"></i>Apply</button>
-        <a href="{{ route('reports') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise"></i></a>
+      <div class="col-md-2"><label class="form-label">From</label><input type="date" name="from" value="{{ $from }}" class="form-control form-control-sm"></div>
+      <div class="col-md-2"><label class="form-label">To</label><input type="date" name="to" value="{{ $to }}" class="form-control form-control-sm"></div>
+      <div class="col-md-12 d-flex gap-1 mt-2">
+        <button class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Apply filters</button>
+        <a href="{{ route('reports') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</a>
       </div>
     </form>
   </div></div>
@@ -37,6 +49,12 @@
     <div class="col-6 col-lg-3"><div class="stat-card stat-info"><div class="stat-icon"><i class="bi bi-bag-check"></i></div><div><div class="stat-value">{{ $summary['orders'] }}</div><div class="stat-label">Sales Orders</div></div></div></div>
     <div class="col-6 col-lg-3"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-box-seam"></i></div><div><div class="stat-value">{{ number_format($summary['units']) }}</div><div class="stat-label">Units Sold</div></div></div></div>
     <div class="col-6 col-lg-3"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-people"></i></div><div><div class="stat-value">{{ $summary['customers'] }}</div><div class="stat-label">Customers</div></div></div></div>
+  </div>
+
+  {{-- Fulfilment: pending vs executed --}}
+  <div class="row g-3 mb-3">
+    <div class="col-6"><div class="stat-card" style="border-left:4px solid #f59e0b"><div class="stat-icon" style="background:#fef3c7;color:#b45309"><i class="bi bi-hourglass-split"></i></div><div><div class="stat-value">{{ $summary['pending'] }}</div><div class="stat-label">Pending orders</div><div class="text-muted-sm">Confirmed / PI issued, not yet completed</div></div></div></div>
+    <div class="col-6"><div class="stat-card" style="border-left:4px solid #10b981"><div class="stat-icon" style="background:#d1fae5;color:#047857"><i class="bi bi-check2-circle"></i></div><div><div class="stat-value">{{ $summary['executed'] }}</div><div class="stat-label">Executed orders</div><div class="text-muted-sm">Completed &amp; fully invoiced</div></div></div></div>
   </div>
 
   {{-- Charts row 1: trend + status donut --}}

@@ -69,34 +69,53 @@ class ReportController extends Controller
         $user = $request->user();
         $mine = !$user->canViewAll('reports');
         $uid  = $user->id;
+        $ownIds = $user->ownedCustomerIds();
 
         $year = (int) ($request->query('year') ?: now()->year);
         $from = $request->query('from');
         $to   = $request->query('to');
+        $customerId = $request->query('customer_id') ?: null;
+        $productId  = $request->query('product_id') ?: null;
 
-        // Base sales-order query with scope + date filter, reusable via clone.
+        // Scoped user sees sales they created OR that belong to their customers.
+        $scopeSo = fn ($q) => $mine ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereIn('customer_id', $ownIds ?: [0])) : $q;
+        // Same, on a joined `s` alias for line-level queries.
+        $scopeS  = fn ($q) => $mine ? $q->where(fn ($w) => $w->where('s.created_by', $uid)->orWhereIn('s.customer_id', $ownIds ?: [0])) : $q;
+
+        // Base sales-order query with scope + date + customer/product filters.
         $base = SalesOrder::whereIn('status', self::SALES_STATUSES)
-            ->when($mine, fn ($q) => $q->where('created_by', $uid))
+            ->when($mine, $scopeSo)
             ->when($from, fn ($q) => $q->whereDate('so_date', '>=', $from))
-            ->when($to, fn ($q) => $q->whereDate('so_date', '<=', $to));
+            ->when($to, fn ($q) => $q->whereDate('so_date', '<=', $to))
+            ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))
+            ->when($productId, fn ($q) => $q->whereHas('lines', fn ($l) => $l->where('product_id', $productId)));
 
-        // ── Summary ──
+        // Line-level scope/date/customer/product filter for the raw join queries.
+        $lineFilter = function ($q) use ($mine, $scopeS, $from, $to, $customerId, $productId) {
+            return $q->whereIn('s.status', self::SALES_STATUSES)
+                ->when($mine, $scopeS)
+                ->when($from, fn ($x) => $x->whereDate('s.so_date', '>=', $from))
+                ->when($to, fn ($x) => $x->whereDate('s.so_date', '<=', $to))
+                ->when($customerId, fn ($x) => $x->where('s.customer_id', $customerId))
+                ->when($productId, fn ($x) => $x->where('l.product_id', $productId));
+        };
+
+        // ── Summary (incl. pending vs executed fulfilment) ──
         $summary = [
             'total_sales' => (float) (clone $base)->sum('total_value'),
             'orders'      => (clone $base)->count(),
             'customers'   => (clone $base)->distinct('customer_id')->count('customer_id'),
-            'units'       => (int) DB::table('sales_order_lines as l')->join('sales_orders as s', 's.id', '=', 'l.sales_order_id')
-                ->whereIn('s.status', self::SALES_STATUSES)
-                ->when($mine, fn ($q) => $q->where('s.created_by', $uid))
-                ->when($from, fn ($q) => $q->whereDate('s.so_date', '>=', $from))
-                ->when($to, fn ($q) => $q->whereDate('s.so_date', '<=', $to))
-                ->sum('l.quantity'),
-            'pos'         => PurchaseOrder::when($mine, fn ($q) => $q->where('created_by', $uid))->count(),
+            'units'       => (int) $lineFilter(DB::table('sales_order_lines as l')->join('sales_orders as s', 's.id', '=', 'l.sales_order_id'))->sum('l.quantity'),
+            'pending'     => (clone $base)->whereIn('status', ['confirmed', 'pi_issued'])->count(),
+            'executed'    => (clone $base)->where('status', 'completed')->count(),
+            'pos'         => PurchaseOrder::when($mine, fn ($q) => $mine ? $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereIn('buyer_id', $ownIds ?: [0])) : $q)->count(),
         ];
 
         // ── Monthly trend (selected year, ignores from/to so the year view is whole) ──
         $monthRows = SalesOrder::whereIn('status', self::SALES_STATUSES)
-            ->when($mine, fn ($q) => $q->where('created_by', $uid))
+            ->when($mine, $scopeSo)
+            ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))
+            ->when($productId, fn ($q) => $q->whereHas('lines', fn ($l) => $l->where('product_id', $productId)))
             ->whereYear('so_date', $year)
             ->selectRaw('MONTH(so_date) as m, SUM(total_value) as v')->groupBy('m')->pluck('v', 'm');
         $monthly = [];
@@ -106,7 +125,9 @@ class ReportController extends Controller
 
         // ── Yearly (last 5 years) ──
         $yearRows = SalesOrder::whereIn('status', self::SALES_STATUSES)
-            ->when($mine, fn ($q) => $q->where('created_by', $uid))
+            ->when($mine, $scopeSo)
+            ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))
+            ->when($productId, fn ($q) => $q->whereHas('lines', fn ($l) => $l->where('product_id', $productId)))
             ->selectRaw('YEAR(so_date) as y, SUM(total_value) as v')->groupBy('y')->pluck('v', 'y');
         $yearly = [];
         for ($y = now()->year - 4; $y <= now()->year; $y++) {
@@ -124,11 +145,7 @@ class ReportController extends Controller
         ])->all();
 
         // ── Product-wise (value + qty, top 10) ──
-        $prodRows = DB::table('sales_order_lines as l')->join('sales_orders as s', 's.id', '=', 'l.sales_order_id')
-            ->whereIn('s.status', self::SALES_STATUSES)
-            ->when($mine, fn ($q) => $q->where('s.created_by', $uid))
-            ->when($from, fn ($q) => $q->whereDate('s.so_date', '>=', $from))
-            ->when($to, fn ($q) => $q->whereDate('s.so_date', '<=', $to))
+        $prodRows = $lineFilter(DB::table('sales_order_lines as l')->join('sales_orders as s', 's.id', '=', 'l.sales_order_id'))
             ->groupBy('l.product_id')
             ->selectRaw('l.product_id, SUM(l.line_total) as v, SUM(l.quantity) as q')
             ->orderByDesc('v')->limit(10)->get();
@@ -140,16 +157,25 @@ class ReportController extends Controller
         ])->all();
 
         // ── PO / SO status counts (donut) ──
-        $soStatus = SalesOrder::when($mine, fn ($q) => $q->where('created_by', $uid))
+        $soStatus = SalesOrder::when($mine, $scopeSo)
+            ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))
             ->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status')->all();
-        $poStatus = PurchaseOrder::when($mine, fn ($q) => $q->where('created_by', $uid))
+        $poStatus = PurchaseOrder::when($mine, fn ($q) => $q->where(fn ($w) => $w->where('created_by', $uid)->orWhereIn('buyer_id', $ownIds ?: [0])))
+            ->when($customerId, fn ($q) => $q->where('buyer_id', $customerId))
             ->selectRaw('status, COUNT(*) as c')->groupBy('status')->pluck('c', 'status')->all();
 
         $years = range(now()->year, now()->year - 4);
 
+        // Filter option lists (customers scoped to what the user can see).
+        $customers = Customer::query()
+            ->when($mine, fn ($q) => $q->whereIn('id', $ownIds ?: [0]))
+            ->orderBy('name')->get(['id', 'name', 'customer_code']);
+        $products  = Product::orderBy('name')->get(['id', 'name', 'prn']);
+
         return compact(
             'mine', 'year', 'from', 'to', 'years', 'summary',
-            'monthly', 'yearly', 'customerWise', 'productWise', 'soStatus', 'poStatus'
+            'monthly', 'yearly', 'customerWise', 'productWise', 'soStatus', 'poStatus',
+            'customerId', 'productId', 'customers', 'products'
         );
     }
 }

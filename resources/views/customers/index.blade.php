@@ -173,6 +173,12 @@
                   'portal_can_order'=>is_null($c->portal_can_order) ? '' : (string)(int)$c->portal_can_order,
                 ]) }})"><i class="bi bi-pencil"></i></button>@endcan
                 <button class="btn btn-outline-success btn-sm btn-icon" title="Sell to this customer" @click="openSale({{ $c->id }})"><i class="bi bi-receipt"></i></button>
+                @can('customers.delete')
+                <form method="POST" action="{{ route('customers.destroy', $c) }}" class="d-inline" @submit="return confirm('Delete customer {{ addslashes($c->name) }}? This cannot be undone.')">
+                  @csrf @method('DELETE')
+                  <button class="btn btn-outline-danger btn-sm btn-icon" title="Delete"><i class="bi bi-trash"></i></button>
+                </form>
+                @endcan
               </div>
             </td>
           </tr>
