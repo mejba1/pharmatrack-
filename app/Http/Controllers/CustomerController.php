@@ -82,7 +82,8 @@ class CustomerController extends Controller
         $products  = Product::orderBy('name')->get(['id', 'name', 'prn']);
         $batches   = Batch::with('product')->orderByDesc('id')->limit(1000)->get(['id', 'brn', 'batch_number', 'product_id']);
         $types     = Customer::TYPES;
-        $managers  = User::orderBy('name')->get(['id', 'name', 'role']);   // for assign dropdown / filter
+        // Account managers to assign / filter by = the country managers.
+        $managers  = User::where('role', 'country_manager')->orderBy('name')->get(['id', 'name', 'role']);
 
         $recentSales  = CustomerSale::with('customer')->when($mine, fn ($q) => $q->whereHas('customer', fn ($c) => $c->where('manager_id', $uid)))->latest()->limit(8)->get();
         $allCustomers = $scoped(Customer::query())->orderBy('name')->get(['id', 'name', 'customer_code']);
