@@ -107,6 +107,12 @@ class User extends Authenticatable
         return $this->countries()->pluck('countries.id')->all();
     }
 
+    /** Only country managers (and super admin) may raise Sales Orders. */
+    public function canCreateSalesOrder(): bool
+    {
+        return $this->isSuperAdmin() || $this->role === 'country_manager';
+    }
+
     protected ?array $ownedCustomerIdsMemo = null;
 
     /**

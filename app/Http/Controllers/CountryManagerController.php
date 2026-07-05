@@ -32,22 +32,24 @@ class CountryManagerController extends Controller
         ];
         $perPage = in_array($filters['per_page'], [15, 30, 50, 100], true) ? $filters['per_page'] : 15;
 
-        $query = User::with('countries');
+        // This page manages country managers only.
+        $query = User::with('countries')->where('role', 'country_manager');
         if ($filters['search'] !== '') {
             $s = $filters['search'];
             $query->where(fn ($q) => $q->where('name', 'like', "%{$s}%")
                 ->orWhere('email', 'like', "%{$s}%")->orWhere('phone', 'like', "%{$s}%"));
         }
-        if ($filters['role'] !== '')       $query->where('role', $filters['role']);
         if ($filters['country_id'] !== '') $query->whereHas('countries', fn ($q) => $q->where('countries.id', $filters['country_id']));
 
         $managers = $query->orderBy('name')->paginate($perPage)->withQueryString();
 
+        $base = fn () => User::where('role', 'country_manager');
         $stats = [
-            'total'     => User::count(),
-            'active'    => User::where('is_active', true)->count(),
-            'assigned'  => User::has('countries')->count(),
-            'countries' => \Illuminate\Support\Facades\DB::table('manager_country')->distinct()->count('country_id'),
+            'total'     => $base()->count(),
+            'active'    => $base()->where('is_active', true)->count(),
+            'assigned'  => $base()->has('countries')->count(),
+            'countries' => \Illuminate\Support\Facades\DB::table('manager_country')
+                ->whereIn('user_id', $base()->pluck('id'))->distinct()->count('country_id'),
         ];
 
         $countries = Country::orderBy('name')->get(['id', 'name', 'flag']);
@@ -66,13 +68,14 @@ class CountryManagerController extends Controller
             'name'       => $data['name'],
             'email'      => $data['email'],
             'password'   => Hash::make($data['password'] ?? str()->random(16)),
-            'role'       => $data['role'] ?? 'distributor',
+            'role'       => 'country_manager',
             'country_id' => $countryIds[0] ?? null,   // primary (legacy)
             'phone'      => $data['phone'] ?? null,
             'department' => $data['department'] ?? null,
             'initials'   => strtoupper(substr($data['name'], 0, 2)),
             'is_active'  => $request->boolean('is_active', true),
         ])->save();
+        $user->syncRoles(['country_manager']);
         $user->countries()->sync($countryIds);
 
         return back()->with('success', "Country Manager '{$user->name}' added.");
@@ -86,7 +89,7 @@ class CountryManagerController extends Controller
         $manager->forceFill([
             'name'       => $data['name'],
             'email'      => $data['email'],
-            'role'       => $data['role'] ?? $manager->role,
+            'role'       => 'country_manager',
             'country_id' => $countryIds[0] ?? null,   // primary (legacy)
             'phone'      => $data['phone'] ?? null,
             'department' => $data['department'] ?? null,
@@ -96,6 +99,7 @@ class CountryManagerController extends Controller
             $manager->password = Hash::make($data['password']);
         }
         $manager->save();
+        $manager->syncRoles(['country_manager']);
         $manager->countries()->sync($countryIds);
 
         return back()->with('success', "Country Manager '{$manager->name}' updated.");

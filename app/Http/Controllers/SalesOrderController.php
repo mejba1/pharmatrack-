@@ -72,6 +72,9 @@ class SalesOrderController extends Controller
     // ── Create (from an acknowledged PO, with serial allocation) ───────────
     public function store(Request $request): RedirectResponse
     {
+        // Only country managers (and super admin) may raise Sales Orders.
+        abort_unless($request->user()->canCreateSalesOrder(), 403, 'Only country managers can create sales orders.');
+
         $data = $request->validate([
             'purchase_order_id' => 'required|exists:purchase_orders,id',
             'so_date'           => 'required|date',

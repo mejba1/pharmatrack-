@@ -14,7 +14,7 @@
       <div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Orders / Sales Orders</div>
     </div>
     <div class="d-flex gap-2">
-      @can('orders.create')<button class="btn btn-primary btn-sm" @click="openCreate()"><i class="bi bi-plus-lg me-1"></i>Create SO</button>@endcan
+      @if(auth()->user()->canCreateSalesOrder() && auth()->user()->can('orders.create'))<button class="btn btn-primary btn-sm" @click="openCreate()"><i class="bi bi-plus-lg me-1"></i>Create SO</button>@endif
     </div>
   </div>
 
