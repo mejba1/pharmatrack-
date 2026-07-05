@@ -1,0 +1,955 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Batch;
+use App\Models\BatchUnit;
+use App\Models\MasterCarton;
+use App\Models\MasterCartonContent;
+use App\Models\MasterCartonScan;
+use App\Models\Product;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+use Barryvdh\DomPDF\Facade\Pdf;
+
+/**
+ * Master Carton Management — internal Factory→Depot distribution.
+ *
+ * Uses a GS1-style aggregation model: a carton (logistic unit / SSCC-equivalent)
+ * may be generic (no product/batch until packed) and may hold multiple
+ * product/batch/serial segments (mixed). Packed segments live in
+ * master_carton_contents; the carton keeps a homogeneous summary for the
+ * common single-product case.
+ */
+class MasterCartonController extends Controller
+{
+    private const MAX_CARTONS = 100000;
+
+    // ── Index (list + stats + batch-wise summary) ─────────────────────────
+
+    public function index(Request $request): View
+    {
+        $filters = $request->only(['product_id', 'batch_id', 'status', 'search', 'fill', 'date_from', 'date_to']);
+
+        // Cursor (keyset) pagination — no COUNT(*), no deep OFFSET on millions.
+        $cartons = MasterCarton::with(['product', 'batch', 'contents.product', 'contents.batch'])
+                    ->filter($filters)
+                    ->orderByDesc('id')
+                    ->cursorPaginate(20)
+                    ->withQueryString();
+
+        // Cached so the 5 COUNT(*)s aren't recomputed on every request.
+        $stats = Cache::remember('mc_stats', 60, fn () => [
+            'total'      => MasterCarton::count(),
+            'packed'     => MasterCarton::where('packed_quantity', '>', 0)->count(),
+            'empty'      => MasterCarton::where('packed_quantity', 0)->count(),
+            'dispatched' => MasterCarton::where('status', 'dispatched')->count(),
+            'received'   => MasterCarton::where('status', 'received')->count(),
+        ]);
+
+        // Batch-wise summary is heavy; it's loaded lazily via batchSummaryView().
+        $products = Product::orderBy('name')->get(['id', 'name', 'prn']);
+        $batches  = Batch::orderByDesc('id')->limit(500)->get(['id', 'brn', 'batch_number', 'product_id']);
+
+        return view('master-cartons', compact('cartons', 'stats', 'filters', 'products', 'batches'));
+    }
+
+    /** Lazy-loaded, bounded batch-wise summary (AJAX partial). */
+    public function batchSummaryView(): View
+    {
+        $summary = Cache::remember('mc_batch_summary', 60, fn () => $this->batchSummary());
+        return view('partials.carton-batch-summary', compact('summary'));
+    }
+
+    /** Full-page batch-wise summary (sidebar entry). */
+    public function batchSummaryPage(): View
+    {
+        $summary = Cache::remember('mc_batch_summary', 60, fn () => $this->batchSummary());
+        return view('master-cartons-batch-summary', compact('summary'));
+    }
+
+    /** Label centre — choose scope + date range, then print or download PDF. */
+    public function labelsCenter(): View
+    {
+        $products = Product::orderBy('name')->get(['id', 'name', 'prn']);
+        return view('master-cartons-labels', compact('products'));
+    }
+
+    /** JSON: cartons holding a given batch (bounded), for the batch-summary modal. */
+    public function batchCartons(Batch $batch): JsonResponse
+    {
+        $rows = MasterCartonContent::selectRaw('master_carton_id, SUM(quantity) q')
+                    ->where('batch_id', $batch->id)
+                    ->groupBy('master_carton_id')
+                    ->orderBy('master_carton_id')
+                    ->limit(100)->get();
+
+        $cartonIds = $rows->pluck('master_carton_id');
+        $cartons   = MasterCarton::whereIn('id', $cartonIds)->get()->keyBy('id');
+
+        $mixed = MasterCartonContent::selectRaw('master_carton_id, COUNT(DISTINCT product_id) p, COUNT(DISTINCT batch_id) b')
+                    ->whereIn('master_carton_id', $cartonIds)
+                    ->groupBy('master_carton_id')->get()
+                    ->filter(fn ($r) => $r->p > 1 || $r->b > 1)
+                    ->pluck('master_carton_id')->flip();
+
+        return response()->json([
+            'brn'     => $batch->brn,
+            'product' => $batch->product?->name,
+            'cartons' => $rows->map(fn ($r) => [
+                'id'            => $r->master_carton_id,
+                'carton_number' => $cartons[$r->master_carton_id]?->carton_number ?? '—',
+                'qty'           => (int) $r->q,
+                'status'        => $cartons[$r->master_carton_id]?->status_label ?? '—',
+                'status_badge'  => $cartons[$r->master_carton_id]?->status_badge_class ?? 'badge-draft',
+                'mixed'         => $mixed->has($r->master_carton_id),
+            ])->values(),
+        ]);
+    }
+
+    /** Invalidate cached stat counters + batch summary after a mutation. */
+    private function forgetCaches(): void
+    {
+        Cache::forget('mc_stats');
+        Cache::forget('mc_batch_summary');
+        Cache::forget('dist_stats');
+    }
+
+    /**
+     * Batch-wise carton summary — bounded & aggregate-only (no per-carton
+     * hydration). Shows the 50 most recent batches that have cartons; each row
+     * links to the filtered carton list instead of inline-expanding cartons.
+     */
+    private function batchSummary()
+    {
+        // Aggregate packed units + distinct cartons per batch, from contents.
+        $packed = MasterCartonContent::selectRaw('batch_id, SUM(quantity) packed, COUNT(DISTINCT master_carton_id) cartons')
+                    ->groupBy('batch_id')->get()->keyBy('batch_id');
+
+        // Empty/unpacked standard cartons assigned to a batch.
+        $emptyByBatch = MasterCarton::selectRaw('batch_id, COUNT(*) c')
+                    ->whereNotNull('batch_id')->where('packed_quantity', 0)
+                    ->groupBy('batch_id')->pluck('c', 'batch_id');
+
+        // Recent batches that appear in cartons (bounded to 50).
+        $batchIds = $packed->keys()
+            ->merge($emptyByBatch->keys())
+            ->unique()->sortDesc()->take(50)->values();
+
+        if ($batchIds->isEmpty()) {
+            return collect();
+        }
+
+        $batches = Batch::with('product')->whereIn('id', $batchIds)->get()->keyBy('id');
+
+        return $batchIds->map(function ($bid) use ($packed, $emptyByBatch, $batches) {
+            $row    = $packed->get($bid);
+            $batch  = $batches->get($bid);
+            $units  = (int) ($row->packed ?? 0);
+            $total  = $batch?->total_quantity ?? 0;
+
+            return [
+                'batch'             => $batch,
+                'cartons'           => (int) ($row->cartons ?? 0) + (int) ($emptyByBatch[$bid] ?? 0),
+                'remaining_cartons' => (int) ($emptyByBatch[$bid] ?? 0),
+                'packed'            => $units,
+                'total'             => $total,
+                'unpacked'          => max(0, $total - $units),
+            ];
+        })->values();
+    }
+
+    // ── Generate cartons (standard for a batch, or generic) ───────────────
+
+    public function store(Request $request): JsonResponse|RedirectResponse
+    {
+        $type = $request->input('carton_type') === 'generic' ? 'generic' : 'standard';
+
+        $rules = [
+            'capacity'     => 'required|integer|min:1',
+            'carton_count' => 'required|integer|min:1|max:' . self::MAX_CARTONS,
+            'label'        => 'nullable|string|max:255',
+            'notes'        => 'nullable|string|max:2000',
+        ];
+        if ($type === 'standard') {
+            $rules['product_id'] = 'required|exists:products,id';
+            $rules['batch_id']   = 'required|exists:batches,id';
+        }
+        $data = $request->validate($rules, [
+            'capacity.required'     => 'Enter products per master carton.',
+            'carton_count.required' => 'Enter the number of master cartons.',
+            'product_id.required'   => 'Select a product (or switch to a generic carton).',
+            'batch_id.required'     => 'Select a batch (or switch to a generic carton).',
+        ]);
+
+        $productId = null;
+        $batchId   = null;
+
+        if ($type === 'standard') {
+            $batch = Batch::findOrFail((int) $data['batch_id']);
+            if ((int) $batch->product_id !== (int) $data['product_id']) {
+                return $this->fail($request, 'batch_id', 'The selected batch does not belong to the selected product.');
+            }
+            $productId = $batch->product_id;
+            $batchId   = $batch->id;
+        }
+
+        $capacity = (int) $data['capacity'];
+        $count    = (int) $data['carton_count'];
+
+        DB::transaction(function () use ($type, $productId, $batchId, $capacity, $count, $data) {
+            $last     = MasterCarton::withTrashed()->orderByDesc('id')->value('carton_number');
+            $startSeq = $last ? ((int) substr($last, 3) + 1) : 1;
+
+            $usedQr = MasterCarton::withTrashed()->pluck('qr_code')->flip();
+            $now    = now();
+            $rows   = [];
+
+            for ($i = 0; $i < $count; $i++) {
+                do {
+                    $qr = Str::upper(Str::random(12));
+                } while ($usedQr->has($qr));
+                $usedQr->put($qr, true);
+
+                $rows[] = [
+                    'product_id'      => $productId,
+                    'batch_id'        => $batchId,
+                    'carton_number'   => 'MC-' . str_pad((string) ($startSeq + $i), 6, '0', STR_PAD_LEFT),
+                    'qr_code'         => $qr,
+                    'carton_type'     => $type,
+                    'label'           => $data['label'] ?? null,
+                    'capacity'        => $capacity,
+                    'packed_quantity' => 0,
+                    'status'          => 'created',
+                    'notes'           => $data['notes'] ?? null,
+                    'created_at'      => $now,
+                    'updated_at'      => $now,
+                ];
+            }
+            foreach (array_chunk($rows, 2000) as $chunk) {
+                MasterCarton::insert($chunk);
+            }
+        });
+
+        $this->forgetCaches();
+        $what    = $type === 'generic' ? 'generic master carton(s)' : "master carton(s) for batch";
+        $message = "Generated {$count} {$what} of {$capacity} units each.";
+
+        if ($request->wantsJson()) {
+            session()->flash('success', $message);
+            return response()->json(['success' => true, 'message' => $message, 'redirect' => route('master-cartons')]);
+        }
+        return redirect()->route('master-cartons')->with('success', $message);
+    }
+
+    // ── Bulk: create already-packed cartons for many batches/products ─────
+
+    public function packedForm(): View
+    {
+        $products = Product::orderBy('name')->get(['id', 'name', 'prn']);
+
+        // Last 100 master cartons for the recent-cartons table on the page.
+        $recent = MasterCarton::with(['contents.product', 'contents.batch', 'product', 'batch'])
+            ->orderByDesc('id')->limit(100)->get()
+            ->map(fn ($c) => [
+                'id'            => $c->id,
+                'carton_number' => $c->carton_number,
+                'product'       => $c->products_summary,
+                'batch'         => $c->batches_summary,
+                'qty'           => $c->packed_quantity,
+                'capacity'      => $c->capacity,
+                'status'        => $c->status_label,
+                'status_badge'  => $c->status_badge_class,
+                'packed'        => $c->packed_quantity > 0,
+                'created'       => $c->created_at?->format('M d, Y H:i'),
+            ])->values();
+
+        return view('master-cartons-packed', compact('products', 'recent'));
+    }
+
+    /**
+     * Create one or more *packed* master cartons in a single form. Each line
+     * targets a product/batch and a serial set (range or specific list); a
+     * line is split into multiple cartons of `capacity` units each.
+     */
+    public function storePacked(Request $request): JsonResponse|RedirectResponse
+    {
+        $data = $request->validate([
+            'lines'              => 'required|array|min:1|max:100',
+            'lines.*.product_id' => 'required|exists:products,id',
+            'lines.*.batch_id'   => 'required|exists:batches,id',
+            'lines.*.serials'    => 'required|string|max:5000',
+            'lines.*.capacity'   => 'nullable|integer|min:1',
+            'lines.*.label'      => 'nullable|string|max:255',
+        ]);
+
+        // ── Validate every line and build a flat plan of cartons to create ──
+        $plan          = [];                 // [['batch'=>Batch,'capacity'=>int,'serials'=>[..],'label'=>?], ...]
+        $seenByBatch   = [];                 // batch_id => [serial => true] within this submission
+        $batchCache    = [];
+
+        foreach ($data['lines'] as $i => $line) {
+            $n     = $i + 1;
+            $batch = $batchCache[$line['batch_id']] ??= Batch::find((int) $line['batch_id']);
+
+            if ((int) $batch->product_id !== (int) $line['product_id']) {
+                return $this->fail($request, "lines.$i.batch_id", "Row {$n}: the batch does not belong to the selected product.");
+            }
+
+            $serials = $this->parseSerialList($line['serials']);
+            if (empty($serials)) {
+                return $this->fail($request, "lines.$i.serials", "Row {$n}: enter serials, e.g. 1-50 or 1,3,6,8.");
+            }
+
+            // No serial used twice across the whole form.
+            foreach ($serials as $s) {
+                if (isset($seenByBatch[$batch->id][$s])) {
+                    return $this->fail($request, "lines.$i.serials", "Row {$n}: serial {$s} for '{$batch->brn}' is used more than once in this form.");
+                }
+                $seenByBatch[$batch->id][$s] = true;
+            }
+
+            // Stop the whole batch when nothing is left to pack.
+            $availableInBatch = BatchUnit::where('batch_id', $batch->id)->where('status', 'generated')->count();
+            if ($availableInBatch === 0) {
+                return $this->fail($request, "lines.$i.serials", "Row {$n}: batch '{$batch->brn}' is already fully packed — no units available. No carton created.");
+            }
+
+            // The requested serials must be available (status = generated).
+            $available = BatchUnit::where('batch_id', $batch->id)
+                            ->whereIn('serial_number', $serials)
+                            ->where('status', 'generated')
+                            ->distinct()->count('serial_number');
+            if ($available < count($serials)) {
+                $exists = BatchUnit::where('batch_id', $batch->id)->whereIn('serial_number', $serials)->distinct()->count('serial_number');
+                $msg = $exists < count($serials)
+                    ? "Row {$n}: some serials don't exist in batch '{$batch->brn}'."
+                    : "Row {$n}: those serials are already packed in batch '{$batch->brn}' ({$availableInBatch} unit(s) still available). No carton created.";
+                return $this->fail($request, "lines.$i.serials", $msg);
+            }
+
+            $capacity = (int) ($line['capacity'] ?: count($serials));
+            foreach (array_chunk($serials, $capacity) as $chunk) {
+                $plan[] = ['batch' => $batch, 'capacity' => $capacity, 'serials' => $chunk, 'label' => $line['label'] ?? null];
+            }
+        }
+
+        abort_if(count($plan) > 5000, 422, 'That would create over 5,000 cartons in one go — split it into smaller submissions.');
+
+        // ── Create + pack everything in one transaction ──
+        $created = DB::transaction(function () use ($plan) {
+            $last     = MasterCarton::withTrashed()->orderByDesc('id')->value('carton_number');
+            $startSeq = $last ? ((int) substr($last, 3) + 1) : 1;
+            $usedQr   = MasterCarton::withTrashed()->pluck('qr_code')->flip();
+            $seq      = $startSeq;
+            $rows     = [];
+
+            foreach ($plan as $p) {
+                do {
+                    $qr = Str::upper(Str::random(12));
+                } while ($usedQr->has($qr));
+                $usedQr->put($qr, true);
+
+                $carton = MasterCarton::create([
+                    'product_id'    => $p['batch']->product_id,
+                    'batch_id'      => $p['batch']->id,
+                    'carton_number' => 'MC-' . str_pad((string) $seq++, 6, '0', STR_PAD_LEFT),
+                    'qr_code'       => $qr,
+                    'carton_type'   => 'standard',
+                    'label'         => $p['label'],
+                    'capacity'      => $p['capacity'],
+                    'packed_quantity' => 0,
+                    'status'        => 'created',
+                ]);
+
+                foreach ($this->compressRuns($p['serials']) as [$start, $end]) {
+                    MasterCartonContent::create([
+                        'master_carton_id' => $carton->id,
+                        'product_id'       => $p['batch']->product_id,
+                        'batch_id'         => $p['batch']->id,
+                        'serial_start'     => $start,
+                        'serial_end'       => $end,
+                        'quantity'         => $end - $start + 1,
+                    ]);
+                }
+
+                BatchUnit::where('batch_id', $p['batch']->id)
+                    ->whereIn('serial_number', $p['serials'])
+                    ->where('status', 'generated')
+                    ->update(['status' => 'packed']);
+
+                $carton->recomputeFromContents();
+                $carton->save();
+
+                $rows[] = [
+                    'id'            => $carton->id,
+                    'carton_number' => $carton->carton_number,
+                    'product'       => $p['batch']->product?->name,
+                    'batch'         => $p['batch']->brn,
+                    'qty'           => $carton->packed_quantity,
+                ];
+            }
+            return $rows;
+        });
+
+        $this->forgetCaches();
+        $message = 'Created ' . count($created) . ' packed carton(s) across ' . count($data['lines']) . ' line(s).';
+        if ($request->wantsJson()) {
+            session()->flash('success', $message);
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'cartons' => $created,
+                'ids'     => array_column($created, 'id'),
+                'redirect'=> route('master-cartons'),
+            ]);
+        }
+        return redirect()->route('master-cartons')->with('success', $message);
+    }
+
+    // ── Packing: add a content segment to a carton ────────────────────────
+
+    public function addContent(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'carton_id'    => 'required|exists:master_cartons,id',
+            'product_id'   => 'required|exists:products,id',
+            'batch_id'     => 'required|exists:batches,id',
+            'serial_start' => 'required|integer|min:1',
+            'serial_end'   => 'required|integer|min:1|gte:serial_start',
+        ], [
+            'serial_end.gte' => 'Ending serial must be ≥ starting serial.',
+        ]);
+
+        $carton = MasterCarton::with('contents')->findOrFail((int) $data['carton_id']);
+        $batch  = Batch::findOrFail((int) $data['batch_id']);
+        $start  = (int) $data['serial_start'];
+        $end    = (int) $data['serial_end'];
+        $qty    = $end - $start + 1;
+
+        if (in_array($carton->status, ['dispatched', 'received'], true)) {
+            return $this->failJson('carton_id', "Carton {$carton->carton_number} has already been {$carton->status}; it can no longer be packed.");
+        }
+        if ((int) $batch->product_id !== (int) $data['product_id']) {
+            return $this->failJson('batch_id', 'The selected batch does not belong to the selected product.');
+        }
+        // Capacity (running)
+        if ($carton->packed_quantity + $qty > $carton->capacity) {
+            return $this->failJson('serial_end', "Adding {$qty} units exceeds the carton's remaining capacity ({$carton->remaining_capacity}).");
+        }
+        // Serials exist in batch
+        $existing = BatchUnit::where('batch_id', $batch->id)
+                        ->whereBetween('serial_number', [$start, $end])
+                        ->distinct()->count('serial_number');
+        if ($existing < $qty) {
+            return $this->failJson('serial_start', "Serials {$start}–{$end} are not fully available in batch '{$batch->brn}'.");
+        }
+        // No overlap with the same batch's serials already packed anywhere
+        $overlap = MasterCartonContent::with('carton')
+                        ->where('batch_id', $batch->id)
+                        ->where('serial_start', '<=', $end)
+                        ->where('serial_end', '>=', $start)
+                        ->first();
+        if ($overlap) {
+            return $this->failJson('serial_start', "Serials overlap with carton {$overlap->carton?->carton_number} ({$overlap->serial_range}) for this batch.");
+        }
+
+        DB::transaction(function () use ($carton, $batch, $start, $end, $qty) {
+            MasterCartonContent::create([
+                'master_carton_id' => $carton->id,
+                'product_id'       => $batch->product_id,
+                'batch_id'         => $batch->id,
+                'serial_start'     => $start,
+                'serial_end'       => $end,
+                'quantity'         => $qty,
+            ]);
+
+            BatchUnit::where('batch_id', $batch->id)
+                ->whereBetween('serial_number', [$start, $end])
+                ->where('status', 'generated')
+                ->update(['status' => 'packed']);
+
+            $carton->recomputeFromContents();
+            $carton->save();
+        });
+
+        $this->forgetCaches();
+        return response()->json([
+            'success'  => true,
+            'message'  => "Added serials {$start}–{$end} ({$qty} units) to {$carton->carton_number}.",
+            'carton'   => $this->cartonPayload($carton->fresh('contents')),
+            'contents' => $this->contentsPayload($carton->fresh(['contents.product', 'contents.batch'])),
+        ]);
+    }
+
+    // ── Packing: add a list of specific serials (e.g. 1,3,6,8 or 1-5,10) ──
+
+    public function addContentSerials(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'carton_id'  => 'required|exists:master_cartons,id',
+            'product_id' => 'required|exists:products,id',
+            'batch_id'   => 'required|exists:batches,id',
+            'serials'    => 'required|string|max:5000',
+        ]);
+
+        $carton = MasterCarton::with('contents')->findOrFail((int) $data['carton_id']);
+        $batch  = Batch::findOrFail((int) $data['batch_id']);
+
+        if (in_array($carton->status, ['dispatched', 'received'], true)) {
+            return $this->failJson('carton_id', "Carton {$carton->carton_number} has already been {$carton->status}; it can no longer be packed.");
+        }
+        if ((int) $batch->product_id !== (int) $data['product_id']) {
+            return $this->failJson('batch_id', 'The selected batch does not belong to the selected product.');
+        }
+
+        $serials = $this->parseSerialList($data['serials']);
+        if (empty($serials)) {
+            return $this->failJson('serials', 'Enter one or more serials, e.g. 1,3,6,8 or 1-5,10-12.');
+        }
+        $qty = count($serials);
+
+        if ($carton->packed_quantity + $qty > $carton->capacity) {
+            return $this->failJson('serials', "Adding {$qty} units exceeds the carton's remaining capacity ({$carton->remaining_capacity}).");
+        }
+        // Every serial must exist in the batch.
+        $existing = BatchUnit::where('batch_id', $batch->id)
+                        ->whereIn('serial_number', $serials)
+                        ->distinct()->count('serial_number');
+        if ($existing < $qty) {
+            return $this->failJson('serials', "Some of those serials don't exist in batch '{$batch->brn}'.");
+        }
+        // None already packed anywhere (overlap with existing contents for this batch).
+        $overlap = MasterCartonContent::with('carton')
+                        ->where('batch_id', $batch->id)
+                        ->where(function ($w) use ($serials) {
+                            foreach ($serials as $s) {
+                                $w->orWhere(fn ($x) => $x->where('serial_start', '<=', $s)->where('serial_end', '>=', $s));
+                            }
+                        })->first();
+        if ($overlap) {
+            return $this->failJson('serials', "One or more serials are already packed in carton {$overlap->carton?->carton_number} ({$overlap->serial_range}).");
+        }
+
+        $runs = $this->compressRuns($serials);   // store non-contiguous serials as compact runs
+
+        DB::transaction(function () use ($carton, $batch, $runs, $serials) {
+            foreach ($runs as [$start, $end]) {
+                MasterCartonContent::create([
+                    'master_carton_id' => $carton->id,
+                    'product_id'       => $batch->product_id,
+                    'batch_id'         => $batch->id,
+                    'serial_start'     => $start,
+                    'serial_end'       => $end,
+                    'quantity'         => $end - $start + 1,
+                ]);
+            }
+            BatchUnit::where('batch_id', $batch->id)
+                ->whereIn('serial_number', $serials)
+                ->where('status', 'generated')
+                ->update(['status' => 'packed']);
+
+            $carton->recomputeFromContents();
+            $carton->save();
+        });
+
+        $this->forgetCaches();
+        return response()->json([
+            'success'  => true,
+            'message'  => 'Added ' . count($serials) . ' serial(s) to ' . $carton->carton_number . '.',
+            'carton'   => $this->cartonPayload($carton->fresh('contents')),
+            'contents' => $this->contentsPayload($carton->fresh(['contents.product', 'contents.batch'])),
+        ]);
+    }
+
+    /** Parse "1,3,6,8" / "1-5,10-12" into a sorted unique list of serials (cap 5000). */
+    private function parseSerialList(string $q): array
+    {
+        $q = trim($q);
+        if ($q === '' || !preg_match('/^[\d\s,\-]+$/', $q)) {
+            return [];
+        }
+        $out = [];
+        foreach (preg_split('/[\s,]+/', $q, -1, PREG_SPLIT_NO_EMPTY) as $token) {
+            if (preg_match('/^(\d+)-(\d+)$/', $token, $m)) {
+                [$a, $b] = [(int) $m[1], (int) $m[2]];
+                if ($b < $a) [$a, $b] = [$b, $a];
+                for ($i = $a; $i <= $b && count($out) < 5000; $i++) {
+                    $out[] = $i;
+                }
+            } elseif (ctype_digit($token)) {
+                $out[] = (int) $token;
+            }
+            if (count($out) >= 5000) break;
+        }
+        sort($out);
+        return array_values(array_unique($out));
+    }
+
+    /** Compress a sorted serial list into [start,end] contiguous runs. */
+    private function compressRuns(array $serials): array
+    {
+        $runs = [];
+        $start = $prev = null;
+        foreach ($serials as $s) {
+            if ($start === null) { $start = $prev = $s; continue; }
+            if ($s === $prev + 1) { $prev = $s; continue; }
+            $runs[] = [$start, $prev];
+            $start = $prev = $s;
+        }
+        if ($start !== null) $runs[] = [$start, $prev];
+        return $runs;
+    }
+
+    // ── Packing: remove a content segment ─────────────────────────────────
+
+    public function removeContent(MasterCartonContent $content): JsonResponse
+    {
+        $carton = $content->carton()->with('contents')->first();
+
+        if ($carton && in_array($carton->status, ['dispatched', 'received'], true)) {
+            return $this->failJson('content', "Carton {$carton->carton_number} has already been {$carton->status}; its contents are locked.");
+        }
+
+        DB::transaction(function () use ($content, $carton) {
+            // Free the units that were packed by this segment.
+            BatchUnit::where('batch_id', $content->batch_id)
+                ->whereBetween('serial_number', [$content->serial_start, $content->serial_end])
+                ->where('status', 'packed')
+                ->update(['status' => 'generated']);
+
+            $content->delete();
+
+            if ($carton) {
+                $carton->recomputeFromContents();
+                $carton->save();
+            }
+        });
+
+        $this->forgetCaches();
+        return response()->json([
+            'success'  => true,
+            'message'  => 'Segment removed.',
+            'carton'   => $this->cartonPayload($carton?->fresh('contents')),
+            'contents' => $this->contentsPayload($carton?->fresh(['contents.product', 'contents.batch'])),
+        ]);
+    }
+
+    // ── JSON: cartons available for packing (have free capacity) ──────────
+
+    public function packingCartons(Request $request): JsonResponse
+    {
+        $query = MasterCarton::whereColumn('packed_quantity', '<', 'capacity')
+                    ->whereNotIn('status', ['dispatched', 'received']);
+
+        // Bounded fetch — filter by a single carton, a batch, or generic type,
+        // optionally narrowed by a carton-number prefix; never the whole table.
+        if ($id = $request->query('id')) {
+            $query->where('id', $id);
+        } elseif ($request->query('type') === 'generic') {
+            $query->where('carton_type', 'generic');
+        } elseif ($batchId = $request->query('batch_id')) {
+            $query->where('batch_id', $batchId);
+        }
+        if (($q = trim((string) $request->query('q', ''))) !== '') {
+            $query->where('carton_number', 'like', $q . '%');
+        }
+
+        $cartons = $query->orderBy('carton_number')
+                    ->limit(25)
+                    ->get(['id', 'carton_number', 'carton_type', 'capacity', 'packed_quantity', 'batch_id', 'product_id']);
+
+        return response()->json($cartons->map(fn ($c) => [
+            'id'             => $c->id,
+            'carton_number'  => $c->carton_number,
+            'carton_type'    => $c->carton_type,
+            'capacity'       => $c->capacity,
+            'packed'         => $c->packed_quantity,
+            'remaining'      => $c->remaining_capacity,
+            'batch_id'       => $c->batch_id,
+            'product_id'     => $c->product_id,
+            'label'          => $c->carton_number . ' · ' . $c->remaining_capacity . '/' . $c->capacity . ' free'
+                                . ($c->carton_type === 'generic' ? ' · generic' : ''),
+        ]));
+    }
+
+    /**
+     * Downloadable PDF of a single carton's contents — grouped by product (then
+     * batch) with every serial number expanded (not ranges).
+     */
+    public function serialsPdf(MasterCarton $masterCarton)
+    {
+        $masterCarton->load(['contents.product', 'contents.batch']);
+        abort_if($masterCarton->contents->isEmpty(), 404, "Carton {$masterCarton->carton_number} has no packed serials yet.");
+
+        $cap = 50000; // safety guard against an unexpectedly huge carton
+        $groups = $masterCarton->contents
+            ->groupBy(fn ($c) => $c->product?->name ?? '—')
+            ->map(function ($items) use ($cap) {
+                return $items->groupBy(fn ($c) => $c->batch?->brn ?? '—')->map(function ($rows) use ($cap) {
+                    $serials = [];
+                    foreach ($rows as $r) {
+                        for ($s = $r->serial_start; $s <= $r->serial_end && count($serials) < $cap; $s++) {
+                            $serials[] = $s;
+                        }
+                    }
+                    sort($serials);
+                    return $serials;
+                });
+            });
+
+        $pdf = Pdf::loadView('exports.carton-serials', ['carton' => $masterCarton, 'groups' => $groups])
+                    ->setPaper('a4', 'portrait')
+                    ->setOption('isRemoteEnabled', true);
+
+        return $pdf->download($masterCarton->carton_number . '_serials.pdf');
+    }
+
+    /** JSON: a carton's current contents + remaining capacity (pack modal). */
+    public function cartonContents(MasterCarton $masterCarton): JsonResponse
+    {
+        return response()->json([
+            'carton'   => $this->cartonPayload($masterCarton),
+            'contents' => $this->contentsPayload($masterCarton->load(['contents.product', 'contents.batch'])),
+        ]);
+    }
+
+    /**
+     * JSON: next free serial for a batch (for auto-filling the start field).
+     * = highest serial already packed into any carton for this batch + 1,
+     * or the batch's lowest unit serial when nothing is packed yet.
+     */
+    public function batchPackInfo(Batch $batch): JsonResponse
+    {
+        $packedMax = MasterCartonContent::where('batch_id', $batch->id)->max('serial_end');
+        $minSerial = BatchUnit::where('batch_id', $batch->id)->min('serial_number');
+        $maxSerial = BatchUnit::where('batch_id', $batch->id)->max('serial_number');
+        $available = BatchUnit::where('batch_id', $batch->id)->where('status', 'generated')->count();
+
+        return response()->json([
+            'brn'         => $batch->brn,
+            'next_serial' => $packedMax ? $packedMax + 1 : ($minSerial ?? 1),
+            'min_serial'  => $minSerial ?? 1,
+            'max_serial'  => $maxSerial ?? 0,
+            'available'   => $available,   // unpacked units still available
+        ]);
+    }
+
+    // ── JSON: single carton (view modal) ──────────────────────────────────
+
+    public function show(MasterCarton $masterCarton): JsonResponse
+    {
+        $masterCarton->load(['product', 'batch', 'scans', 'contents.product', 'contents.batch']);
+
+        return response()->json([
+            ...$masterCarton->toArray(),
+            'is_mixed'           => $masterCarton->is_mixed,
+            'products_summary'   => $masterCarton->products_summary,
+            'batches_summary'    => $masterCarton->batches_summary,
+            'serial_range'       => $masterCarton->serial_range,
+            'remaining_capacity' => $masterCarton->remaining_capacity,
+            'status_label'       => $masterCarton->status_label,
+            'status_badge_class' => $masterCarton->status_badge_class,
+            'scan_url'           => route('carton.scan', $masterCarton->qr_code),
+            'contents'           => $this->contentsPayload($masterCarton),
+            'scans'              => $masterCarton->scans->map(fn ($s) => [
+                'event' => $s->event, 'event_label' => $s->event_label, 'event_icon' => $s->event_icon,
+                'performed_by' => $s->performed_by, 'location' => $s->location, 'note' => $s->note,
+                'at' => $s->created_at?->toIso8601String(),
+            ]),
+        ]);
+    }
+
+    // ── Movement: dispatch / receive ──────────────────────────────────────
+
+    public function move(Request $request, MasterCarton $masterCarton): JsonResponse|RedirectResponse
+    {
+        $data = $request->validate([
+            'event'    => 'required|in:dispatched,received',
+            'location' => 'nullable|string|max:255',
+            'note'     => 'nullable|string|max:1000',
+        ]);
+
+        if (!$masterCarton->is_packed) {
+            return $this->fail($request, 'event', "Carton {$masterCarton->carton_number} has not been packed yet. Pack serials into it before dispatch or receiving.");
+        }
+        if ($data['event'] === 'received' && !$masterCarton->dispatched_at) {
+            return $this->fail($request, 'event', "Carton {$masterCarton->carton_number} must be dispatched from the factory before it can be received at the depot.");
+        }
+
+        $masterCarton->update([
+            'status'        => $data['event'],
+            'dispatched_at' => $data['event'] === 'dispatched' ? now() : $masterCarton->dispatched_at,
+            'received_at'   => $data['event'] === 'received' ? now() : $masterCarton->received_at,
+        ]);
+
+        MasterCartonScan::create([
+            'master_carton_id' => $masterCarton->id,
+            'event'            => $data['event'],
+            'performed_by'     => optional(auth()->user())->name ?? 'system',
+            'location'         => $data['location'] ?? null,
+            'note'             => $data['note'] ?? null,
+        ]);
+
+        $this->forgetCaches();
+        $label   = $data['event'] === 'dispatched' ? 'dispatched from factory' : 'received at depot';
+        $message = "Carton {$masterCarton->carton_number} marked as {$label}.";
+        if ($request->wantsJson()) {
+            session()->flash('success', $message);
+            return response()->json(['success' => true, 'message' => $message, 'redirect' => route('master-cartons')]);
+        }
+        return redirect()->route('master-cartons')->with('success', $message);
+    }
+
+    // ── Printable labels & PDF (any carton set: all / generic / batch) ────
+
+    /** Browser print view; filterable by product/batch/status/type. */
+    public function labels(Request $request): View
+    {
+        $filters = $request->only(['product_id', 'batch_id', 'status', 'type', 'search', 'fill', 'date_from', 'date_to', 'ids']);
+        $cartons = $this->labelsQuery($filters)->paginate(60)->withQueryString();
+        $title   = $this->labelsTitle($filters);
+
+        return view('carton-labels', compact('cartons', 'title', 'filters'));
+    }
+
+    /** Downloadable PDF of carton labels; same filters as the print view. */
+    public function labelsPdf(Request $request)
+    {
+        $filters = $request->only(['product_id', 'batch_id', 'status', 'type', 'search', 'fill', 'date_from', 'date_to', 'ids']);
+        $count   = $this->labelsQuery($filters)->count();
+        abort_if($count === 0, 404, 'No cartons match the selected filters.');
+        abort_if($count > 1000, 422, "Too many cartons ({$count}) for a single PDF. Narrow the filter (product / batch / status / date) or select specific rows — max 1000 per PDF.");
+
+        $cartons = $this->labelsQuery($filters)->get();
+
+        $title = $this->labelsTitle($filters);
+        $name  = Str::slug($title ?: 'master_carton', '_') . '_labels';
+
+        $pdf = Pdf::loadView('exports.carton-labels', compact('cartons', 'title'))
+                    ->setPaper('a4', 'portrait')
+                    ->setOption('isRemoteEnabled', true);
+        return $pdf->download("{$name}.pdf");
+    }
+
+    private function labelsQuery(array $filters)
+    {
+        $q = MasterCarton::with(['product', 'batch', 'contents.product', 'contents.batch'])
+                ->filter($filters)
+                ->orderBy('carton_number');
+
+        if (($filters['type'] ?? '') === 'generic') {
+            $q->where('carton_type', 'generic');
+        } elseif (($filters['type'] ?? '') === 'standard') {
+            $q->where('carton_type', 'standard');
+        }
+        return $q;
+    }
+
+    private function labelsTitle(array $filters): string
+    {
+        if (!empty($filters['ids'])) {
+            return 'Selected Master Cartons';
+        }
+        if (($filters['type'] ?? '') === 'generic') {
+            return 'Generic Master Cartons';
+        }
+        if (!empty($filters['batch_id'])) {
+            $b = Batch::with('product')->find($filters['batch_id']);
+            return trim(($b?->product?->name ?? 'Product') . ' — ' . ($b?->brn ?? ''));
+        }
+        if (!empty($filters['product_id'])) {
+            return Product::find($filters['product_id'])?->name ?? 'Master Cartons';
+        }
+        return 'All Master Cartons';
+    }
+
+    // ── Public QR scan page ───────────────────────────────────────────────
+
+    public function scan(string $qr): View
+    {
+        $carton = MasterCarton::with(['product', 'batch', 'contents.product', 'contents.batch'])
+                    ->where('qr_code', $qr)->first();
+
+        if ($carton) {
+            MasterCartonScan::create([
+                'master_carton_id' => $carton->id,
+                'event'            => 'scanned',
+                'performed_by'     => 'public',
+                'note'             => 'QR scan via carton label.',
+            ]);
+        }
+
+        return view('carton-verify', compact('carton', 'qr'));
+    }
+
+    // ── Destroy ───────────────────────────────────────────────────────────
+
+    public function destroy(MasterCarton $masterCarton): RedirectResponse
+    {
+        $num = $masterCarton->carton_number;
+
+        DB::transaction(function () use ($masterCarton) {
+            // Free any packed units before removing the carton + its contents.
+            foreach ($masterCarton->contents as $content) {
+                BatchUnit::where('batch_id', $content->batch_id)
+                    ->whereBetween('serial_number', [$content->serial_start, $content->serial_end])
+                    ->where('status', 'packed')
+                    ->update(['status' => 'generated']);
+            }
+            $masterCarton->contents()->delete();
+            $masterCarton->delete();
+        });
+
+        $this->forgetCaches();
+        return redirect()->route('master-cartons')->with('success', "Carton {$num} removed.");
+    }
+
+    // ── Payload helpers ───────────────────────────────────────────────────
+
+    private function cartonPayload(?MasterCarton $c): ?array
+    {
+        if (!$c) return null;
+        return [
+            'id'              => $c->id,
+            'carton_number'   => $c->carton_number,
+            'capacity'        => $c->capacity,
+            'packed_quantity' => $c->packed_quantity,
+            'remaining'       => $c->remaining_capacity,
+            'status'          => $c->status,
+            'is_mixed'        => $c->is_mixed,
+        ];
+    }
+
+    private function contentsPayload(?MasterCarton $c): array
+    {
+        if (!$c) return [];
+        return $c->contents->map(fn ($x) => [
+            'id'           => $x->id,
+            'product_name' => $x->product?->name,
+            'brn'          => $x->batch?->brn,
+            'batch_number' => $x->batch?->batch_number,
+            'serial_start' => $x->serial_start,
+            'serial_end'   => $x->serial_end,
+            'quantity'     => $x->quantity,
+        ])->values()->all();
+    }
+
+    private function fail(Request $request, string $field, string $message): JsonResponse|RedirectResponse
+    {
+        if ($request->wantsJson()) {
+            return response()->json(['success' => false, 'errors' => [$field => [$message]]], 422);
+        }
+        return back()->withInput()->withErrors([$field => $message]);
+    }
+
+    private function failJson(string $field, string $message): JsonResponse
+    {
+        return response()->json(['success' => false, 'errors' => [$field => [$message]]], 422);
+    }
+}

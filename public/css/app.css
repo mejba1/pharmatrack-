@@ -174,7 +174,7 @@ body {
   max-height: 0;
   transition: max-height 0.3s ease;
 }
-.nav-submenu.open { max-height: 600px; }
+.nav-submenu.open { max-height: 1200px; }
 .nav-submenu .nav-item-link { padding-left: 52px; font-size: 13px; }
 .nav-caret { margin-left: auto; transition: transform 0.3s; font-size: 11px; }
 .nav-caret.open { transform: rotate(90deg); }
@@ -441,6 +441,41 @@ body {
 .rounded-12 { border-radius: 12px; }
 .gap-6 { gap: 6px; }
 .cursor-pointer { cursor: pointer; }
+
+/* =============================================
+   GLOBAL TOAST NOTIFICATIONS
+   Rendered once in layouts/app.blade.php from
+   Alpine.store('toast'). Trigger from any page:
+   $store.toast.show('Message', 'warning')
+   types: info (default) | success | warning | danger
+   ============================================= */
+.app-toast-wrap {
+  position: fixed; top: 20px; right: 20px; z-index: 1090;
+  display: flex; flex-direction: column; gap: 10px; max-width: 360px;
+}
+.app-toast {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-radius: 10px;
+  font-size: 14px; font-weight: 500;
+  background: #fff; color: #0d6efd;
+  border-left: 4px solid #0d6efd;
+  box-shadow: 0 8px 28px rgba(16, 24, 40, .18);
+}
+.app-toast i { font-size: 16px; flex-shrink: 0; }
+.app-toast-close {
+  margin-left: auto; border: 0; background: transparent;
+  font-size: 19px; line-height: 1; color: inherit;
+  opacity: .55; cursor: pointer; padding: 0 2px;
+}
+.app-toast-close:hover { opacity: 1; }
+.app-toast-warning { color: #a65a00; border-left-color: #fd7e14; }
+.app-toast-danger  { color: #b02a37; border-left-color: #dc3545; }
+.app-toast-success { color: #0f5132; border-left-color: #198754; }
+html[data-theme="dark"] .app-toast {
+  background: var(--dm-surface, #1a2033);
+  color: var(--dm-text, #e2e8f0);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, .5);
+}
 
 /* =============================================
    DARK MODE

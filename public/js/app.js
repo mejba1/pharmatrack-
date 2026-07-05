@@ -30,8 +30,9 @@ document.addEventListener('alpine:init', () => {
   /* ---- Toast Notifications ---- */
   Alpine.store('toast', {
     items: [],
+    _seq: 0,
     show(msg, type = 'info', duration = 4000) {
-      const id = Date.now();
+      const id = ++this._seq;
       this.items.push({ id, msg, type });
       setTimeout(() => this.dismiss(id), duration);
     },

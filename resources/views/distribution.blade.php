@@ -1,117 +1,224 @@
 @extends('layouts.app')
-@section('title', 'Distribution Hierarchy')
+@section('title', 'Distribution Dashboard')
+
+@push('styles')
+<style>
+  [x-cloak]{display:none!important}
+  .section-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6c757d;padding-bottom:4px;border-bottom:1px solid #e9ecef;margin-bottom:8px}
+  .trace-box{background:linear-gradient(135deg,#0d6efd,#0a58ca);border-radius:14px;padding:18px 20px;color:#fff}
+  .trace-box input{border:none;border-radius:10px;padding:12px 14px}
+  .hier-product{border:1px solid #e9ecef;border-radius:11px;margin-bottom:8px;overflow:hidden}
+  .hier-head{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:#f8fafc}
+  .hier-head:hover{background:#f1f5fb}
+  .chain{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#6c757d}
+  .chain .sep{color:#ced4da}
+</style>
+@endpush
 
 @section('content')
 <div x-data="distributionPage()">
 
+  {{-- Header --}}
   <div class="page-header">
-    <div><h1>Distribution Hierarchy</h1><div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Distribution Hierarchy</div></div>
-    <div class="d-flex gap-2">
-      <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i>Export</button>
-      <button class="btn btn-primary btn-sm" @click="showAddModal=true"><i class="bi bi-plus-lg me-1"></i>Add Distributor</button>
+    <div>
+      <h1>Distribution Dashboard</h1>
+      <div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Distribution &amp; Traceability</div>
     </div>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-diagram-3"></i></div><div><div class="stat-value">94</div><div class="stat-label">Total Distributors</div></div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-building"></i></div><div><div class="stat-value">12</div><div class="stat-label">Primary Distributors</div></div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-shop"></i></div><div><div class="stat-value">47</div><div class="stat-label">Sub-Distributors</div></div></div></div>
-    <div class="col-6 col-md-3"><div class="stat-card stat-info"><div class="stat-icon"><i class="bi bi-hospital"></i></div><div><div class="stat-value">35</div><div class="stat-label">Retail Pharmacies</div></div></div></div>
+  {{-- Universal traceability search --}}
+  <div class="trace-box mb-3">
+    <div class="d-flex align-items-center gap-2 mb-2"><i class="bi bi-search"></i><strong>Universal Traceability Search</strong></div>
+    <div class="row g-2 align-items-center">
+      <div class="col-12 col-lg">
+        <input type="text" class="form-control" x-model="q" @keydown.enter="search()"
+               placeholder="Serial(s): 12345 · 1,2,3 · 1-50  ·  or Carton / Shipment / Batch / QR">
+      </div>
+      <div class="col-6 col-lg-auto">
+        <select class="form-select" x-model="productId" @change="onProduct()">
+          <option value="">Any product</option>
+          @foreach($products as $p)<option value="{{ $p->id }}">{{ $p->name }}</option>@endforeach
+        </select>
+      </div>
+      <div class="col-6 col-lg-auto">
+        <select class="form-select" x-model="batchId" :disabled="!productId || loadingB">
+          <option value="" x-text="!productId ? 'Any batch' : (batches.length ? 'Any batch' : 'No batches')"></option>
+          <template x-for="b in batches" :key="b.id"><option :value="b.id" x-text="b.label"></option></template>
+        </select>
+      </div>
+      <div class="col-12 col-lg-auto"><button class="btn btn-light w-100" @click="search()" :disabled="searching"><span x-show="searching" class="spinner-border spinner-border-sm me-1"></span>Trace</button></div>
+    </div>
+    <div class="small mt-2 opacity-75">Find the full chain — product → batch → master carton → shipment → status. Scope a product/batch to disambiguate a serial that exists across several batches; enter multiple serials or a range (e.g. <code class="text-white">1-50</code>).</div>
   </div>
 
-  <!-- View Tabs -->
-  <div class="pills-nav mb-3">
-    <button class="pill-btn" :class="{active: viewMode==='table'}" @click="viewMode='table'"><i class="bi bi-table me-1"></i>Table View</button>
-    <button class="pill-btn" :class="{active: viewMode==='tree'}" @click="viewMode='tree'"><i class="bi bi-diagram-3 me-1"></i>Hierarchy Tree</button>
-  </div>
-
-  <!-- Table View -->
-  <div x-show="viewMode==='table'" class="card table-card">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead>
+  {{-- Search results --}}
+  <div class="card mb-3" x-show="searched" x-cloak><div class="card-body p-0">
+    <div class="px-3 py-2 border-bottom fw-semibold"><i class="bi bi-diagram-3 me-1"></i>Trace Results <span class="text-muted" x-text="'· '+results.length"></span></div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead><tr><th>Match</th><th>Product</th><th>Batch</th><th>Carton</th><th>Shipment</th><th>Serial</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <template x-for="(r,i) in results" :key="i">
             <tr>
-              <th>Distributor Name</th><th>Type</th><th>Country</th><th>License No.</th>
-              <th>GMP Certificate</th><th>Parent Distributor</th><th>Status</th><th>Actions</th>
+              <td><span class="badge text-bg-light" x-text="r.kind"></span></td>
+              <td style="font-size:13px" x-text="r.product"></td>
+              <td class="font-monospace" style="font-size:12px" x-text="r.batch"></td>
+              <td class="font-monospace" style="font-size:12px" x-text="r.carton"></td>
+              <td class="font-monospace" style="font-size:12px" x-text="r.shipment"></td>
+              <td class="font-monospace" style="font-size:12px" x-text="r.serial"></td>
+              <td><span class="badge-status" :class="r.status_badge" x-text="r.status"></span></td>
+              <td><a :href="r.link" target="_blank" class="btn btn-outline-primary btn-sm btn-icon"><i class="bi bi-box-arrow-up-right"></i></a></td>
             </tr>
-          </thead>
+          </template>
+          <tr x-show="!results.length"><td colspan="8" class="text-center text-muted py-4">No matches found.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div></div>
+
+  {{-- Summary cards --}}
+  <div class="row g-2 mb-3">
+    <div class="col-6 col-md"><div class="stat-card stat-primary"><div class="stat-icon"><i class="bi bi-layers"></i></div><div><div class="stat-value">{{ number_format($stats['batches']) }}</div><div class="stat-label">Batches</div></div></div></div>
+    <div class="col-6 col-md"><div class="stat-card stat-info"><div class="stat-icon"><i class="bi bi-box-seam"></i></div><div><div class="stat-value">{{ number_format($stats['cartons']) }}</div><div class="stat-label">Master Cartons</div></div></div></div>
+    <div class="col-6 col-md"><div class="stat-card stat-purple"><div class="stat-icon"><i class="bi bi-truck"></i></div><div><div class="stat-value">{{ number_format($stats['shipments']) }}</div><div class="stat-label">Shipments</div></div></div></div>
+    <div class="col-6 col-md"><div class="stat-card stat-warning"><div class="stat-icon"><i class="bi bi-arrow-left-right"></i></div><div><div class="stat-value">{{ number_format($stats['in_transit']) }}</div><div class="stat-label">In Transit</div></div></div></div>
+    <div class="col-6 col-md"><div class="stat-card stat-success"><div class="stat-icon"><i class="bi bi-box-arrow-in-down"></i></div><div><div class="stat-value">{{ number_format($stats['received']) }}</div><div class="stat-label">Received</div></div></div></div>
+    <div class="col-6 col-md"><div class="stat-card stat-danger"><div class="stat-icon"><i class="bi bi-question-octagon"></i></div><div><div class="stat-value">{{ number_format($stats['missing']) }}</div><div class="stat-label">Missing</div></div></div></div>
+    <div class="col-6 col-md"><div class="stat-card stat-danger"><div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div><div><div class="stat-value">{{ number_format($stats['damaged']) }}</div><div class="stat-label">Damaged</div></div></div></div>
+  </div>
+
+  <div class="row g-3">
+    {{-- Hierarchy --}}
+    <div class="col-lg-7">
+      <div class="card h-100"><div class="card-header bg-transparent fw-semibold"><i class="bi bi-diagram-3 me-1"></i>Carton Hierarchy — Product → Batch → Carton → Shipment</div>
+      <div class="card-body">
+        @forelse($hierarchy as $i => $h)
+        <div class="hier-product" x-data="{open:{{ $i===0 ? 'true':'false' }}}">
+          <div class="hier-head" @click="open=!open">
+            <i class="bi" :class="open?'bi-chevron-down':'bi-chevron-right'"></i>
+            <i class="bi bi-capsule text-primary"></i>
+            <span class="fw-semibold">{{ $h['product'] }}</span>
+            <span class="ms-auto text-muted-sm">{{ $h['batches']->count() }} batches · {{ number_format($h['cartons']) }} cartons · {{ $h['shipments'] }} shipments</span>
+          </div>
+          <div x-show="open" x-cloak class="px-3 pb-2">
+            <table class="table table-sm mb-0 align-middle">
+              <thead><tr><th>Batch</th><th class="text-end">Cartons</th><th class="text-end">Units</th><th class="text-end">Shipments</th></tr></thead>
+              <tbody>
+                @foreach($h['batches'] as $b)
+                <tr>
+                  <td class="font-monospace" style="font-size:12px">{{ $b['brn'] }}</td>
+                  <td class="text-end">{{ number_format($b['cartons']) }}</td>
+                  <td class="text-end">{{ number_format($b['units']) }}</td>
+                  <td class="text-end">{{ number_format($b['shipments']) }}</td>
+                </tr>
+                @endforeach
+              </tbody>
+            </table>
+          </div>
+        </div>
+        @empty
+        <div class="text-center text-muted py-4"><i class="bi bi-diagram-3" style="font-size:28px;opacity:.2"></i><div class="mt-2">No carton distribution yet.</div></div>
+        @endforelse
+      </div></div>
+    </div>
+
+    {{-- Exception reports --}}
+    <div class="col-lg-5">
+      <div class="card mb-3"><div class="card-header bg-transparent">
+        <div class="fw-semibold text-danger"><i class="bi bi-question-octagon me-1"></i>Missing / Short Cartons</div>
+        <div class="text-muted-sm">Cartons a depot marked as <strong>never arrived</strong> when receiving a shipment (genuine shortage — not just in&nbsp;transit).</div>
+      </div>
+      <div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead><tr><th>Carton</th><th>Product</th><th>Shipment</th><th>Marked</th></tr></thead>
           <tbody>
-            <template x-for="d in distributors" :key="d.id">
-              <tr>
-                <td><div class="fw-semibold" style="font-size:13px" x-text="d.name"></div><div class="text-muted-sm" x-text="d.contact"></div></td>
-                <td><span class="badge bg-light text-secondary border" style="font-size:11px" x-text="d.type"></span></td>
-                <td><span x-text="d.flag"></span> <span style="font-size:13px" x-text="d.country"></span></td>
-                <td><code style="font-size:11px" x-text="d.license"></code></td>
-                <td>
-                  <span x-show="d.gmp" class="badge-status badge-approved">Valid</span>
-                  <span x-show="!d.gmp" class="badge-status badge-pending">N/A</span>
-                </td>
-                <td style="font-size:12px" x-text="d.parent || '— (Primary)'"></td>
-                <td><span class="badge-status" :class="'badge-' + d.statusClass" x-text="d.status"></span></td>
-                <td>
-                  <div class="d-flex gap-1">
-                    <button class="btn btn-outline-primary btn-sm btn-icon"><i class="bi bi-eye"></i></button>
-                    <button class="btn btn-outline-secondary btn-sm btn-icon"><i class="bi bi-pencil"></i></button>
-                  </div>
-                </td>
-              </tr>
-            </template>
+            @forelse($missingCartons as $c)
+            <tr>
+              <td class="font-monospace" style="font-size:12px">{{ $c->carton_number }}</td>
+              <td style="font-size:12px">{{ $c->products_summary }}</td>
+              <td class="font-monospace text-muted" style="font-size:11px">{{ $c->consignment?->consignment_number ?? '—' }}</td>
+              <td class="text-muted" style="font-size:11px">{{ $c->updated_at?->format('M d') }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="4" class="text-center text-muted py-3"><i class="bi bi-check-circle text-success me-1"></i>No missing cartons — nothing reported short.</td></tr>
+            @endforelse
           </tbody>
         </table>
-      </div>
+      </div></div></div>
+
+      <div class="card"><div class="card-header bg-transparent fw-semibold text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Damaged Cartons</div>
+      <div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <tbody>
+            @forelse($damagedCartons as $c)
+            <tr>
+              <td class="font-monospace" style="font-size:12px">{{ $c->carton_number }}</td>
+              <td style="font-size:12px">{{ $c->products_summary }}</td>
+              <td style="font-size:11px" class="text-muted">{{ \Illuminate\Support\Str::limit($c->condition_note, 28) ?: '—' }}</td>
+              <td>@if($c->evidence_url)<a href="{{ $c->evidence_url }}" target="_blank"><i class="bi bi-image"></i></a>@endif</td>
+            </tr>
+            @empty
+            <tr><td class="text-center text-muted py-3">No damaged cartons.</td></tr>
+            @endforelse
+          </tbody>
+        </table>
+      </div></div></div>
     </div>
   </div>
 
-  <!-- Tree View -->
-  <div x-show="viewMode==='tree'">
-    <div class="card">
-      <div class="card-body">
-        <p class="text-muted-sm mb-3">Showing distribution hierarchy for all regions. Click a node to view details.</p>
-        <template x-for="d in distributors.filter(x=>!x.parent)" :key="d.id">
-          <div class="mb-3">
-            <div class="d-flex align-items-center gap-2 p-3 border rounded-3">
-              <div class="stat-icon stat-primary" style="width:36px;height:36px;font-size:16px;flex-shrink:0"><i class="bi bi-building"></i></div>
-              <div>
-                <div class="fw-semibold" x-text="d.name"></div>
-                <div class="text-muted-sm" x-text="d.type + ' · ' + d.country"></div>
-              </div>
-              <span class="ms-auto badge-status" :class="'badge-' + d.statusClass" x-text="d.status"></span>
-            </div>
-            <div class="ps-4 mt-2 d-flex flex-column gap-2">
-              <template x-for="sub in distributors.filter(x=>x.parent===d.name)" :key="sub.id">
-                <div class="d-flex align-items-center gap-2 p-2 border rounded-3 bg-light">
-                  <i class="bi bi-arrow-return-right text-muted"></i>
-                  <div class="fw-semibold" style="font-size:13px" x-text="sub.name"></div>
-                  <span class="badge bg-light text-secondary border" style="font-size:11px" x-text="sub.type"></span>
-                  <span class="text-muted-sm ms-auto" x-text="sub.country"></span>
-                </div>
-              </template>
-            </div>
-          </div>
-        </template>
-      </div>
-    </div>
-  </div>
+  {{-- Recent shipments --}}
+  <div class="card mt-3"><div class="card-header bg-transparent fw-semibold"><i class="bi bi-clock-history me-1"></i>Recent Shipments</div>
+  <div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+      <thead><tr><th>Shipment</th><th>Destination</th><th class="text-end">Cartons</th><th class="text-end">Units</th><th>Status</th><th>Created</th></tr></thead>
+      <tbody>
+        @forelse($recentShipments as $s)
+        <tr>
+          <td class="font-monospace" style="font-size:12px"><a href="{{ route('shipments', ['search'=>$s->consignment_number]) }}">{{ $s->consignment_number }}</a></td>
+          <td style="font-size:12px">{{ $s->destination ?? '—' }}</td>
+          <td class="text-end">{{ number_format($s->carton_count) }}</td>
+          <td class="text-end">{{ number_format($s->total_units) }}</td>
+          <td><span class="badge-status {{ $s->status_badge_class }}">{{ $s->status_label }}</span></td>
+          <td style="font-size:12px" class="text-muted">{{ $s->created_at?->format('M d, Y') }}</td>
+        </tr>
+        @empty
+        <tr><td colspan="6" class="text-center text-muted py-3">No shipments yet.</td></tr>
+        @endforelse
+      </tbody>
+    </table>
+  </div></div></div>
 
 </div>
 @endsection
 
 @push('scripts')
 <script>
-function distributionPage() {
+function distributionPage(){
   return {
-    viewMode: 'table', showAddModal: false,
-    distributors:[
-      { id:1, name:'PharmaDist PH Ltd.',      type:'Primary Distributor', country:'Philippines', flag:'🇵🇭', license:'FDA-PH-DIS-20230142', gmp:true, parent:'',                   contact:'contact@pharmadistph.com', status:'Active',   statusClass:'approved' },
-      { id:2, name:'MedRex Pharma Inc.',       type:'Sub-Distributor',     country:'Philippines', flag:'🇵🇭', license:'FDA-PH-SUB-20240089', gmp:false,parent:'PharmaDist PH Ltd.', contact:'info@medrex.ph',           status:'Active',   statusClass:'approved' },
-      { id:3, name:'West Africa Pharma',       type:'Primary Distributor', country:'Nigeria',     flag:'🇳🇬', license:'NAFDAC-DIS-2023-0041', gmp:true, parent:'',                   contact:'ops@wapharma.ng',          status:'Active',   statusClass:'approved' },
-      { id:4, name:'Lagos Med Supplies Ltd.',  type:'Sub-Distributor',     country:'Nigeria',     flag:'🇳🇬', license:'NAFDAC-SUB-2024-0112', gmp:false,parent:'West Africa Pharma', contact:'orders@lagosmed.ng',       status:'Active',   statusClass:'approved' },
-      { id:5, name:'BD MedCo Ltd.',            type:'Primary Distributor', country:'Bangladesh',  flag:'🇧🇩', license:'DGDA-DIS-2022-0078',   gmp:true, parent:'',                   contact:'admin@bdmedco.com',        status:'Active',   statusClass:'approved' },
-      { id:6, name:'EG Pharma Group',          type:'Primary Distributor', country:'Egypt',       flag:'🇪🇬', license:'NAPI-DIS-2021-0033',   gmp:true, parent:'',                   contact:'pharma@egpharma.eg',       status:'Active',   statusClass:'approved' },
-      { id:7, name:'EA Health Supplies',       type:'Primary Distributor', country:'Kenya',       flag:'🇰🇪', license:'PPB-DIS-2023-0021',    gmp:false,parent:'',                   contact:'supply@eahealthke.co.ke',  status:'Active',   statusClass:'approved' },
-      { id:8, name:'MM Pharma Co.',            type:'Primary Distributor', country:'Myanmar',     flag:'🇲🇲', license:'FDA-MM-DIS-2024-0005', gmp:false,parent:'',                   contact:'info@mmpharma.mm',         status:'Suspended',statusClass:'cancelled'},
-    ]
+    q:'', productId:'', batchId:'', batches:[], loadingB:false,
+    results:[], searching:false, searched:false,
+    async onProduct(){
+      this.batchId=''; this.batches=[];
+      if(!this.productId) return;
+      this.loadingB=true;
+      try{ this.batches=await fetch(`{{ url('partial-batches/products') }}/${this.productId}/batches`,{headers:{'Accept':'application/json'}}).then(r=>r.json()); }
+      catch(e){ this.batches=[]; }
+      this.loadingB=false;
+    },
+    async search(){
+      const hasScope = this.productId || this.batchId;
+      if(!this.q.trim() && !hasScope){ this.searched=false; this.results=[]; return; }
+      this.searching=true;
+      try{
+        const p=new URLSearchParams();
+        if(this.q.trim()) p.set('q', this.q.trim());
+        if(this.productId) p.set('product_id', this.productId);
+        if(this.batchId) p.set('batch_id', this.batchId);
+        const r=await fetch(`{{ route('distribution.lookup') }}?`+p.toString(),{headers:{'Accept':'application/json'}});
+        const d=await r.json(); this.results=d.results||[]; this.searched=true;
+      }catch(e){ alert('Search failed.'); }
+      this.searching=false;
+    },
   };
 }
 </script>

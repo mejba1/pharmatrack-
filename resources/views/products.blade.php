@@ -130,11 +130,43 @@
   color: #adb5bd;
   font-size: 16px;
 }
+/* ── Scrollable modal with a <form> wrapping body + footer ───────────────── */
+/* These modals are opened by toggling display:block via Alpine (not the     */
+/* Bootstrap JS), so Bootstrap's percentage height chain never resolves and  */
+/* the footer (Save / Update button) gets clipped out of view. Bound the     */
+/* height with a viewport unit so the body scrolls and the footer stays      */
+/* pinned and visible — independent of the parent height chain.              */
+.modal-dialog-scrollable > .modal-content {
+  max-height: calc(100vh - 3.5rem);
+  overflow: hidden;
+}
+.modal-content > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.modal-content > form > .modal-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+.modal-content > form > .modal-footer {
+  flex-shrink: 0;
+}
 </style>
 @endpush
 
 @section('content')
 <div x-data="productsPage()">
+
+  {{-- Shared datalist of known countries (grows as new ones are added) --}}
+  <datalist id="country-list">
+    @foreach($countries as $c)
+      <option value="{{ $c }}"></option>
+    @endforeach
+  </datalist>
 
   {{-- ── Flash ─────────────────────────────────────────────────────────── --}}
   @if(session('success'))
@@ -170,13 +202,17 @@
       <div class="page-breadcrumb"><a href="{{ route('dashboard') }}">Home</a> / Product Master</div>
     </div>
     <div class="d-flex gap-2">
+      @can('products.export')
       <a href="{{ route('products.index', array_merge(request()->query(), ['export'=>1])) }}"
          class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-download me-1"></i>Export
       </a>
+      @endcan
+      @can('products.create')
       <button class="btn btn-primary btn-sm" @click="showAddModal = true">
         <i class="bi bi-plus-lg me-1"></i>Add Product
       </button>
+      @endcan
     </div>
   </div>
 
@@ -340,10 +376,13 @@
                           @click="openView({{ $product->id }})">
                     <i class="bi bi-eye"></i>
                   </button>
+                  @can('products.edit')
                   <button class="btn btn-outline-secondary btn-sm btn-icon" title="Edit"
                           @click="openEdit({{ $product->id }})">
                     <i class="bi bi-pencil"></i>
                   </button>
+                  @endcan
+                  @can('products.delete')
                   <form method="POST" action="{{ route('products.destroy', $product) }}"
                         @submit.prevent="confirmDelete($event, '{{ addslashes($product->name) }}')">
                     @csrf @method('DELETE')
@@ -351,6 +390,7 @@
                       <i class="bi bi-trash"></i>
                     </button>
                   </form>
+                  @endcan
                 </div>
               </td>
             </tr>
@@ -527,6 +567,23 @@
                     </div>
                   </div>
 
+                  <div class="col-md-6" x-show="viewProduct?.website_url">
+                    <label class="form-label text-muted-sm">Website</label>
+                    <div>
+                      <a :href="viewProduct?.website_url" target="_blank" rel="noopener noreferrer"
+                         class="text-primary text-break" x-text="viewProduct?.website_url"></a>
+                    </div>
+                  </div>
+                  <div class="col-md-6" x-show="viewProduct?.pdf_url">
+                    <label class="form-label text-muted-sm">Document</label>
+                    <div>
+                      <a :href="viewProduct?.pdf_url" target="_blank" rel="noopener noreferrer"
+                         class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-file-earmark-pdf me-1"></i><span x-text="viewProduct?.pdf_name"></span>
+                      </a>
+                    </div>
+                  </div>
+
                   <div class="col-12" x-show="viewProduct?.notes">
                     <label class="form-label text-muted-sm">Notes</label>
                     <div style="font-size:13px" x-text="viewProduct?.notes"></div>
@@ -543,10 +600,12 @@
           <a href="{{ route('batches') }}" class="btn btn-outline-info btn-sm">
             <i class="bi bi-layers me-1"></i>View Batches
           </a>
+          @can('products.edit')
           <button class="btn btn-primary btn-sm"
                   @click="showViewModal=false; openEdit(viewProduct?.id)">
             <i class="bi bi-pencil me-1"></i>Edit
           </button>
+          @endcan
         </div>
       </div>
     </div>
@@ -612,10 +671,11 @@
               </div>
               <div class="col-md-4">
                 <label class="form-label">Dosage Form <span class="text-danger">*</span></label>
-                <select name="dosage_form" class="form-select" required>
+                <select name="dosage_form" class="form-select" required
+                        x-effect="$el.value = editProduct?.dosage_form ?? ''">
                   <option value="">Select…</option>
                   @foreach(['tablet'=>'Tablet','capsule'=>'Capsule','injection'=>'Injection','syrup'=>'Syrup','cream'=>'Cream','ointment'=>'Ointment','drops'=>'Drops','inhaler'=>'Inhaler','other'=>'Other'] as $v=>$l)
-                    <option value="{{ $v }}" :selected="editProduct?.dosage_form === '{{ $v }}'">{{ $l }}</option>
+                    <option value="{{ $v }}">{{ $l }}</option>
                   @endforeach
                 </select>
               </div>
@@ -632,31 +692,13 @@
               <div class="col-12"><div class="section-label">Classification &amp; Coding</div></div>
               <div class="col-md-4">
                 <label class="form-label">Therapeutic Class</label>
-                <div class="tc-combo">
-                  <input type="hidden" name="therapeutic_class" :value="editTcValue">
-                  <div class="tc-combo-wrap">
-                    <input type="text" class="form-control"
-                           placeholder="Search or type class…"
-                           x-model="editTcQuery"
-                           @focus="editTcOpen=true"
-                           @blur="setTimeout(()=>{editTcOpen=false; editTcValue=editTcQuery.trim()}, 200)"
-                           @input="editTcOpen=true; editTcHl=-1"
-                           @keydown.escape="editTcOpen=false"
-                           @keydown.arrow-down.prevent="editTcHl=Math.min(editTcHl+1, editTcFiltered.length-1)"
-                           @keydown.arrow-up.prevent="editTcHl=Math.max(editTcHl-1, -1)"
-                           @keydown.enter.prevent="if(editTcHl>=0){selectEditTc(editTcFiltered[editTcHl])}else{editTcValue=editTcQuery;editTcOpen=false}">
-                    <button type="button" class="tc-combo-clear" x-show="editTcQuery"
-                            @mousedown.prevent="editTcValue='';editTcQuery='';editTcOpen=true">
-                      <i class="bi bi-x-lg"></i>
-                    </button>
-                  </div>
-                  <ul class="tc-dropdown" x-show="editTcOpen" x-cloak @mousedown.prevent>
-                    <template x-for="(opt, i) in editTcFiltered" :key="opt">
-                      <li :class="{'tc-hl': i===editTcHl}" @click="selectEditTc(opt)" x-text="opt"></li>
-                    </template>
-                    <li class="tc-empty" x-show="editTcFiltered.length===0">No match — value will be saved as typed</li>
-                  </ul>
-                </div>
+                <select name="therapeutic_class" class="form-select"
+                        x-effect="$el.value = editProduct?.therapeutic_class ?? ''">
+                  <option value="">Select…</option>
+                  @foreach($therapeuticClasses as $tc)
+                    <option value="{{ $tc }}">{{ $tc }}</option>
+                  @endforeach
+                </select>
               </div>
               <div class="col-md-3">
                 <label class="form-label">ATC Code</label>
@@ -668,11 +710,12 @@
               </div>
               <div class="col-md-2">
                 <label class="form-label">Controlled Substance</label>
-                <select name="controlled_substance" class="form-select">
-                  <option value="no"         :selected="editProduct?.controlled_substance==='no'">No</option>
-                  <option value="schedule_1" :selected="editProduct?.controlled_substance==='schedule_1'">Schedule 1</option>
-                  <option value="schedule_2" :selected="editProduct?.controlled_substance==='schedule_2'">Schedule 2</option>
-                  <option value="schedule_3" :selected="editProduct?.controlled_substance==='schedule_3'">Schedule 3</option>
+                <select name="controlled_substance" class="form-select"
+                        x-effect="$el.value = editProduct?.controlled_substance ?? 'no'">
+                  <option value="no">No</option>
+                  <option value="schedule_1">Schedule 1</option>
+                  <option value="schedule_2">Schedule 2</option>
+                  <option value="schedule_3">Schedule 3</option>
                 </select>
               </div>
 
@@ -688,14 +731,21 @@
               </div>
               <div class="col-md-2">
                 <label class="form-label">Country of Origin</label>
-                <input type="text" name="country_of_origin" class="form-control" :value="editProduct?.country_of_origin" maxlength="5">
+                <select name="country_of_origin_name" class="form-select"
+                        x-effect="$el.value = editProduct?.country_of_origin_name ?? ''">
+                  <option value="">Select…</option>
+                  @foreach($countries as $c)
+                    <option value="{{ $c }}">{{ $c }}</option>
+                  @endforeach
+                </select>
               </div>
               <div class="col-md-3">
                 <label class="form-label">Status</label>
-                <select name="status" class="form-select">
-                  <option value="active"           :selected="editProduct?.status==='active'">Active</option>
-                  <option value="pending_approval" :selected="editProduct?.status==='pending_approval'">Under Registration</option>
-                  <option value="discontinued"     :selected="editProduct?.status==='discontinued'">Discontinued</option>
+                <select name="status" class="form-select"
+                        x-effect="$el.value = editProduct?.status ?? 'active'">
+                  <option value="active">Active</option>
+                  <option value="pending_approval">Under Registration</option>
+                  <option value="discontinued">Discontinued</option>
                 </select>
               </div>
 
@@ -711,11 +761,12 @@
               </div>
               <div class="col-md-3">
                 <label class="form-label">Temperature Sensitivity</label>
-                <select name="temperature_sensitivity" class="form-select">
-                  <option value="ambient"    :selected="editProduct?.temperature_sensitivity==='ambient'">Ambient</option>
-                  <option value="cool_chain" :selected="editProduct?.temperature_sensitivity==='cool_chain'">Cool Chain (8–15°C)</option>
-                  <option value="cold_chain" :selected="editProduct?.temperature_sensitivity==='cold_chain'">Cold Chain (2–8°C)</option>
-                  <option value="frozen"     :selected="editProduct?.temperature_sensitivity==='frozen'">Frozen (≤ −20°C)</option>
+                <select name="temperature_sensitivity" class="form-select"
+                        x-effect="$el.value = editProduct?.temperature_sensitivity ?? 'ambient'">
+                  <option value="ambient">Ambient</option>
+                  <option value="cool_chain">Cool Chain (8–15°C)</option>
+                  <option value="cold_chain">Cold Chain (2–8°C)</option>
+                  <option value="frozen">Frozen (≤ −20°C)</option>
                 </select>
               </div>
               <div class="col-md-3">
@@ -805,10 +856,75 @@
                 </div>
               </div>
 
+              {{-- ── Registered / Marketed Countries ──────────────────── --}}
+              <div class="col-12"><div class="section-label">Registered / Marketed Countries</div></div>
+              <div class="col-12">
+                <div class="d-flex flex-wrap gap-1 mb-2" x-show="editRegCountries.length">
+                  <template x-for="(c, i) in editRegCountries" :key="c">
+                    <span class="badge bg-primary d-flex align-items-center gap-1" style="font-size:12px">
+                      <span x-text="c"></span>
+                      <i class="bi bi-x-lg" style="cursor:pointer" @click="removeRegCountry('edit', i)"></i>
+                    </span>
+                  </template>
+                </div>
+                <select class="form-select" x-model="editRegInput" @change="addRegCountry('edit')">
+                  <option value="">+ Add a country…</option>
+                  @foreach($countries as $c)
+                    <option value="{{ $c }}">{{ $c }}</option>
+                  @endforeach
+                </select>
+                <div class="form-text" style="font-size:10px">Pick a country to add it. Manage the list in Master Data → Countries.</div>
+                <template x-for="c in editRegCountries" :key="'h'+c">
+                  <input type="hidden" name="countries[]" :value="c">
+                </template>
+              </div>
+
+              {{-- ── Documents & Links ───────────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Documents &amp; Links</div></div>
+              <div class="col-md-6">
+                <label class="form-label">Website URL</label>
+                <input type="url" name="website_url" class="form-control"
+                       :value="editProduct?.website_url" placeholder="https://example.com">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Product Document (PDF)</label>
+
+                {{-- Existing PDF --}}
+                <div x-show="editProduct?.pdf_url" class="d-flex align-items-center gap-2 mb-2">
+                  <a :href="editProduct?.pdf_url" target="_blank" rel="noopener noreferrer"
+                     class="btn btn-outline-danger btn-sm text-truncate" style="max-width:60%">
+                    <i class="bi bi-file-earmark-pdf me-1"></i><span x-text="editProduct?.pdf_name"></span>
+                  </a>
+                  <label class="form-check-label text-danger d-flex align-items-center" style="font-size:12px">
+                    <input type="checkbox" name="remove_pdf" value="1" class="form-check-input me-1">Remove
+                  </label>
+                </div>
+
+                <input type="file" name="pdf" class="form-control" accept="application/pdf">
+                <div class="form-text" style="font-size:10px">
+                  <span x-show="editProduct?.pdf_url">Upload a new PDF to replace · </span>PDF only · max 10 MB
+                </div>
+              </div>
+
+              {{-- ── Verification access ───────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Verification Access</div></div>
+              <div class="col-12">
+                <div class="form-check form-switch">
+                  <input type="hidden" name="verify_open" value="0">
+                  <input class="form-check-input" type="checkbox" name="verify_open" value="1" id="editVerifyOpen"
+                         x-effect="$el.checked = !!editProduct?.verify_open">
+                  <label class="form-check-label" for="editVerifyOpen">
+                    <strong>Verify anywhere</strong> — ignore country locks
+                    <div class="text-muted" style="font-size:11px">Overrides Access-Control locks, allowed-countries &amp; Country Authorization for this product. Recall &amp; expiry checks still apply.</div>
+                  </label>
+                </div>
+              </div>
+
               {{-- Notes --}}
               <div class="col-12">
                 <label class="form-label">Notes</label>
-                <textarea name="notes" class="form-control" rows="2" x-text="editProduct?.notes"></textarea>
+                <textarea name="notes" class="form-control" rows="2"
+                          x-effect="$el.value = editProduct?.notes ?? ''"></textarea>
               </div>
             </div>
           </div>
@@ -818,7 +934,7 @@
             <button type="submit" class="btn btn-primary" :disabled="saving">
               <span x-show="saving" class="spinner-border spinner-border-sm me-1"></span>
               <i class="bi bi-check-lg me-1" x-show="!saving"></i>
-              <span x-text="saving ? 'Saving…' : 'Save Changes'"></span>
+              <span x-text="saving ? 'Updating…' : 'Update Product'"></span>
             </button>
           </div>
         </form>
@@ -907,31 +1023,13 @@
 
               <div class="col-md-4">
                 <label class="form-label">Therapeutic Class</label>
-                <div class="tc-combo">
-                  <input type="hidden" name="therapeutic_class" :value="addTcValue">
-                  <div class="tc-combo-wrap">
-                    <input type="text" class="form-control"
-                           placeholder="Search or type class…"
-                           x-model="addTcQuery"
-                           @focus="addTcOpen=true"
-                           @blur="setTimeout(()=>{addTcOpen=false; addTcValue=addTcQuery.trim()}, 200)"
-                           @input="addTcOpen=true; addTcHl=-1"
-                           @keydown.escape="addTcOpen=false"
-                           @keydown.arrow-down.prevent="addTcHl=Math.min(addTcHl+1, addTcFiltered.length-1)"
-                           @keydown.arrow-up.prevent="addTcHl=Math.max(addTcHl-1, -1)"
-                           @keydown.enter.prevent="if(addTcHl>=0){selectAddTc(addTcFiltered[addTcHl])}else{addTcValue=addTcQuery;addTcOpen=false}">
-                    <button type="button" class="tc-combo-clear" x-show="addTcQuery"
-                            @mousedown.prevent="addTcValue='';addTcQuery='';addTcOpen=true">
-                      <i class="bi bi-x-lg"></i>
-                    </button>
-                  </div>
-                  <ul class="tc-dropdown" x-show="addTcOpen" x-cloak @mousedown.prevent>
-                    <template x-for="(opt, i) in addTcFiltered" :key="opt">
-                      <li :class="{'tc-hl': i===addTcHl}" @click="selectAddTc(opt)" x-text="opt"></li>
-                    </template>
-                    <li class="tc-empty" x-show="addTcFiltered.length===0">No match — value will be saved as typed</li>
-                  </ul>
-                </div>
+                <select name="therapeutic_class" class="form-select">
+                  <option value="">Select…</option>
+                  @foreach($therapeuticClasses as $tc)
+                    <option value="{{ $tc }}" {{ old('therapeutic_class') === $tc ? 'selected' : '' }}>{{ $tc }}</option>
+                  @endforeach
+                </select>
+                <div class="form-text" style="font-size:10px">Manage list in Master Data → Therapeutic Classes</div>
               </div>
               <div class="col-md-3">
                 <label class="form-label">ATC Code</label>
@@ -968,8 +1066,12 @@
               </div>
               <div class="col-md-2">
                 <label class="form-label">Country of Origin</label>
-                <input type="text" name="country_of_origin" class="form-control"
-                       value="{{ old('country_of_origin') }}" placeholder="US" maxlength="5">
+                <select name="country_of_origin_name" class="form-select">
+                  <option value="">Select…</option>
+                  @foreach($countries as $c)
+                    <option value="{{ $c }}" {{ old('country_of_origin_name') === $c ? 'selected' : '' }}>{{ $c }}</option>
+                  @endforeach
+                </select>
                 <div class="form-text" style="font-size:10px">Used in PRN</div>
               </div>
               <div class="col-md-3">
@@ -1065,6 +1167,58 @@
                           placeholder="Optional internal notes…">{{ old('notes') }}</textarea>
               </div>
 
+              {{-- ── Registered / Marketed Countries ──────────────────── --}}
+              <div class="col-12"><div class="section-label">Registered / Marketed Countries</div></div>
+              <div class="col-12">
+                <div class="d-flex flex-wrap gap-1 mb-2" x-show="addRegCountries.length">
+                  <template x-for="(c, i) in addRegCountries" :key="c">
+                    <span class="badge bg-primary d-flex align-items-center gap-1" style="font-size:12px">
+                      <span x-text="c"></span>
+                      <i class="bi bi-x-lg" style="cursor:pointer" @click="removeRegCountry('add', i)"></i>
+                    </span>
+                  </template>
+                </div>
+                <select class="form-select" x-model="addRegInput" @change="addRegCountry('add')">
+                  <option value="">+ Add a country…</option>
+                  @foreach($countries as $c)
+                    <option value="{{ $c }}">{{ $c }}</option>
+                  @endforeach
+                </select>
+                <div class="form-text" style="font-size:10px">Pick a country to add it. Manage the list in Master Data → Countries.</div>
+                <template x-for="c in addRegCountries" :key="'h'+c">
+                  <input type="hidden" name="countries[]" :value="c">
+                </template>
+              </div>
+
+              {{-- ── Documents & Links ───────────────────────────────── --}}
+              <div class="col-12"><div class="section-label">Documents &amp; Links</div></div>
+              <div class="col-md-6">
+                <label class="form-label">Website URL</label>
+                <input type="url" name="website_url"
+                       class="form-control @error('website_url') is-invalid @enderror"
+                       value="{{ old('website_url') }}" placeholder="https://example.com">
+                @error('website_url')<div class="invalid-feedback">{{ $message }}</div>@enderror
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Product Document (PDF)</label>
+                <input type="file" name="pdf"
+                       class="form-control @error('pdf') is-invalid @enderror" accept="application/pdf">
+                <div class="form-text" style="font-size:10px">PDF only · max 10 MB</div>
+                @error('pdf')<div class="invalid-feedback">{{ $message }}</div>@enderror
+              </div>
+
+              {{-- Verification access --}}
+              <div class="col-12">
+                <div class="form-check form-switch">
+                  <input type="hidden" name="verify_open" value="0">
+                  <input class="form-check-input" type="checkbox" name="verify_open" value="1" id="createVerifyOpen" {{ old('verify_open') ? 'checked' : '' }}>
+                  <label class="form-check-label" for="createVerifyOpen">
+                    <strong>Verify anywhere</strong> — ignore country locks
+                    <div class="text-muted" style="font-size:11px">Overrides Access-Control locks, allowed-countries &amp; Country Authorization for this product. Recall &amp; expiry checks still apply.</div>
+                  </label>
+                </div>
+              </div>
+
               {{-- PRN hint --}}
               <div class="col-12">
                 <div class="info-box info">
@@ -1139,21 +1293,31 @@ function productsPage() {
     editFiles:           [],   // File objects
     removeImageIds:      [],   // IDs to send as remove_images[]
 
+    /* ── Registered countries (multi-select tags) ────────────────── */
+    addRegCountries:  @json(old('countries', [])),
+    addRegInput:      '',
+    editRegCountries: [],
+    editRegInput:     '',
+
+    addRegCountry(mode) {
+      const inputKey = mode === 'add' ? 'addRegInput'     : 'editRegInput';
+      const listKey  = mode === 'add' ? 'addRegCountries' : 'editRegCountries';
+      const val = (this[inputKey] || '').trim();
+      if (!val) return;
+      if (!this[listKey].some(c => c.toLowerCase() === val.toLowerCase())) {
+        this[listKey].push(val);
+      }
+      this[inputKey] = '';
+    },
+    removeRegCountry(mode, i) {
+      (mode === 'add' ? this.addRegCountries : this.editRegCountries).splice(i, 1);
+    },
+
     /* ── Bulk select ─────────────────────────────────────────────── */
     selected: [],
 
-    /* ── Therapeutic Class Combobox ──────────────────────────────── */
-    tcOptions: [
-      'Antibiotics / Antimicrobials','Analgesics / Pain Relief',
-      'Anti-inflammatory / NSAIDs','Antidiabetics / Insulin',
-      'Cardiovascular','Antihypertensives','Antifungals',
-      'Antivirals','Antiparasitics','Respiratory / Bronchodilators',
-      'CNS / Neurological','Gastrointestinal',
-      'Endocrinology / Hormones','Vaccines / Immunologicals',
-      'Vitamins / Supplements','Dermatology','Ophthalmology',
-      'Oncology / Antineoplastics','Haematology','Musculoskeletal',
-      'Urological','Other'
-    ],
+    /* ── Therapeutic Class Combobox (options loaded dynamically from DB) ─── */
+    tcOptions: @json($therapeuticClasses),
     // Add modal
     addTcValue: '{{ old("therapeutic_class","") }}',
     addTcQuery: '{{ old("therapeutic_class","") }}',
@@ -1200,6 +1364,8 @@ function productsPage() {
       this.editTcValue        = '';
       this.editTcQuery        = '';
       this.editTcOpen         = false;
+      this.editRegCountries   = [];
+      this.editRegInput       = '';
       this.saving             = false;
       this.showEditModal      = true;
       this._fetchProduct(id).then(data => {
@@ -1207,6 +1373,7 @@ function productsPage() {
         this.editExistingImages = (data.images ?? []).map(img => ({...img, toRemove: false}));
         this.editTcValue        = data.therapeutic_class ?? '';
         this.editTcQuery        = data.therapeutic_class ?? '';
+        this.editRegCountries   = data.registered_countries ?? [];
         this.editLoading        = false;
       });
     },
@@ -1296,14 +1463,9 @@ function productsPage() {
       this.saving    = true;
       this.addErrors = {};
 
-      // Sync TC: use selected list value OR whatever was typed
-      this.addTcValue = this.addTcValue.trim() || this.addTcQuery.trim();
-
-      await this.$nextTick(); // let Alpine flush the hidden input's :value binding
+      await this.$nextTick(); // let Alpine flush reactive bindings into the form
 
       const formData = new FormData(this.$refs.addForm);
-      // Ensure TC value is in FormData (belt-and-suspenders)
-      if (this.addTcValue) formData.set('therapeutic_class', this.addTcValue);
       // Replace native file input with our managed files
       formData.delete('images[]');
       this.addFiles.forEach(f => formData.append('images[]', f));
@@ -1333,15 +1495,10 @@ function productsPage() {
       this.saving     = true;
       this.editErrors = {};
 
-      // Sync TC: use selected list value OR whatever was typed
-      this.editTcValue = this.editTcValue.trim() || this.editTcQuery.trim();
-
-      await this.$nextTick(); // let Alpine flush the hidden input
+      await this.$nextTick(); // let Alpine flush reactive bindings into the form
 
       const formData = new FormData(this.$refs.editForm);
       formData.set('_method', 'PUT');
-      // Ensure TC value is in FormData
-      formData.set('therapeutic_class', this.editTcValue);
 
       // New files
       formData.delete('images[]');
@@ -1384,6 +1541,8 @@ function productsPage() {
       this.addTcQuery  = '';
       this.addTcOpen   = false;
       this.addTcHl     = -1;
+      this.addRegCountries = [];
+      this.addRegInput = '';
       this.saving      = false;
     },
 

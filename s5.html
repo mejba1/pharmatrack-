@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#059669">
+  <title>Verify — Beacon Verify Track</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+
+  <style>
+    :root{ --brand:#059669; --brand-d:#04815a; --brand-soft:rgba(5,150,105,0.12); --btn:#059669; --btn-shadow:rgba(5,150,105,0.35); --bg-pearl:#f4f7fa; }
+    body{ font-family:'Plus Jakarta Sans',sans-serif; color:#1e293b; }
+    [x-cloak]{display:none!important}
+    .no-sb::-webkit-scrollbar{display:none}.no-sb{-ms-overflow-style:none;scrollbar-width:none}
+    .text-brand{color:var(--brand)!important}.bg-brand{background:var(--brand)!important}.bg-brand-soft{background:var(--brand-soft)!important}
+    .bg-btn{background:var(--btn)!important}.shadow-btn{box-shadow:0 14px 30px var(--btn-shadow)!important}
+    .grad-brand{background:linear-gradient(135deg,var(--brand),var(--brand-d))!important}
+    .glass-panel{ background:#fff; border-radius:32px; box-shadow:0 10px 40px -10px rgba(0,0,0,.06),0 2px 4px rgba(0,0,0,.02); border:1px solid #fff; }
+    .smart-input{ transition:all .3s ease; box-shadow:inset 0 2px 4px rgba(0,0,0,.03); }
+    .smart-input:focus{ background:#fff; border-color:var(--brand); box-shadow:0 0 0 3px var(--brand-soft); }
+    @keyframes slideIn{ from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    .fade-view{ animation:slideIn .5s cubic-bezier(.16,1,.3,1); }
+    @keyframes pop{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+    .animate-pop{animation:pop .55s cubic-bezier(.34,1.56,.64,1) both}
+    .sheet-tr{transition:transform .34s cubic-bezier(.32,.72,0,1)}
+    .pb-nav{ padding-bottom:calc(env(safe-area-inset-bottom) + 6rem) }
+  </style>
+</head>
+<body class="min-h-screen flex justify-center p-4 md:p-8" style="background:var(--bg-pearl)">
+
+
+<div x-data="vApp()" class="w-full max-w-md flex flex-col gap-6 pb-nav">
+
+  
+  <header class="glass-panel p-5 relative overflow-hidden">
+    <div class="absolute -top-10 -right-8 w-28 h-28 rounded-full grad-brand opacity-10"></div>
+    <div class="relative flex items-center gap-4">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden text-brand">
+                  <img src="http://127.0.0.1:8000/storage/ac/mX7QqQMLTeg7JfwowRndXNtJpy8F13PK2wJMymoF.png" alt="" class="w-full h-full object-contain">
+              </div>
+      <div class="flex-1 min-w-0">
+        <h1 class="font-extrabold text-xl tracking-tight leading-none truncate">Beacon Verify Track</h1>
+        <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-brand mt-1.5"><i class="fa-solid fa-circle-check mr-1"></i>Secure Authenticity</p>
+      </div>
+          </div>
+  </header>
+
+  
+  
+  
+  
+  <main class="glass-panel p-8">
+    
+    <div x-show="tab==='info'" class="fade-view space-y-8">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 bg-brand rounded-2xl flex items-center justify-center text-white shadow-lg shadow-slate-100 shrink-0">
+          <i class="fa-solid fa-check text-2xl"></i>
+        </div>
+        <div class="min-w-0 flex-1">
+          <h3 class="text-2xl font-extrabold text-slate-800 leading-tight truncate">Baricinix 2</h3>
+          <p class="text-brand text-[10px] font-bold uppercase tracking-widest mt-1">Verified Authentic</p>
+        </div>
+                  <div class="w-16 h-16 rounded-2xl overflow-hidden shadow-lg shadow-slate-100 shrink-0 bg-slate-50 ring-1 ring-slate-100">
+            <img src="http://localhost/pharmatrack_temp/public/storage/products/2/1781431647_6a2e7d5f00ade_baricinix-2-baricitinib.jpg" class="w-full h-full object-cover" alt="Baricinix 2">
+          </div>
+              </div>
+
+      
+      <div class="grid grid-cols-1 gap-px bg-slate-100 rounded-3xl overflow-hidden border border-slate-100">
+                                                    <div class="bg-white p-4 flex justify-between items-center gap-3">
+              <span class="text-[10px] font-bold uppercase text-slate-400">Product</span>
+              <span class="font-bold text-right truncate text-slate-700">Baricinix 2</span>
+            </div>
+                                                              <div class="bg-white p-4 flex justify-between items-center gap-3">
+              <span class="text-[10px] font-bold uppercase text-slate-400">Generic</span>
+              <span class="font-bold text-right truncate text-slate-700">Baricitinib</span>
+            </div>
+                                                              <div class="bg-white p-4 flex justify-between items-center gap-3">
+              <span class="text-[10px] font-bold uppercase text-slate-400">Batch No.</span>
+              <span class="font-bold text-right truncate text-slate-700">205</span>
+            </div>
+                                                              <div class="bg-white p-4 flex justify-between items-center gap-3">
+              <span class="text-[10px] font-bold uppercase text-slate-400">Production</span>
+              <span class="font-bold text-right truncate text-slate-700">JUN 2026</span>
+            </div>
+                                                              <div class="bg-red-50 p-4 flex justify-between items-center gap-3">
+              <span class="text-[10px] font-bold uppercase text-red-400">Expiry</span>
+              <span class="font-bold text-right truncate text-red-600">JUN 2027</span>
+            </div>
+                                                              <div class="bg-white p-4 flex justify-between items-center gap-3">
+              <span class="text-[10px] font-bold uppercase text-slate-400">Serial No.</span>
+              <span class="font-bold text-right truncate text-brand font-mono">#382</span>
+            </div>
+                                                              <div class="bg-white p-4 flex justify-between items-center gap-3">
+              <span class="text-[10px] font-bold uppercase text-slate-400">Manufacturer</span>
+              <span class="font-bold text-right truncate text-slate-700">Beacon Pharmaceuticals PLC</span>
+            </div>
+                        </div>
+
+          </div>
+
+    
+    <div x-show="tab==='images'" x-cloak class="fade-view space-y-4 text-center">
+      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Visual Verification</h3>
+              <div class="grid grid-cols-2 gap-4">
+                      <div class="aspect-[4/5] bg-white rounded-3xl border border-slate-100 overflow-hidden flex items-center justify-center p-2">
+              <img src="http://localhost/pharmatrack_temp/public/storage/products/2/1781431647_6a2e7d5f00ade_baricinix-2-baricitinib.jpg" class="max-w-full max-h-full object-contain" alt="baricinix-2-baricitinib.jpg" loading="lazy">
+            </div>
+                  </div>
+          </div>
+
+    
+    <div x-show="tab==='history'" x-cloak class="fade-view space-y-6">
+      
+            <div class="bg-slate-50 rounded-3xl border border-slate-100 p-5">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">Verification</p>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between"><span class="text-slate-400">ID</span><span class="font-mono text-xs text-slate-600">VER-20260617-000198</span></div>
+<div class="flex justify-between"><span class="text-slate-400">Scanned at</span><span class="text-slate-700">17 Jun 2026, 06:18</span></div>
+<div class="flex justify-between"><span class="text-slate-400">Total scans</span><span class="text-slate-700 font-semibold">101</span></div>
+  <div class="flex justify-between"><span class="text-slate-400">Country</span><span class="text-slate-700">Unknown</span></div>
+  <div class="flex justify-between"><span class="text-slate-400">IP address</span><span class="font-mono text-xs text-slate-600">127.0.0.1</span></div>
+        <div class="flex justify-between gap-3"><span class="text-slate-400 shrink-0">Device</span><span class="text-slate-700 text-right truncate">Desktop · Unknown · Unknown</span></div>
+          </div>
+      </div>
+      
+      <div>
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Scan History</p>
+          <span class="text-[10px] font-bold text-brand bg-brand-soft px-2 py-0.5 rounded-full">10</span>        </div>
+        <div class="space-y-2">
+                                  <div class="bg-slate-50 rounded-2xl border border-slate-100 p-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-brand-soft text-brand flex items-center justify-center shrink-0"><i class="fa-solid fa-qrcode text-sm"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-slate-700 truncate">Scanned / Verified</p>
+                  <p class="text-[11px] text-slate-400">17 Jun 2026, 06:18 · Public</p>
+                </div>
+                              </div>
+                              <div class="flex flex-wrap gap-1.5 mt-2.5 pl-12">
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-network-wired text-[9px] text-brand"></i>127.0.0.1
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-mobile-screen text-[9px] text-brand"></i>Desktop Unknown
+                    </span>
+                                  </div>
+                          </div>
+                                  <div class="bg-slate-50 rounded-2xl border border-slate-100 p-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-brand-soft text-brand flex items-center justify-center shrink-0"><i class="fa-solid fa-qrcode text-sm"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-slate-700 truncate">Scanned / Verified</p>
+                  <p class="text-[11px] text-slate-400">17 Jun 2026, 06:17 · Public</p>
+                </div>
+                              </div>
+                              <div class="flex flex-wrap gap-1.5 mt-2.5 pl-12">
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-earth-americas text-[9px] text-brand"></i>Bangladesh
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-location-dot text-[9px] text-brand"></i>Dhaka
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-network-wired text-[9px] text-brand"></i>127.0.0.1
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-mobile-screen text-[9px] text-brand"></i>Desktop Unknown
+                    </span>
+                                  </div>
+                          </div>
+                                  <div class="bg-slate-50 rounded-2xl border border-slate-100 p-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-brand-soft text-brand flex items-center justify-center shrink-0"><i class="fa-solid fa-qrcode text-sm"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-slate-700 truncate">Scanned / Verified</p>
+                  <p class="text-[11px] text-slate-400">17 Jun 2026, 06:17 · Public</p>
+                </div>
+                              </div>
+                              <div class="flex flex-wrap gap-1.5 mt-2.5 pl-12">
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-earth-americas text-[9px] text-brand"></i>Bangladesh
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-location-dot text-[9px] text-brand"></i>Dhaka
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-network-wired text-[9px] text-brand"></i>127.0.0.1
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-mobile-screen text-[9px] text-brand"></i>Desktop Unknown
+                    </span>
+                                  </div>
+                          </div>
+                                  <div class="bg-slate-50 rounded-2xl border border-slate-100 p-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-brand-soft text-brand flex items-center justify-center shrink-0"><i class="fa-solid fa-qrcode text-sm"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-slate-700 truncate">Scanned / Verified</p>
+                  <p class="text-[11px] text-slate-400">17 Jun 2026, 06:14 · Public</p>
+                </div>
+                              </div>
+                              <div class="flex flex-wrap gap-1.5 mt-2.5 pl-12">
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-earth-americas text-[9px] text-brand"></i>Bangladesh
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-location-dot text-[9px] text-brand"></i>Dhaka
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-network-wired text-[9px] text-brand"></i>127.0.0.1
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-mobile-screen text-[9px] text-brand"></i>Desktop Unknown
+                    </span>
+                                  </div>
+                          </div>
+                                  <div class="bg-slate-50 rounded-2xl border border-slate-100 p-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-brand-soft text-brand flex items-center justify-center shrink-0"><i class="fa-solid fa-qrcode text-sm"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-slate-700 truncate">Scanned / Verified</p>
+                  <p class="text-[11px] text-slate-400">17 Jun 2026, 06:11 · Public</p>
+                </div>
+                              </div>
+                              <div class="flex flex-wrap gap-1.5 mt-2.5 pl-12">
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-earth-americas text-[9px] text-brand"></i>Bangladesh
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-location-dot text-[9px] text-brand"></i>Dhaka
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-network-wired text-[9px] text-brand"></i>127.0.0.1
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-mobile-screen text-[9px] text-brand"></i>Desktop Unknown
+                    </span>
+                                  </div>
+                          </div>
+                                  <div class="bg-slate-50 rounded-2xl border border-slate-100 p-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-brand-soft text-brand flex items-center justify-center shrink-0"><i class="fa-solid fa-qrcode text-sm"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-slate-700 truncate">Scanned / Verified</p>
+                  <p class="text-[11px] text-slate-400">17 Jun 2026, 06:11 · Public</p>
+                </div>
+                              </div>
+                              <div class="flex flex-wrap gap-1.5 mt-2.5 pl-12">
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-earth-americas text-[9px] text-brand"></i>Bangladesh
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-location-dot text-[9px] text-brand"></i>Dhaka
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-network-wired text-[9px] text-brand"></i>127.0.0.1
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-mobile-screen text-[9px] text-brand"></i>Desktop Unknown
+                    </span>
+                                  </div>
+                          </div>
+                                  <div class="bg-slate-50 rounded-2xl border border-slate-100 p-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-brand-soft text-brand flex items-center justify-center shrink-0"><i class="fa-solid fa-qrcode text-sm"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-slate-700 truncate">Scanned / Verified</p>
+                  <p class="text-[11px] text-slate-400">17 Jun 2026, 06:07 · Public</p>
+                </div>
+                              </div>
+                              <div class="flex flex-wrap gap-1.5 mt-2.5 pl-12">
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-network-wired text-[9px] text-brand"></i>127.0.0.1
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-mobile-screen text-[9px] text-brand"></i>Desktop Unknown
+                    </span>
+                                  </div>
+                          </div>
+                                  <div class="bg-slate-50 rounded-2xl border border-slate-100 p-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-brand-soft text-brand flex items-center justify-center shrink-0"><i class="fa-solid fa-qrcode text-sm"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-slate-700 truncate">Scanned / Verified</p>
+                  <p class="text-[11px] text-slate-400">17 Jun 2026, 06:07 · Public</p>
+                </div>
+                              </div>
+                              <div class="flex flex-wrap gap-1.5 mt-2.5 pl-12">
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-network-wired text-[9px] text-brand"></i>127.0.0.1
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-mobile-screen text-[9px] text-brand"></i>Desktop Unknown
+                    </span>
+                                  </div>
+                          </div>
+                                  <div class="bg-slate-50 rounded-2xl border border-slate-100 p-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-brand-soft text-brand flex items-center justify-center shrink-0"><i class="fa-solid fa-qrcode text-sm"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-slate-700 truncate">Scanned / Verified</p>
+                  <p class="text-[11px] text-slate-400">17 Jun 2026, 06:00 · Public</p>
+                </div>
+                              </div>
+                              <div class="flex flex-wrap gap-1.5 mt-2.5 pl-12">
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-network-wired text-[9px] text-brand"></i>127.0.0.1
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-mobile-screen text-[9px] text-brand"></i>Desktop Unknown
+                    </span>
+                                  </div>
+                          </div>
+                                  <div class="bg-slate-50 rounded-2xl border border-slate-100 p-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-brand-soft text-brand flex items-center justify-center shrink-0"><i class="fa-solid fa-qrcode text-sm"></i></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-bold text-slate-700 truncate">Scanned / Verified</p>
+                  <p class="text-[11px] text-slate-400">17 Jun 2026, 06:00 · Public</p>
+                </div>
+                              </div>
+                              <div class="flex flex-wrap gap-1.5 mt-2.5 pl-12">
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-network-wired text-[9px] text-brand"></i>127.0.0.1
+                    </span>
+                                      <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 bg-white border border-slate-100 px-2 py-0.5 rounded-full">
+                      <i class="fa-solid fa-mobile-screen text-[9px] text-brand"></i>Desktop Unknown
+                    </span>
+                                  </div>
+                          </div>
+                  </div>
+      </div>
+    </div>
+  </main>
+
+  <p class="text-center text-[11px]" style="color:#94a3b8">Protected by PharmaTrack Anti-Counterfeit</p>
+  
+  <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md px-4 pb-4 z-30" style="padding-bottom:calc(env(safe-area-inset-bottom) + 1rem)">
+    <div class="glass-panel flex items-stretch gap-1 p-2" style="border-radius:24px">
+                    <button @click="tab='info'" class="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-2xl transition"
+                :class="tab==='info' ? 'bg-brand-soft text-brand' : 'text-slate-400'">
+          <i class="fa-solid fa-circle-info text-lg"></i>
+          <span class="text-[10px] font-bold uppercase tracking-wider">Info</span>
+        </button>
+              <button @click="tab='images'" class="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-2xl transition"
+                :class="tab==='images' ? 'bg-brand-soft text-brand' : 'text-slate-400'">
+          <i class="fa-solid fa-camera text-lg"></i>
+          <span class="text-[10px] font-bold uppercase tracking-wider">Images</span>
+        </button>
+              <button @click="tab='history'" class="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-2xl transition"
+                :class="tab==='history' ? 'bg-brand-soft text-brand' : 'text-slate-400'">
+          <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+          <span class="text-[10px] font-bold uppercase tracking-wider">History</span>
+        </button>
+          </div>
+  </nav>
+
+  
+  <div x-show="toast" x-cloak x-transition.opacity
+       class="fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-white rounded-2xl shadow-xl ring-1 ring-slate-100 px-4 py-2.5 flex items-center gap-2">
+    <span class="w-6 h-6 rounded-full bg-brand-soft text-brand flex items-center justify-center"><i class="fa-solid fa-check text-xs"></i></span>
+    <span class="text-sm font-bold text-slate-700">Authenticity confirmed</span>
+  </div>
+
+  
+  <div x-show="sheet" x-cloak class="fixed inset-0 z-50">
+    <div @click="closeSheet()" x-show="sheet" x-transition.opacity class="absolute inset-0 bg-black/40"></div>
+    <div x-show="sheet"
+         x-transition:enter="sheet-tr" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+         x-transition:leave="sheet-tr" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
+         class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white rounded-t-[2rem] shadow-2xl pb-6">
+      <div class="flex justify-center pt-3"><div class="w-10 h-1.5 rounded-full bg-slate-200"></div></div>
+      <template x-if="!sent">
+        <div class="px-6 pt-4 pb-2">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0"><i class="fa-solid fa-flag"></i></div>
+            <div><h3 class="font-extrabold text-slate-800">Report a problem</h3><p class="text-xs text-slate-400">Tell us about this product</p></div>
+            <button @click="closeSheet()" class="ml-auto text-slate-300 hover:text-slate-500"><i class="fa-solid fa-xmark text-xl"></i></button>
+          </div>
+          <form @submit.prevent="submit()" class="space-y-3">
+            <input x-model="r.reporter_name" type="text" placeholder="Your name *" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-rose-400">
+            <input x-model="r.reporter_phone" type="tel" placeholder="Phone *" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-rose-400">
+            <input x-model="r.reporter_email" type="email" placeholder="Email (optional)" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-rose-400">
+            <textarea x-model="r.message" rows="3" placeholder="Where did you buy it? Any details…" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-rose-400"></textarea>
+            <p x-show="error" x-text="error" class="text-xs text-rose-600"></p>
+            <button type="submit" :disabled="saving" class="w-full py-3.5 rounded-2xl bg-rose-600 text-white font-bold text-sm active:scale-[.98] transition disabled:opacity-60" x-text="saving ? 'Sending…' : 'Submit report'"></button>
+          </form>
+        </div>
+      </template>
+      <template x-if="sent">
+        <div class="px-6 pt-6 pb-6 text-center">
+          <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 animate-pop"><i class="fa-solid fa-check text-2xl"></i></div>
+          <h3 class="font-extrabold text-slate-800 text-lg">Report submitted</h3>
+          <p class="text-sm text-slate-500 mt-1">Thank you — our team will review it.</p>
+          <button @click="closeSheet()" class="mt-6 w-full py-3.5 rounded-2xl bg-slate-100 text-slate-600 font-bold text-sm active:scale-[.98] transition">Done</button>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  
+  <div x-show="infoSheet" x-cloak class="fixed inset-0 z-50">
+    <div @click="closeInfo()" x-show="infoSheet" x-transition.opacity class="absolute inset-0 bg-black/40"></div>
+    <div x-show="infoSheet"
+         x-transition:enter="sheet-tr" x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0"
+         x-transition:leave="sheet-tr" x-transition:leave-start="translate-y-0" x-transition:leave-end="translate-y-full"
+         class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white rounded-t-[2rem] shadow-2xl pb-6 max-h-[90vh] overflow-y-auto no-sb">
+      <div class="flex justify-center pt-3 sticky top-0 bg-white"><div class="w-10 h-1.5 rounded-full bg-slate-200"></div></div>
+      <template x-if="!infoSent">
+        <div class="px-6 pt-3 pb-2">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-2xl bg-brand-soft text-brand flex items-center justify-center shrink-0"><i class="fa-solid fa-envelope"></i></div>
+            <div><h3 class="font-extrabold text-slate-800">Get product details</h3><p class="text-xs text-slate-400">We'll email you the full info</p></div>
+            <button @click="closeInfo()" class="ml-auto text-slate-300 hover:text-slate-500"><i class="fa-solid fa-xmark text-xl"></i></button>
+          </div>
+          <form @submit.prevent="submitInfo()" class="space-y-3">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Your details</p>
+            <input x-model="info.name" type="text" placeholder="Full name *" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-400">
+            <input x-model="info.email" type="email" placeholder="Email *" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-400">
+            <div class="grid grid-cols-2 gap-3">
+              <input x-model="info.phone" type="tel" placeholder="Phone" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-400">
+              <input x-model="info.whatsapp" type="tel" placeholder="WhatsApp" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-400">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <input x-model="info.country" type="text" placeholder="Country" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-400">
+              <input x-model="info.city" type="text" placeholder="City" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-400">
+            </div>
+            <input x-model="info.address" type="text" placeholder="Address" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-400">
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 pt-1">Partner / seller (optional)</p>
+            <div class="grid grid-cols-2 gap-3">
+              <input x-model="info.partner_name" type="text" placeholder="Partner name" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-400">
+              <input x-model="info.partner_phone" type="tel" placeholder="Partner phone" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-emerald-400">
+            </div>
+            <p x-show="infoError" x-text="infoError" class="text-xs text-rose-600"></p>
+            <button type="submit" :disabled="infoSaving" class="w-full py-3.5 rounded-2xl bg-btn text-white font-bold text-sm shadow-btn active:scale-[.98] transition disabled:opacity-60" x-text="infoSaving ? 'Sending…' : 'Email me the details'"></button>
+          </form>
+        </div>
+      </template>
+      <template x-if="infoSent">
+        <div class="px-6 pt-6 pb-6 text-center">
+          <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 animate-pop"><i class="fa-solid fa-envelope-open-text text-2xl"></i></div>
+          <h3 class="font-extrabold text-slate-800 text-lg">Check your inbox</h3>
+          <p class="text-sm text-slate-500 mt-1">We've emailed the full product details to you.</p>
+          <button @click="closeInfo()" class="mt-6 w-full py-3.5 rounded-2xl bg-slate-100 text-slate-600 font-bold text-sm active:scale-[.98] transition">Done</button>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<script>
+function vApp(){
+  return {
+    tab:'info', sheet:false, sent:false, saving:false, error:'',
+    verified:false, toast:false,
+    codeInput:'NQGNEAZCEC',
+    validateCode(){ const c=(this.codeInput||'').trim().replace(/\s+/g,''); if(c){ window.location.href='http://127.0.0.1:8000/verify/'+encodeURIComponent(c); } },
+    confirmVerify(){ if(this.verified) return; this.verified=true; this.toast=true; setTimeout(()=>{ this.toast=false; }, 2200); },
+    r:{reporter_name:'',reporter_phone:'',reporter_email:'',message:''},
+    openSheet(){ this.sheet=true; },
+    closeSheet(){ this.sheet=false; },
+    infoSheet:false, infoSent:false, infoSaving:false, infoError:'',
+    info:{name:'',email:'',phone:'',country:'',city:'',address:'',partner_name:'',partner_phone:'',whatsapp:''},
+    openInfo(){ this.infoSheet=true; },
+    closeInfo(){ this.infoSheet=false; },
+    async submitInfo(){
+      if(!this.info.name.trim() || !this.info.email.trim()){ this.infoError='Please enter your name and email.'; return; }
+      this.infoSaving=true; this.infoError='';
+      const fd=new FormData();
+      fd.append('_token','Edhp4mSSJLDHVDmsXrjYHCvcm08wOztCZTwrs08g');
+      Object.entries(this.info).forEach(([k,v])=>fd.append(k,v));
+      try{
+        const res=await fetch('http://127.0.0.1:8000/verify/NQGNEAZCEC/request-info',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},body:fd});
+        const d=await res.json().catch(()=>({}));
+        if(res.ok && d.success){ this.infoSent=true; } else { this.infoError=d.message||'Could not submit. Check your details.'; }
+      }catch(e){ this.infoError='Network error. Please try again.'; }
+      this.infoSaving=false;
+    },
+    async submit(){
+      if(!this.r.reporter_name.trim() || !this.r.reporter_phone.trim()){ this.error='Please enter your name and phone.'; return; }
+      this.saving=true; this.error='';
+      const fd=new FormData();
+      fd.append('_token','Edhp4mSSJLDHVDmsXrjYHCvcm08wOztCZTwrs08g');
+      fd.append('reason','');
+      Object.entries(this.r).forEach(([k,v])=>fd.append(k,v));
+      try{
+        const res=await fetch('http://127.0.0.1:8000/verify/NQGNEAZCEC/report',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'},body:fd});
+        if(res.ok){ this.sent=true; } else { const d=await res.json().catch(()=>({})); this.error=d.message||'Could not submit. Check your details.'; }
+      }catch(e){ this.error='Network error. Please try again.'; }
+      this.saving=false;
+    }
+  };
+}
+</script>
+</body>
+</html>

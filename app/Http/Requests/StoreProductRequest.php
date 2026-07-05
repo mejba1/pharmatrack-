@@ -29,6 +29,7 @@ class StoreProductRequest extends FormRequest
             'remove_images'           => 'nullable|array',
             'remove_images.*'         => 'integer',
             'controlled_substance'    => 'nullable|in:no,schedule_1,schedule_2,schedule_3',
+            'verify_open'             => 'nullable|boolean',
             'manufacturer_name'       => 'nullable|string|max:255',
             'manufacturing_site'      => 'nullable|string|max:255',
             'country_of_origin'       => 'nullable|string|max:5',
@@ -39,6 +40,11 @@ class StoreProductRequest extends FormRequest
             'unit_of_measure'         => 'nullable|string|max:20',
             'status'                  => 'nullable|in:active,discontinued,pending_approval',
             'notes'                   => 'nullable|string|max:2000',
+            'website_url'             => 'nullable|url|max:255',
+            'pdf'                     => 'nullable|file|mimes:pdf|max:10240',
+            'country_of_origin_name'  => 'nullable|string|max:255',
+            'countries'               => 'nullable|array',
+            'countries.*'             => 'string|max:255',
         ];
     }
 
@@ -48,6 +54,9 @@ class StoreProductRequest extends FormRequest
             'name.required'        => 'Product brand name is required.',
             'dosage_form.required' => 'Please select a dosage form.',
             'dosage_form.in'       => 'Selected dosage form is not valid.',
+            'website_url.url'      => 'Please enter a valid website URL (including http:// or https://).',
+            'pdf.mimes'            => 'The document must be a PDF file.',
+            'pdf.max'              => 'The PDF may not be larger than 10 MB.',
         ];
     }
 }
